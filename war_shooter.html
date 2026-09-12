@@ -130,6 +130,30 @@ const CFG={
       mgDmg:6, mgRate:.11, mgBurst:6, mgRest:2, mgRange:370, score:12000, trait:'自動装てんで速射　装甲は薄め'},
     type90: {name:'90式戦車',          hp:1100,speed:90,  turn:1.3, range:470, len:104,wid:50, tracked:true, turret:'cannon', shellDmg:58, shellRad:88, reload:3.2, armor:.4, standoff:360, score:2000},
   },
+  // ---- 対空砲（マップに据え付け。プレイヤーが取り付いて撃つ）----
+  airFromStage:3,   // 何ステージ目から空襲が始まるか
+  aaPerStage:4,     // 1ステージに配置される対空砲の数
+  aaGuns:{
+    aa57:{name:'57mm高射砲',      dmg:300, rate:.7,  spd:1600, spread:.015, range:1100, gun:40, prox:54, col:'#5c6442'},
+    aa35:{name:'35mm連装機関砲',  dmg:44,  rate:.085,spd:1700, spread:.045, range:900,  gun:32, prox:30, twin:true, col:'#515a3a'},
+  },
+  // ---- 航空機（航空自衛隊機セット4）対空砲でしか落とせない ----
+  aircraft:{
+    f4ej: {name:'F-4EJ 戦闘機',   hp:560, speed:300, turn:.85, len:94, wid:72, r:34, score:2400, col:'#8e99a4', camo:'#79848f',
+      guns:true, gunDmg:9, gunRate:.085, gunBurst:9, gunRange:430, bombs:2, bombDmg:78, bombRad:118},
+    rf4ej:{name:'RF-4EJ 偵察機',  hp:520, speed:330, turn:.9,  len:94, wid:72, r:34, score:2000, col:'#4e5b3a', camo:'#39492b',
+      recon:true, guns:true, gunDmg:7, gunRate:.1, gunBurst:7, gunRange:420, bombs:1, bombDmg:70, bombRad:106},
+    rf4e: {name:'RF-4E 偵察機',   hp:540, speed:320, turn:.88, len:94, wid:72, r:34, score:2100, col:'#556040', camo:'#3d4a2c',
+      recon:true, bombs:2, bombDmg:74, bombRad:112},
+    f2a:  {name:'F-2A 戦闘機',    hp:600, speed:360, turn:1.0, len:82, wid:66, r:31, score:2600, col:'#41669a', camo:'#2c4a76',
+      guns:true, gunDmg:8, gunRate:.08, gunBurst:9, gunRange:440, missiles:2, missileDmg:56, missileRad:88, missileSpd:520, missileTurn:1.6},
+    f2b:  {name:'F-2B 戦闘機',    hp:640, speed:350, turn:.98, len:82, wid:66, r:31, score:2700, col:'#41669a', camo:'#2c4a76',
+      missiles:3, missileDmg:52, missileRad:84, missileSpd:520, missileTurn:1.6, bombs:1, bombDmg:70, bombRad:104},
+    u125: {name:'U-125 飛行点検機', hp:820, speed:235, turn:.7, len:86, wid:76, r:33, score:2300, col:'#eceae2', camo:'#d0473f', biz:true,
+      radar:true, radarRange:660},
+    u125a:{name:'U-125A 救難捜索機',hp:860, speed:225, turn:.68,len:86, wid:76, r:33, score:2400, col:'#a8bfcf', camo:'#8aa5bb', biz:true,
+      rescue:true, healEvery:3, healRad:280, healAmt:45},
+  },
   car:{hp:400, maxSpeed:330, reverseSpeed:130, accel:320, turn:2.5, ramDmg:.5, smashSpeed:140,
     repair:170, // 回復アイテム1個で味方車両が回復する量
     // 荷台の機関銃座（荷台の仲間が操作する。装甲を無視するので敵車両に有効）
@@ -154,6 +178,7 @@ const CFG={
       sub:'雪で足が重い　隠れる場所が少ない'},
   ],
 };
+for(const k in CFG.aircraft)CFG[k]=CFG.aircraft[k];
 for(const k in CFG.vehicles){const v=Object.assign({},CFG.vehDefault,CFG.vehicles[k]);CFG.vehicles[k]=v;CFG[k]=v;
   if(v.armor===undefined)v.armor=1;if(v.ramSpeed===undefined)v.ramSpeed=v.speed;if(v.standoff===undefined)v.standoff=0;}
 // ====================================================
@@ -272,6 +297,14 @@ function genMap(def,cx,cy){
         placeNear(gx2,gy2,240,sz,sz,'tree',140,16);}}}
   else for(let i=0;i<S.trees;i++){const sz=rand(30,42);place(sz,sz,'tree',140,40,true);}
   for(let i=0;i<40;i++)patches.push({x:rand(0,WORLD),y:rand(0,WORLD),rx:rand(40,140),ry:rand(30,90),rot:rand(0,TAU)});
+  aas=[];
+  if(stageNo(wave)>=CFG.airFromStage){ // 空襲のあるステージには対空砲が据えてある
+    const ks=Object.keys(CFG.aaGuns);
+    for(let i=0;i<CFG.aaPerStage;i++)for(let t=0;t<80;t++){
+      const x=rand(150,WORLD-150),y=rand(150,WORLD-150);
+      if(circleBlocked(x,y,44)||rectsHit(x-34,y-34,68,68,waters,12))continue;
+      if(aas.some(g=>Math.hypot(g.x-x,g.y-y)<380))continue;
+      aas.push({x,y,type:ks[i%ks.length],ang:rand(0,TAU),cd:0,flash:0});break;}}
 }
 function solidAt(x,y,buildingsOnly){for(const o of obstacles){if((!buildingsOnly||o.type==='building')&&x>o.x&&x<o.x+o.w&&y>o.y&&y<o.y+o.h)return o;}return null;}
 function circleBlocked(x,y,r){for(const o of obstacles){const nx=clamp(x,o.x,o.x+o.w),ny=clamp(y,o.y,o.y+o.h);if((x-nx)**2+(y-ny)**2<r*r)return true;}return false;}
@@ -288,13 +321,13 @@ function moveEntity(e,dx,dy){e.x+=dx;e.y+=dy;pushOut(e);
     addP({x:e.x+rand(-7,7),y:e.y+rand(-7,7),vx:rand(-25,25),vy:rand(-45,-10),life:.35,size:3,grow:3,color:'#cfe8f2',kind:'dot',drag:2});}
 
 // ---------- 状態 ----------
-let hazards=[];
+let hazards=[],aas=[];
 let allyLvl=0,carLvl=0;
 let state='title',player=null,car=null,cars=[],allies=[],enemies=[],bullets=[],grenades=[],particles=[],pickups=[],decals=[];
 let score=0,best=0,wave=0,spawnQueue=[],spawnT=0,waveClearing=false,clearT=0,banner=null;
 let zoom=1,shake=0,camX=WORLD/2,camY=WORLD/2,overT=0,time=0;
 function newPlayer(){return{x:WORLD/2,y:WORLD/2,r:14,hp:CFG.playerHp,maxHp:CFG.playerHp,ang:-Math.PI/2,moveAng:-Math.PI/2,inCar:false,fireCd:0,grenCd:0,
-  gren:CFG.startGrenades,base:'rifle',baseLvl:0,weapon:'rifle',wTime:0,hurt:0,walk:0};}
+  gren:CFG.startGrenades,base:'rifle',baseLvl:0,weapon:'rifle',wTime:0,hurt:0,walk:0,aa:null};}
 
 // ---------- 入力 ----------
 const sticks={move:null,aim:null},keys={},mouse={x:0,y:0,down:false,used:false};
@@ -303,6 +336,7 @@ function grenBtn(){return{x:W-66,y:Math.max(120,H-215),r:34};}
 cv.addEventListener('touchstart',e=>{e.preventDefault();unlockAudio();touchUsed=true;
   if(state!=='play'){handleTap();return;}
   for(const t of e.changedTouches){const x=t.clientX,y=t.clientY,g=grenBtn();
+    const ab=aaBtn();if(aaBtnVisible()&&Math.hypot(x-ab.x,y-ab.y)<ab.r+10){toggleAA();continue;}
     const cb=carBtn();if(carBtnVisible()&&Math.hypot(x-cb.x,y-cb.y)<cb.r+10){toggleCar();continue;}
     if(Math.hypot(x-g.x,y-g.y)<g.r+12){throwGrenade();continue;}
     if(x<W/2){if(!sticks.move)sticks.move={id:t.identifier,bx:x,by:y,x,y};}
@@ -316,13 +350,16 @@ cv.addEventListener('touchend',tEnd,{passive:false});cv.addEventListener('touchc
 document.addEventListener('gesturestart',e=>e.preventDefault());
 cv.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;mouse.used=true;});
 cv.addEventListener('mousedown',e=>{unlockAudio();if(state!=='play'){handleTap();return;}
-  const cb=carBtn(),g=grenBtn();if(carBtnVisible()&&Math.hypot(e.clientX-cb.x,e.clientY-cb.y)<cb.r){toggleCar();return;}
+  const cb=carBtn(),ab=aaBtn(),g=grenBtn();
+  if(aaBtnVisible()&&Math.hypot(e.clientX-ab.x,e.clientY-ab.y)<ab.r){toggleAA();return;}
+  if(carBtnVisible()&&Math.hypot(e.clientX-cb.x,e.clientY-cb.y)<cb.r){toggleCar();return;}
   if(Math.hypot(e.clientX-g.x,e.clientY-g.y)<g.r){throwGrenade();return;}mouse.down=true;mouse.used=true;});
 window.addEventListener('mouseup',()=>{mouse.down=false;});
 window.addEventListener('keydown',e=>{keys[e.code]=true;unlockAudio();
   if(state!=='play'){if(e.code==='Enter'||e.code==='Space')handleTap();return;}
   if(e.code==='KeyG'||e.code==='Space'){throwGrenade();e.preventDefault();}
-  if(e.code==='KeyE'||e.code==='KeyF')toggleCar();});
+  if(e.code==='KeyE'||e.code==='KeyF')toggleCar();
+  if(e.code==='KeyR')toggleAA();});
 window.addEventListener('keyup',e=>{keys[e.code]=false;});
 
 function readInput(){let mx=0,my=0,aim=null,fire=false,touchAim=false;const R=55;
@@ -338,8 +375,14 @@ function readInput(){let mx=0,my=0,aim=null,fire=false,touchAim=false;const R=55
   else if(mouse.used&&!touchUsed){const px=(player.x-camX)*S+W/2,py=(player.y-camY)*S+H/2;
     aim=Math.atan2(mouse.y-py,mouse.x-px);fire=mouse.down;}
   return{mx,my,aim,fire,touchAim};}
-function assist(aim){let bestA=null,bd=.25;
-  for(const e of enemies){const dx=e.x-player.x,dy=e.y-player.y;if(dx*dx+dy*dy>560*560)continue;
+function assist(aim,aaMode){let bestA=null,bd=aaMode?.34:.25;const rng=aaMode?1000:560;
+  const g=aaMode?player.aa:null,G=g?CFG.aaGuns[g.type]:null;
+  const ox=g?g.x:player.x,oy=g?g.y:player.y;
+  for(const e of enemies){if(e.dead)continue;if(aaMode?!e.air:e.air)continue;
+    let ex=e.x,ey=e.y;
+    if(G&&e.A){const tt=Math.hypot(ex-ox,ey-oy)/G.spd;   // 弾着までの偏差を見込む
+      ex+=Math.cos(e.ang)*e.A.speed*tt;ey+=Math.sin(e.ang)*e.A.speed*tt;}
+    const dx=ex-ox,dy=ey-oy;if(dx*dx+dy*dy>rng*rng)continue;
     const ea=Math.atan2(dy,dx),df=Math.abs(angDiff(aim,ea));if(df<bd){bd=df;bestA=ea;}}
   return bestA===null?aim:bestA;}
 
@@ -363,7 +406,7 @@ function addDecal(d){decals.push(d);if(decals.length>90)decals.shift();}
 
 // ---------- ダメージ ----------
 function explode(x,y,rad,dmg,src){explodeFx(x,y,rad);
-  if(src!=='e')for(const e of enemies){if(e.dead)continue;const d=Math.hypot(e.x-x,e.y-y);
+  if(src!=='e')for(const e of enemies){if(e.dead||e.air)continue;const d=Math.hypot(e.x-x,e.y-y);
     if(d<rad+e.r)hurtEnemy(e,dmg*(1-.6*clamp(d/(rad+e.r),0,1)),true,x,y);}
   if(state==='play'&&src!=='a'&&!player.inCar){const p=player,d=Math.hypot(p.x-x,p.y-y);
     if(d<rad+p.r)hurtPlayer(dmg*(1-.6*clamp(d/(rad+p.r),0,1))*(src==='p'?.4:1));}
@@ -398,6 +441,11 @@ function killEnemy(e){e.dead=true;score+=e.score;dropLoot(e);
     addDecal(e.type==='jeep'?{kind:'carwreck',x:e.x,y:e.y,ang:e.ang,t:1e9,smk:10}:{kind:'vehwreck',x:e.x,y:e.y,ang:e.ang,tAng:e.tAng,V:e.V,t:1e9,smk:12});
     explode(e.x,e.y,e.V.len,Math.min(90,e.V.len*.8),'p');}
   else if(e.type==='tank'){addDecal({kind:'wreck',x:e.x,y:e.y,ang:e.body,tAng:e.tAng,t:1e9,smk:10});explode(e.x,e.y,90,70,'p');}
+  else if(e.air){ // 撃墜
+    for(let i=0;i<3;i++)explodeFx(e.x+rand(-34,34),e.y+rand(-34,34),74);
+    popText(e.x,e.y-44,e.name+' 撃墜！','#ffd45a');
+    addDecal({kind:'scorch',x:e.x,y:e.y,r:48,t:1e9});
+    explode(e.x,e.y,110,60,'p');sfx('boom',1);shake=Math.max(shake,8);}
   else{addDecal({kind:'corpse',x:e.x,y:e.y,ang:e.ang,col:e.type==='gunner'?'#4a3528':'#5a4a34',t:25});sparks(e.x,e.y,6,'#c9b48a');}}
 function hurtPlayer(d){if(state!=='play')return;if(player.inCar){hurtCar(car,d);return;}const p=player;p.hp-=d;p.hurt=.25;shake=Math.max(shake,4);
   if(p.hp<=0){p.hp=0;gameOver();}}
@@ -412,7 +460,7 @@ function upAvailable(k){return k==='wup'?player.baseLvl<CFG.baseWeapons.length-1
   :k==='cup'?carLvl<CFG.carUpgrades.length-1:allyLvl<CFG.allyUpgrades.length-1;}
 function rollUp(){const o=[];if(upAvailable('wup'))o.push('wup');if(upAvailable('sup'))o.push('sup');if(upAvailable('cup'))o.push('cup');
   return o.length?o[Math.floor(Math.random()*o.length)]:null;}
-function dropLoot(e){let t=null,heavy=e.type==='tank'||e.V;
+function dropLoot(e){let t=null,heavy=e.type==='tank'||e.V||e.air;
   if(heavy){const r=Math.random();
     if(r<CFG.upDropHeavy)t=rollUp();
     if(!t){const r2=Math.random();t=r2<.18?'health':r2<.30?'grenade':r2<.30+CFG.repairDropHeavy?'repair':rollWeapon(true);}}
@@ -445,6 +493,15 @@ function throwGrenade(){if(state!=='play')return;const p=player;if(p.gren<=0||p.
   grenades.push({sx:p.x,sy:p.y,tx:p.x+Math.cos(a)*dist,ty:p.y+Math.sin(a)*dist,t:0,dur:.35+dist/300*.5,fuse:.45,x:p.x,y:p.y,h:0,dist});
   sfx('throw');}
 function updatePlayer(dt,inp){const p=player;
+  if(p.aa){const g=p.aa; // 対空砲に取り付いている
+    if(!aas.includes(g)){p.aa=null;return;}
+    if(inp.aim!==null)p.ang=inp.touchAim?assist(inp.aim,true):inp.aim;
+    g.ang+=clamp(angDiff(g.ang,p.ang),-4.5*dt,4.5*dt);g.flash=Math.max(0,g.flash-dt);
+    p.x=g.x-Math.cos(g.ang)*26;p.y=g.y-Math.sin(g.ang)*26;p.moveAng=g.ang;p.walk=0;
+    g.cd-=dt;p.fireCd-=dt;p.grenCd-=dt;p.hurt-=dt;
+    if(p.weapon!==p.base){p.wTime-=dt;if(p.wTime<=0)p.weapon=p.base;}
+    if(inp.fire&&g.cd<=0&&Math.abs(angDiff(g.ang,p.ang))<.3)aaFire(g);
+    return;}
   if(p.inCar&&car&&!car.dead){const s=seatPos(car,SEATS.driver);p.x=s.x;p.y=s.y;p.moveAng=car.ang;p.walk=0;
     if(inp.aim!==null)p.ang=inp.touchAim?assist(inp.aim):inp.aim;else p.ang+=angDiff(p.ang,car.ang)*Math.min(1,dt*8);}
   else{p.inCar=false;const spd=CFG.playerSpeed*(p.weapon==='mg'?.88:1)*terrainMul(p.x,p.y);
@@ -520,9 +577,26 @@ function updateCarMg(c,dt){if(!c||c.dead)return;
   c.gAng+=angDiff(c.gAng,ta)*Math.min(1,dt*(t?8:3));
   c.mgCd-=dt;
   if(t&&c.mgCd<=0&&Math.abs(angDiff(c.gAng,ta))<.15)carMgFire(c);}
+// ---------- 対空砲 ----------
+function aaNear(x,y,rad){let best=null,bd=rad;for(const g of aas){const d=Math.hypot(g.x-x,g.y-y);if(d<bd){bd=d;best=g;}}return best;}
+function aaBtn(){const g=grenBtn();return{x:W-150,y:g.y-58,r:30};}
+function aaBtnVisible(){return state==='play'&&(!!player.aa||(!player.inCar&&!!aas.length&&!!aaNear(player.x,player.y,78)));}
+function toggleAA(){if(state!=='play')return;
+  if(player.aa){player.aa=null;return;}
+  if(player.inCar)return;
+  const g=aaNear(player.x,player.y,78);if(!g)return;
+  player.aa=g;popText(g.x,g.y-42,CFG.aaGuns[g.type].name+'　対空戦闘！','#ffd45a');}
+function aaFire(g){const G=CFG.aaGuns[g.type],n=G.twin?2:1,co=Math.cos(g.ang),si=Math.sin(g.ang);
+  g.cd=G.rate;g.flash=.07;
+  for(let i=0;i<n;i++){const off=G.twin?(i?8:-8):0,a=g.ang+rand(-G.spread,G.spread);
+    const bx=g.x+co*G.gun-si*off,by=g.y+si*G.gun+co*off;
+    bullets.push({x:bx,y:by,vx:Math.cos(a)*G.spd,vy:Math.sin(a)*G.spd,owner:'p',dmg:G.dmg,life:G.range/G.spd,aa:true,ap:true,prox:G.prox});
+    addP({x:bx,y:by,life:.06,size:G.twin?10:15,color:'#ffe08a',kind:'flash'});}
+  smoke(g.x+co*24,g.y+si*24,2,11);
+  shake=Math.max(shake,G.twin?2:5);sfx(G.twin?'shot':'cannon',.9);}
 function carBtn(){const g=grenBtn();return{x:W-150,y:g.y+10,r:30};}
 function carBtnVisible(){return state==='play'&&car&&!car.dead&&(player.inCar||Math.hypot(player.x-car.x,player.y-car.y)<90);}
-function toggleCar(){if(!carBtnVisible())return;
+function toggleCar(){if(!carBtnVisible())return;player.aa=null;
   if(player.inCar)exitCar();else{player.inCar=true;sticks.move=null;sfx('pickup');popText(car.x,car.y-36,'乗車！','#dfe8a0');}}
 function exitCar(){const c=car;player.inCar=false;
   for(const s of[{x:0,y:44},{x:0,y:-44},{x:-66,y:0},{x:66,y:0}]){const q=seatPos(c,s);
@@ -691,7 +765,7 @@ function updateAllies(dt){const p=player,playing=state==='play',pv=playing&&p.in
     if(t&&a.fireCd<=0&&Math.abs(angDiff(a.ang,ta))<.2)allyFire(a,t);}}
 
 // ---------- 敵 ----------
-function makeEnemy(type,x,y){const c=CFG[type],V=CFG.vehicles[type],sc=1+(wave-1)*CFG.hpScalePerWave;
+function makeEnemy(type,x,y){const c=CFG[type],V=CFG.vehicles[type],A=CFG.aircraft[type],sc=1+(wave-1)*CFG.hpScalePerWave;
   const e={type,x,y,ang:0,walk:0,hurt:0,fireCd:rand(.8,2),burst:0,strafe:Math.random()<.5?1:-1,los:false,checkT:0,
     avoid:0,avoidT:0,stuckT:.45,lx:x,ly:y,dead:false,r:V?(V.len+V.wid)/5:type==='tank'?32:(type==='gunner'?14:13),
     hp:c.hp*sc,spd:c.speed,range:c.range,score:c.score};
@@ -700,8 +774,18 @@ function makeEnemy(type,x,y){const c=CFG[type],V=CFG.vehicles[type],sc=1+(wave-1
     e.mode=V.riders?'drive':'fight';e.stateT=0;e.revT=0;e.revSteer=1;e.bumpT=0;e.stuckT=1;e.tread=0;e.gasT=rand(1,3);
     if(V.boss){e.boss=true;e.charge=0;e.chargeT=rand(6,9);e.rage=false;e.mgCd=rand(.5,1.5);e.mgBurst=0;e.missileT=rand(3,6);e.hp=V.hp*(1+Math.max(0,(wave/5-1))*.45);e.maxHp=e.hp;}
     const st=vehSeats(V);e.riders=st.map((s,i)=>({seat:i,ang:e.ang,fireCd:rand(.8,2),burst:0,x,y}));}
+  if(A){e.A=A;e.air=true;e.name=A.name;e.r=A.r;e.riders=[];
+    e.ang=Math.atan2(player.y-y,player.x-x);e.run=true;e.turnT=0;e.turnDir=Math.random()<.5?1:-1;
+    e.bombLeft=A.bombs||0;e.bombCd=0;e.gunCd=rand(.4,1.2);e.gunBurst=0;e.msCd=rand(1,2.5);e.healT=rand(1,3);}
   return e;}
-function spawnEnemy(type){const V=CFG.vehicles[type],r=V?V.len/2+8:type==='tank'?36:15;
+function spawnEnemy(type){
+  if(CFG.aircraft[type]){ // 航空機は上空から進入してくる
+    const a=rand(0,TAU),d=rand(1000,1300);
+    const first=!enemies.some(o=>o.air&&!o.dead);
+    enemies.push(makeEnemy(type,player.x+Math.cos(a)*d,player.y+Math.sin(a)*d));
+    if(first)banner={text:'空襲警報',sub:'対空砲に取り付け！　銃では落とせない',t:2.8};
+    return true;}
+  const V=CFG.vehicles[type],r=V?V.len/2+8:type==='tank'?36:15;
   for(let t=0;t<30;t++){const a=rand(0,TAU),d=rand(650,950);
     const x=clamp(player.x+Math.cos(a)*d,r+5,WORLD-r-5),y=clamp(player.y+Math.sin(a)*d,r+5,WORLD-r-5);
     if(Math.hypot(x-player.x,y-player.y)<600||circleBlocked(x,y,r))continue;
@@ -817,6 +901,46 @@ function updateVehicle(e,dt){const V=e.V,t=e.tgt;e.bumpT-=dt;e.stateT+=dt;
       if(e.mode==='ram'){e.revT=.7;e.revSteer=Math.random()<.5?1:-1;}}}
   if(Math.abs(e.speed)>140&&Math.random()<dt*20){const bx=e.x-Math.cos(e.ang)*V.len*.48,by=e.y-Math.sin(e.ang)*V.len*.48;
     addP({x:bx+rand(-14,14),y:by+rand(-14,14),vx:rand(-20,20),vy:rand(-20,20),life:rand(.5,1),size:6,grow:16,color:inWater(bx,by)?'#bcdce8':'#8a7a58',kind:'smoke',drag:2});}}
+// ---------- 航空機 ----------
+function aircraftGun(e,t,d){const A=e.A,vol=clamp(1-d/800,.1,1);
+  const a=e.ang+rand(-.05,.05),bx=e.x+Math.cos(e.ang)*A.len*.4,by=e.y+Math.sin(e.ang)*A.len*.4;
+  bullets.push({x:bx,y:by,vx:Math.cos(a)*760,vy:Math.sin(a)*760,owner:'e',dmg:A.gunDmg,life:.9});
+  addP({x:bx,y:by,life:.05,size:7,color:'#ffcf7a',kind:'flash'});sfx('eshot',vol);
+  if(e.gunBurst<=0)e.gunBurst=A.gunBurst;
+  e.gunBurst--;e.gunCd=e.gunBurst>0?A.gunRate:rand(1.6,2.4);}
+function dropBomb(e,t){const A=e.A;e.bombLeft--;e.bombCd=.32;
+  const lead=.75;
+  const tx=clamp(e.x+Math.cos(e.ang)*A.speed*lead+rand(-44,44),20,WORLD-20);
+  const ty=clamp(e.y+Math.sin(e.ang)*A.speed*lead+rand(-44,44),20,WORLD-20);
+  grenades.push({sx:e.x,sy:e.y,tx,ty,x:e.x,y:e.y,t:0,dur:1.05,fuse:0,h:0,dist:Math.hypot(tx-e.x,ty-e.y),
+    rad:A.bombRad,dmg:A.bombDmg,src:'e',marker:true,shell:true,bomb:true});
+  sfx('throw',.5);}
+function airMissile(e,t,d){const A=e.A;e.msCd=rand(3.2,4.6);
+  const bx=e.x+Math.cos(e.ang)*A.len*.2,by=e.y+Math.sin(e.ang)*A.len*.2;
+  bullets.push({x:bx,y:by,vx:Math.cos(e.ang)*260,vy:Math.sin(e.ang)*260,owner:'e',rocket:true,homing:t,
+    turn:A.missileTurn*(e.fcs?1.4:1),spd:A.missileSpd,dmg:A.missileDmg,rad:A.missileRad,life:6});
+  smoke(bx,by,5,13);sfx('cannon',clamp(1-d/800,.1,1)*.7);
+  if(d<760)popText(e.x,e.y+34,'空対地ミサイル！','#ff9a5a');}
+function updateAircraft(e,dt){const A=e.A;e.hurt-=dt;e.gunCd-=dt;e.bombCd-=dt;e.msCd-=dt;
+  const t=e.tgt&&!e.tgt.dead&&!e.tgt.down?e.tgt:(state==='play'?player:null);
+  const tx=t?t.x:WORLD/2,ty=t?t.y:WORLD/2;
+  const d=Math.hypot(tx-e.x,ty-e.y),toT=Math.atan2(ty-e.y,tx-e.x),df=angDiff(e.ang,toT);
+  if(e.run){e.ang+=clamp(df,-A.turn*dt,A.turn*dt);
+    if(d<140){e.run=false;e.turnT=rand(2.4,3.4);e.turnDir=Math.random()<.5?1:-1;}}
+  else{e.turnT-=dt;e.ang+=A.turn*.6*e.turnDir*dt;
+    if(e.turnT<=0){e.run=true;e.bombLeft=A.bombs||0;}}
+  e.x+=Math.cos(e.ang)*A.speed*dt;e.y+=Math.sin(e.ang)*A.speed*dt;
+  if(e.x<-700||e.x>WORLD+700||e.y<-700||e.y>WORLD+700){e.ang=Math.atan2(WORLD/2-e.y,WORLD/2-e.x);e.run=true;}
+  if(A.rescue){e.healT-=dt; // 救難捜索機：地上の味方（敵）を回復
+    if(e.healT<=0){e.healT=A.healEvery;let n=0;
+      for(const o of enemies){if(o.dead||o===e||o.air||o.hp>=o.maxHp)continue;
+        if(Math.hypot(o.x-e.x,o.y-e.y)<A.healRad){o.hp=Math.min(o.maxHp,o.hp+A.healAmt);sparks(o.x,o.y,4,'#9fd8ff');n++;}}
+      if(n&&Math.hypot(e.x-camX,e.y-camY)<800)popText(e.x,e.y+36,'救難機が回復','#9fd8ff');}}
+  if(!t||!e.run)return;
+  const adf=Math.abs(angDiff(e.ang,toT));
+  if(A.guns&&d<A.gunRange&&adf<.2&&e.gunCd<=0)aircraftGun(e,t,d);
+  if(A.bombs&&e.bombLeft>0&&d<240&&e.bombCd<=0)dropBomb(e,t);
+  if(A.missiles&&d<700&&adf<.3&&e.msCd<=0)airMissile(e,t,d);}
 function enemyPickTarget(e){let best=null,bd=1e9;
   if(state==='play'){bd=Math.hypot(player.x-e.x,player.y-e.y)*CFG.allyTargetBias;best=player;}
   for(const a of allies){if(a.down||a.riding)continue;const d=Math.hypot(a.x-e.x,a.y-e.y);if(d<bd){bd=d;best=a;}}
@@ -827,13 +951,15 @@ function updateEnemies(dt){
   const cmds=enemies.filter(e=>!e.dead&&e.V&&e.V.command);
   if(cmds.length)for(const e of enemies){e.cmd=e.V&&e.V.command?false:cmds.some(c=>c!==e&&Math.hypot(c.x-e.x,c.y-e.y)<c.V.cmdRange);}
   else if(enemies.some(e=>e.cmd))for(const e of enemies)e.cmd=false;
-  const rads=enemies.filter(e=>!e.dead&&e.V&&e.V.radar); // 81式 射撃管制装置：ミサイル車を強化
-  if(rads.length)for(const e of enemies){e.fcs=e.V&&e.V.radar?false:rads.some(c=>Math.hypot(c.x-e.x,c.y-e.y)<c.V.radarRange);}
+  const rads=enemies.filter(e=>!e.dead&&((e.V&&e.V.radar)||(e.A&&e.A.radar))); // 射撃管制装置・飛行点検機：ミサイル車を強化
+  if(rads.length)for(const e of enemies){e.fcs=(e.V&&e.V.radar)||(e.A&&e.A.radar)?false:
+    rads.some(c=>Math.hypot(c.x-e.x,c.y-e.y)<(c.V?c.V.radarRange:c.A.radarRange));}
   else if(enemies.some(e=>e.fcs))for(const e of enemies)e.fcs=false;
   for(const e of enemies){if(e.dead)continue;
     e.hurt-=dt;e.checkT-=dt;
     if(e.tgt&&(e.tgt.down||e.tgt.dead||(e.tgt===player&&state!=='play')))e.checkT=0;
     if(e.checkT<=0){e.checkT=rand(.2,.35);e.tgt=enemyPickTarget(e);e.los=e.tgt?lineClear(e.x,e.y,e.tgt.x,e.tgt.y):false;}
+    if(e.A){updateAircraft(e,dt);continue;}
     if(e.V){updateVehicle(e,dt);continue;}
     const t=e.tgt,hasT=!!t;
     const dx=hasT?t.x-e.x:0,dy=hasT?t.y-e.y:0,d=Math.hypot(dx,dy)||1,toP=Math.atan2(dy,dx);
@@ -910,8 +1036,11 @@ function updateBullets(dt){let obsChanged=false;const fr=[player,...allies];
         if(ex)bulletBoom(b);
         else{sparks(b.x,b.y,b.flame?2:4,o.type==='building'?'#dddccc':'#e8cf96');if(o.hp!==Infinity){hurtObstacle(o,b.dmg*(b.ap?2:.5));obsChanged=true;}}
         break;}
-      if(b.owner!=='e'){for(const e of enemies){if(e.dead)continue;if(b.hit&&b.hit.includes(e))continue;const dx=e.x-b.x,dy=e.y-b.y;
-          if(e.V?inCarRect(e,b.x,b.y):dx*dx+dy*dy<e.r*e.r){
+      if(b.owner!=='e'){for(const e of enemies){if(e.dead)continue;
+          if(e.air&&!b.aa)continue;                      // 航空機は対空砲の弾でしか当たらない
+          if(b.hit&&b.hit.includes(e))continue;const dx=e.x-b.x,dy=e.y-b.y;
+          const hr=e.r+(e.air&&b.prox?b.prox:0);
+          if(e.V?inCarRect(e,b.x,b.y):dx*dx+dy*dy<hr*hr){
             if(ex){b.dead=true;bulletBoom(b);break;}
             hurtEnemy(e,b.dmg,b.ap,b.x,b.y);sparks(b.x,b.y,b.ap?8:4,e.type==='tank'||e.V?'#fff2a8':'#b04030');
             if(b.pierce>0){b.pierce--;b.hit.push(e);b.dmg*=.9;}else{b.dead=true;break;}}}}
@@ -921,9 +1050,23 @@ function updateBullets(dt){let obsChanged=false;const fr=[player,...allies];
             if(ex)bulletBoom(b);else{if(f===player)hurtPlayer(b.dmg);else hurtAlly(f,b.dmg);sparks(b.x,b.y,4,'#b04030');}break;}}}}
     b.life-=dt;if(!b.dead&&b.life<=0){b.dead=true;if(ex)bulletBoom(b);}}
   bullets=bullets.filter(b=>!b.dead);if(obsChanged)obstacles=obstacles.filter(o=>o.hp>0);}
+function bombBlast(x,y,rad,dmg){explode(x,y,rad,dmg,'e');
+  let broke=0;
+  for(const o of obstacles){if(o.type!=='building')continue;
+    const nx=clamp(x,o.x,o.x+o.w),ny=clamp(y,o.y,o.y+o.h);
+    if(Math.hypot(x-nx,y-ny)>rad*.9)continue;
+    o.hp=0;broke++;addDecal({kind:'rubble',x:o.x,y:o.y,w:o.w,h:o.h,seed:o.seed||Math.random(),t:1e9});
+    for(let i=0;i<18;i++)addP({x:o.x+rand(0,o.w),y:o.y+rand(0,o.h),vx:rand(-170,170),vy:rand(-170,170),
+      life:rand(.5,1.2),size:rand(4,9),color:'#9b9184',kind:'debris',drag:3});
+    smoke(o.x+o.w/2,o.y+o.h/2,12,32);}
+  if(broke){obstacles=obstacles.filter(o=>o.hp>0);shake=Math.max(shake,8);
+    popText(x,y-30,'建物が吹き飛んだ！','#ffb0a0');}}
 function updateGrenades(dt){for(const g of grenades){g.t+=dt;const k=Math.min(1,g.t/g.dur);
-    g.x=g.sx+(g.tx-g.sx)*k;g.y=g.sy+(g.ty-g.sy)*k;g.h=Math.sin(k*Math.PI)*(20+g.dist*.18);
-    if(k>=1){g.fuse-=dt;if(g.fuse<=0){g.dead=true;explode(g.x,g.y,g.rad||CFG.grenadeRadius,g.dmg||CFG.grenadeDmg,g.src||'p');}}}
+    g.x=g.sx+(g.tx-g.sx)*k;g.y=g.sy+(g.ty-g.sy)*k;
+    g.h=g.bomb?(1-k)*72:Math.sin(k*Math.PI)*(20+g.dist*.18);
+    if(k>=1){g.fuse-=dt;if(g.fuse<=0){g.dead=true;
+      if(g.bomb)bombBlast(g.x,g.y,g.rad,g.dmg);
+      else explode(g.x,g.y,g.rad||CFG.grenadeRadius,g.dmg||CFG.grenadeDmg,g.src||'p');}}}
   grenades=grenades.filter(g=>!g.dead);}
 function updatePickups(dt){const p=player;
   for(const k of pickups){k.t-=dt;if(k.t<=0){k.dead=true;continue;}
@@ -984,30 +1127,38 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     [2,'jeep',1],[3,'lav',1],[4,'truck73',1],[4,'tank',1],[5,'apc96',1],[6,'recon87',1],
     [7,'cmd82',1],[8,'chem',1],[9,'aaa87',1],[10,'type90',1],
     [11,'mcv16',1,3],[12,'truck35',1,2],[13,'sam93',1,2],[14,'atm96',1,2],
-    [16,'sam81',1,2],[17,'fc81',1,1],[18,'ssm12',1,2],[19,'spg99',1,2]];
+    [16,'sam81',1,2],[17,'fc81',1,1],[18,'ssm12',1,2],[19,'spg99',1,2],
+    // ステージ3以降の空襲（対空砲でしか落とせない）
+    [11,'f4ej',1,2],[13,'f2a',1,2],[14,'rf4ej',1,1],[16,'rf4e',1,1],[17,'u125',1,1],[18,'f2b',1,2],[19,'u125a',1,1]];
   for(const [w,type,base,cap] of sched){if(n<w)continue;
     const cnt=Math.min(cap||3,base+Math.floor((n-w)/3));
-    for(let i=0;i<cnt;i++){if(type==='tank')q.push('tank');else q.splice(Math.floor(q.length*rand(.15,.85)),0,type);}}
+    for(let i=0;i<cnt;i++){if(type==='tank')q.push('tank');
+      else if(CFG.aircraft[type])q.splice(Math.floor(q.length*rand(.05,.45)),0,type); // 空襲は早めに来る
+      else q.splice(Math.floor(q.length*rand(.15,.85)),0,type);}}
   let bossType=null;
   if(n%5===0){const ord=CFG.bossOrder,cyc=Math.floor((n/5-1)/ord.length);
     bossType=ord[(n/5-1)%ord.length];const bn=Math.min(3,1+cyc);
     for(let i=0;i<bn;i++)q.push(bossType);}
   const debut={2:'jeep',3:'lav',4:'truck73',5:'apc96',6:'recon87',7:'cmd82',8:'chem',9:'aaa87',10:'type90',
-    11:'mcv16',12:'truck35',13:'sam93',14:'atm96',16:'sam81',17:'fc81',18:'ssm12',19:'spg99'}[n];
+    11:'f4ej',12:'truck35',13:'f2a',14:'rf4ej',16:'rf4e',17:'u125',18:'f2b',19:'spg99'}[n];
   const subs={jeep:'敵の車両が兵士を運んでくる！',lav:'軽装甲機動車が突っ込んでくる',truck73:'73式大型トラックが6人を降ろす',
     apc96:'96式装輪装甲車 出現　装甲が厚い',recon87:'87式偵察警戒車 出現　25mm砲に注意',cmd82:'82式指揮通信車 出現　周りの敵が強化される',
     chem:'化学防護車 出現　ガスの中は危険',aaa87:'87式自走高射機関砲 出現　猛烈な弾幕',type90:'90式戦車 出現　手榴弾とロケットで',
     mcv16:'16式機動戦闘車 出現　速い上に砲が重い',truck35:'3 1/2tトラックが8人を降ろす',
     sam93:'93式近SAM 出現　追尾ミサイルに注意',atm96:'96式多目的誘導弾　遠くから狙ってくる',
     sam81:'81式短SAM 発射機　3連射の追尾ミサイル',fc81:'81式 射撃管制装置　ミサイル車が強化される',
-    ssm12:'12式地対艦誘導弾　超長射程の大型ミサイル',spg99:'99式自走155mm　赤い円から離れろ！'};
+    ssm12:'12式地対艦誘導弾　超長射程の大型ミサイル',spg99:'99式自走155mm　赤い円から離れろ！',
+    f4ej:'F-4EJ 来襲！　対空砲でしか落とせない',f2a:'F-2A 来襲　空対地ミサイルに注意',
+    rf4ej:'RF-4EJ 偵察機　爆撃もしてくる',rf4e:'RF-4E 偵察機　建物ごと吹き飛ばす',
+    u125:'U-125 飛行点検機　敵のミサイルを強化する',f2b:'F-2B 来襲　ミサイル3連射',
+    u125a:'U-125A 救難捜索機　地上の敵を回復させる'};
   spawnQueue=q;spawnT=1.5;
   const bv=bossType?CFG.vehicles[bossType]:null;
   const dsub=n===4?'敵戦車が来るぞ！手榴弾が有効':(debut?subs[debut]:'');
   const sn=stageNo(n),wn=waveInStage(n);
   let sub;
   if(bv)sub=`${bv.name}（${bv.country}）　${bv.trait}`;
-  else if(newStage&&debut)sub=`${stage.name}　新手：${CFG.vehicles[debut].name}`;
+  else if(newStage&&debut)sub=`${stage.name}　新手：${CFG[debut].name}`;
   else if(newStage)sub=`${stage.name}　${stage.sub}`;
   else sub=dsub;
   const text=bv?`ステージ${sn}　ボス戦`:(newStage?`ステージ${sn}`:`ステージ${sn}　ウェーブ${wn}/${CFG.stageWaves}`);
@@ -1241,6 +1392,61 @@ function drawVehicle(e,wreck){const V=e.V,L=V.len/2,Wd=V.wid/2,fl=!wreck&&e.hurt
     if(e.boss&&e.charge>0){ctx.strokeStyle='rgba(255,120,60,.6)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,V.len*.6,0,TAU);ctx.stroke();}
     if(e.fcs&&V.turret==='missile'){ctx.strokeStyle=`rgba(120,220,255,${.3+.2*Math.sin(time*5)})`;ctx.lineWidth=2;
       ctx.beginPath();ctx.arc(e.x,e.y,V.len*.5,0,TAU);ctx.stroke();}}}
+function drawAA(g){const G=CFG.aaGuns[g.type],manned=player&&player.aa===g;
+  ctx.save();ctx.translate(g.x,g.y);
+  ctx.fillStyle='rgba(0,0,0,.28)';ctx.beginPath();ctx.ellipse(5,7,32,26,0,0,TAU);ctx.fill();
+  ctx.strokeStyle='#3e4430';ctx.lineWidth=5;ctx.beginPath();                    // アウトリガー
+  for(let i=0;i<4;i++){const a=i*Math.PI/2+Math.PI/4;ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*30,Math.sin(a)*30);}ctx.stroke();
+  ctx.fillStyle='#2b2f22';for(let i=0;i<4;i++){const a=i*Math.PI/2+Math.PI/4;ctx.beginPath();ctx.arc(Math.cos(a)*30,Math.sin(a)*30,5.5,0,TAU);ctx.fill();}
+  ctx.fillStyle='#1c1c18';ctx.fillRect(-11,-28,22,10);ctx.fillRect(-11,18,22,10); // 車輪
+  ctx.rotate(g.ang);
+  ctx.fillStyle=G.col;rrect(-17,-15,32,30,5);ctx.fill();ctx.strokeStyle='#2a2f1e';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle=shade(G.col,16);ctx.fillRect(3,-18,6,36);                        // 防盾
+  ctx.fillStyle='#20211a';
+  if(G.twin){ctx.fillRect(8,-9.5,G.gun,6);ctx.fillRect(8,3.5,G.gun,6);}
+  else{ctx.fillRect(8,-4,G.gun,8);ctx.fillStyle='#15160f';ctx.fillRect(G.gun+4,-6,9,12);}
+  if(g.flash>0){ctx.fillStyle='#ffe08a';ctx.beginPath();ctx.moveTo(G.gun+12,0);ctx.lineTo(G.gun+30,-10);ctx.lineTo(G.gun+30,10);ctx.closePath();ctx.fill();}
+  ctx.restore();
+  if(!manned){const raid=enemies.some(e=>e.air&&!e.dead);
+    ctx.strokeStyle=raid?`rgba(255,210,90,${.35+.3*Math.sin(time*6)})`:'rgba(206,222,170,.22)';
+    ctx.lineWidth=2;ctx.beginPath();ctx.arc(g.x,g.y,44,0,TAU);ctx.stroke();}
+  ctx.font=`bold 10px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.6)';
+  ctx.strokeText(G.name,g.x,g.y-48);ctx.fillStyle=manned?'#ffd45a':'#dfe8a0';ctx.fillText(G.name,g.x,g.y-48);}
+function planePath(A,L,Wd){ctx.beginPath();
+  if(A.biz){ // ビジネスジェット（U-125系）
+    ctx.moveTo(L,0);ctx.lineTo(L*.5,-Wd*.15);ctx.lineTo(-L*.05,-Wd*.17);
+    ctx.lineTo(-L*.3,-Wd);ctx.lineTo(-L*.5,-Wd);ctx.lineTo(-L*.42,-Wd*.2);
+    ctx.lineTo(-L*.8,-Wd*.52);ctx.lineTo(-L,-Wd*.2);ctx.lineTo(-L,Wd*.2);
+    ctx.lineTo(-L*.8,Wd*.52);ctx.lineTo(-L*.42,Wd*.2);ctx.lineTo(-L*.5,Wd);
+    ctx.lineTo(-L*.3,Wd);ctx.lineTo(-L*.05,Wd*.17);ctx.lineTo(L*.5,Wd*.15);ctx.closePath();}
+  else{      // 戦闘機（F-4／F-2）
+    ctx.moveTo(L,0);ctx.lineTo(L*.34,-Wd*.13);ctx.lineTo(0,-Wd*.16);
+    ctx.lineTo(-L*.38,-Wd);ctx.lineTo(-L*.6,-Wd);ctx.lineTo(-L*.48,-Wd*.2);
+    ctx.lineTo(-L*.78,-Wd*.54);ctx.lineTo(-L,-Wd*.22);ctx.lineTo(-L,Wd*.22);
+    ctx.lineTo(-L*.78,Wd*.54);ctx.lineTo(-L*.48,Wd*.2);ctx.lineTo(-L*.6,Wd);
+    ctx.lineTo(-L*.38,Wd);ctx.lineTo(0,Wd*.16);ctx.lineTo(L*.34,Wd*.13);ctx.closePath();}}
+function drawAircraft(e){const A=e.A,L=A.len/2,Wd=A.wid/2,fl=e.hurt>0;
+  ctx.save();ctx.translate(e.x+36,e.y+46);ctx.rotate(e.ang);                    // 地面の影
+  ctx.globalAlpha=.2;ctx.fillStyle='#000';planePath(A,L,Wd);ctx.fill();ctx.restore();ctx.globalAlpha=1;
+  ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.ang);
+  ctx.fillStyle=fl?'#fff':(A.col||'#8e99a4');planePath(A,L,Wd);ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=2;ctx.stroke();
+  if(!fl){ctx.save();planePath(A,L,Wd);ctx.clip();                              // 迷彩・帯
+    ctx.fillStyle=A.camo||'#6b7580';
+    if(A.biz){ctx.fillRect(-L,-Wd*.06,L*2,Wd*.12);ctx.fillRect(-L,-Wd*.55,L*.3,Wd*1.1);}
+    else{ctx.beginPath();ctx.ellipse(-L*.15,-Wd*.45,L*.5,Wd*.3,.3,0,TAU);ctx.fill();
+      ctx.beginPath();ctx.ellipse(-L*.5,Wd*.4,L*.4,Wd*.26,-.2,0,TAU);ctx.fill();}
+    ctx.restore();}
+  ctx.fillStyle='#2b3a44';ctx.beginPath();ctx.ellipse(L*.42,0,L*.16,Wd*.09,0,0,TAU);ctx.fill(); // キャノピー
+  ctx.fillStyle='#c8322a';ctx.beginPath();ctx.arc(-L*.3,-Wd*.55,Wd*.1,0,TAU);ctx.fill();        // 日の丸
+  ctx.beginPath();ctx.arc(-L*.3,Wd*.55,Wd*.1,0,TAU);ctx.fill();
+  ctx.fillStyle='#22252a';ctx.fillRect(-L,-Wd*.14,L*.18,Wd*.28);                                // 排気
+  ctx.restore();
+  const w=A.len*.7,yy=e.y-Wd-16;
+  if(e.hp<e.maxHp){ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(e.x-w/2,yy,w,5);
+    ctx.fillStyle='#e04a3a';ctx.fillRect(e.x-w/2,yy,w*Math.max(0,e.hp/e.maxHp),5);}
+  ctx.font=`bold 10px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.6)';
+  ctx.strokeText(A.name,e.x,yy-10);ctx.fillStyle='#bfe4ff';ctx.fillText(A.name,e.x,yy-10);}
 function drawRoad(r){const ns=r.w<r.h; // 縦向きの道路か
   ctx.fillStyle='#40413a';ctx.fillRect(r.x,r.y,r.w,r.h);
   ctx.fillStyle='rgba(226,226,214,.12)';
@@ -1341,13 +1547,19 @@ function drawWorld(){
     else if(d.kind==='corpse'){ctx.globalAlpha=Math.min(1,d.t/3)*.55;drawSoldier(d.x,d.y,d.ang,d.col,'#3a3a30',0,12,false);ctx.globalAlpha=1;}
     else if(d.kind==='vehwreck')drawVehicle({x:d.x,y:d.y,ang:d.ang,tAng:d.tAng,V:d.V,riders:[],hp:1,maxHp:1,tread:0},true);
     else if(d.kind==='carwreck')drawCar(d,true);
-    else if(d.kind==='wreck')drawTank(d.x,d.y,d.ang,d.tAng,0,'#2e2b25','#38342d',false,true);}
+    else if(d.kind==='wreck')drawTank(d.x,d.y,d.ang,d.tAng,0,'#2e2b25','#38342d',false,true);
+    else if(d.kind==='rubble'){ctx.fillStyle='#6b6359';ctx.fillRect(d.x,d.y,d.w,d.h);
+      const rr=n=>(Math.sin(d.seed*97+n*13.7)+1)/2;
+      ctx.fillStyle='#7e7568';for(let i=0;i<7;i++)ctx.fillRect(d.x+rr(i)*d.w*.8,d.y+rr(i+9)*d.h*.8,d.w*.18,d.h*.18);
+      ctx.fillStyle='rgba(40,38,32,.35)';for(let i=0;i<5;i++)ctx.fillRect(d.x+rr(i+3)*d.w*.85,d.y+rr(i+17)*d.h*.85,d.w*.12,d.h*.1);
+      ctx.strokeStyle='rgba(40,38,32,.5)';ctx.lineWidth=2;ctx.strokeRect(d.x,d.y,d.w,d.h);}}
   for(const o of obstacles)if(vis(o.x+o.w/2,o.y+o.h/2,Math.max(o.w,o.h)))drawObstacle(o);
+  for(const g of aas)if(vis(g.x,g.y,80))drawAA(g);
   for(const h of hazards){if(!vis(h.x,h.y,h.r+40))continue;const a=clamp(h.t/2,0,1)*.3;
     ctx.fillStyle=`rgba(170,190,80,${a})`;ctx.beginPath();ctx.arc(h.x,h.y,h.r,0,TAU);ctx.fill();
     ctx.strokeStyle=`rgba(190,210,110,${a*1.3})`;ctx.lineWidth=2;ctx.stroke();}
   for(const k of pickups)if(vis(k.x,k.y,20))drawPickup(k);
-  for(const e of enemies){if(!vis(e.x,e.y,60))continue;const fl=e.hurt>0;
+  for(const e of enemies){if(e.A||!vis(e.x,e.y,60))continue;const fl=e.hurt>0;
     if(e.type==='jeep')drawJeep(e);
     else if(e.V)drawVehicle(e,false);
     else if(e.type==='tank')drawTank(e.x,e.y,e.body,e.tAng,e.tread,'#6e6650','#7d7560',fl,false);
@@ -1370,6 +1582,7 @@ function drawWorld(){
       if(!a.riding){ctx.strokeText(a.name,a.x,a.y-25);ctx.fillStyle='#9fd8ff';ctx.fillText(a.name,a.x,a.y-25);}
       if(a.hp<a.maxHp){ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(a.x-13,a.y-19,26,3);ctx.fillStyle='#4fb4ff';ctx.fillRect(a.x-13,a.y-19,26*a.hp/a.maxHp,3);}}}
   for(const c of cars)if(c&&!c.dead&&vis(c.x,c.y,80))drawCarMg(c);
+  for(const e of enemies)if(e.A&&!e.dead&&vis(e.x,e.y,150))drawAircraft(e);
   if(player&&state!=='title'){const p=player;
     if(state==='over'){ctx.globalAlpha=.6;drawSoldier(p.x,p.y,p.ang,'#3d5428','#2f4020',0,14,false);ctx.globalAlpha=1;}
     else{if(sticks.aim){ctx.strokeStyle='rgba(255,240,180,.25)';ctx.lineWidth=2;ctx.setLineDash([8,10]);ctx.beginPath();
@@ -1428,7 +1641,7 @@ function drawHUD(){
       const a=Math.atan2(sy-H/2,sx-W/2),c=Math.cos(a),s=Math.sin(a);
       const t=Math.min((W/2-22)/Math.max(Math.abs(c),1e-6),(H/2-22)/Math.max(Math.abs(s),1e-6));
       ctx.save();ctx.translate(W/2+c*t,H/2+s*t);ctx.rotate(a);ctx.globalAlpha=clamp(1.2-d/950,.25,.9);
-      ctx.fillStyle=e.boss?'#ffd45a':e.type==='tank'||(e.V&&e.V.tracked)?'#ffae3a':e.V?'#ff9a4a':'#ff5a4a';ctx.beginPath();ctx.moveTo(e.boss?14:10,0);ctx.lineTo(-6,-7);ctx.lineTo(-6,7);ctx.closePath();ctx.fill();ctx.restore();}
+      ctx.fillStyle=e.boss?'#ffd45a':e.air?'#bfe4ff':e.type==='tank'||(e.V&&e.V.tracked)?'#ffae3a':e.V?'#ff9a4a':'#ff5a4a';ctx.beginPath();ctx.moveTo(e.boss?14:10,0);ctx.lineTo(-6,-7);ctx.lineTo(-6,7);ctx.closePath();ctx.fill();ctx.restore();}
     for(const a of allies){if(!a.down)continue;const sx=(a.x-camX)*S+W/2,sy=(a.y-camY)*S+H/2;if(sx>-10&&sx<W+10&&sy>-10&&sy<H+10)continue;
       const an=Math.atan2(sy-H/2,sx-W/2),c=Math.cos(an),s=Math.sin(an);
       const t=Math.min((W/2-26)/Math.max(Math.abs(c),1e-6),(H/2-26)/Math.max(Math.abs(s),1e-6));
@@ -1438,6 +1651,14 @@ function drawHUD(){
         const t=Math.min((W/2-26)/Math.max(Math.abs(c),1e-6),(H/2-26)/Math.max(Math.abs(s),1e-6));
         ctx.save();ctx.translate(W/2+c*t,H/2+s*t);ctx.rotate(an);ctx.fillStyle='#e8e0a0';ctx.fillRect(-8,-6,14,12);
         ctx.beginPath();ctx.moveTo(14,0);ctx.lineTo(6,-8);ctx.lineTo(6,8);ctx.closePath();ctx.fill();ctx.restore();}}
+    const raid=enemies.some(e=>e.air&&!e.dead);
+    if(raid&&!player.aa&&aas.length){ // 最寄りの対空砲を指す矢印
+      const g=aaNear(player.x,player.y,1e9),sx=(g.x-camX)*S+W/2,sy=(g.y-camY)*S+H/2;
+      if(sx<20||sx>W-20||sy<20||sy>H-20){const an=Math.atan2(sy-H/2,sx-W/2),c=Math.cos(an),si=Math.sin(an);
+        const tl=Math.min((W/2-40)/Math.max(Math.abs(c),1e-6),(H/2-40)/Math.max(Math.abs(si),1e-6));
+        ctx.save();ctx.translate(W/2+c*tl,H/2+si*tl);ctx.rotate(an);
+        ctx.fillStyle=`rgba(143,224,255,${.55+.3*Math.sin(time*6)})`;
+        ctx.beginPath();ctx.moveTo(16,0);ctx.lineTo(-8,-10);ctx.lineTo(-8,10);ctx.closePath();ctx.fill();ctx.restore();}}
     const boss=enemies.find(e=>e.boss&&!e.dead);
     if(boss){const bw=Math.min(320,W*.72),bx=W/2-bw/2,by=12;
       ctx.fillStyle='rgba(20,16,12,.6)';rrect(bx-6,by-6,bw+12,30,7);ctx.fill();
@@ -1449,6 +1670,8 @@ function drawHUD(){
       if(boss.V.frontArc)txt('正面装甲が厚い　背後を狙え',W/2,by+30,10,'#ffb0a0','center');
       else if(boss.V.rocketRes)txt('爆発に強い　銃撃が有効',W/2,by+30,10,'#ffb0a0','center');
       const cnt=enemies.filter(e=>e.boss&&!e.dead).length;if(cnt>1)txt('×'+cnt,bx+bw+16,by+15,12,'#ffd45a');}
+    if(raid&&!enemies.some(e=>e.boss&&!e.dead))
+      txt(player.aa?'対空戦闘中　空を狙え':'空襲中！　対空砲（水色）へ',W/2,14,15,'#ffd45a','center');
     const p=player;
     if(p.hurt>0||p.hp<30){const a=p.hurt>0?.45:.25+.1*Math.sin(time*6);
       const g=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.35,W/2,H/2,Math.max(W,H)*.75);
@@ -1479,8 +1702,9 @@ function drawHUD(){
     for(const b of bridges)mrect(b,'rgba(198,168,112,.9)');
     ctx.fillStyle='rgba(200,190,170,.5)';for(const o of obstacles)if(o.type==='building')ctx.fillRect(mx+o.x*k,my+o.y*k,Math.max(1,o.w*k),Math.max(1,o.h*k));
     ctx.fillStyle='rgba(120,170,110,.45)';for(const o of obstacles)if(o.type==='tree')ctx.fillRect(mx+o.x*k,my+o.y*k,Math.max(1,o.w*k),Math.max(1,o.h*k));
-    for(const e of enemies){ctx.fillStyle=e.boss?'#ffd45a':e.type==='tank'?'#ffae3a':e.V?'#ff7a4a':'#ff5a4a';const s=e.boss?6:e.type==='tank'||e.V?4:2.5;ctx.fillRect(mx+e.x*k-s/2,my+e.y*k-s/2,s,s);}
+    for(const e of enemies){ctx.fillStyle=e.boss?'#ffd45a':e.air?'#bfe4ff':e.type==='tank'?'#ffae3a':e.V?'#ff7a4a':'#ff5a4a';const s=e.boss?6:e.air?5:e.type==='tank'||e.V?4:2.5;ctx.fillRect(mx+e.x*k-s/2,my+e.y*k-s/2,s,s);}
     for(const a of allies){if(a.down&&Math.floor(time*4)%2)continue;ctx.fillStyle=a.down?'#fff':'#4fb4ff';ctx.fillRect(mx+a.x*k-1.5,my+a.y*k-1.5,3,3);}
+    for(const g of aas){ctx.fillStyle=player.aa===g?'#ffd45a':'#8fe0ff';ctx.fillRect(mx+g.x*k-3,my+g.y*k-1,6,2);ctx.fillRect(mx+g.x*k-1,my+g.y*k-3,2,6);}
     for(const c of cars){if(!c||c.dead)continue;ctx.fillStyle='#e8e0a0';ctx.fillRect(mx+c.x*k-2.5,my+c.y*k-2.5,5,5);}
     ctx.fillStyle='#9f6';ctx.fillRect(mx+p.x*k-2,my+p.y*k-2,4,4);
     ctx.strokeStyle='rgba(255,255,255,.5)';ctx.strokeRect(mx+(camX-W/2/S)*k,my+(camY-H/2/S)*k,W/S*k,H/S*k);
@@ -1493,13 +1717,17 @@ function drawHUD(){
     ctx.fillStyle=ok?'#2f3a20':'#444';ctx.beginPath();ctx.ellipse(g.x,g.y+2,9,11,0,0,TAU);ctx.fill();ctx.fillStyle='#999';ctx.fillRect(g.x-3,g.y-12,6,4);
     txt('×'+p.gren,g.x,g.y+g.r+12,13,'#e8e2c8','center');
     if(carBtnVisible()){const b=carBtn();ctx.fillStyle='rgba(95,102,68,.85)';ctx.strokeStyle='rgba(232,226,200,.75)';ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,TAU);ctx.fill();ctx.stroke();txt(player.inCar?'降りる':'乗る',b.x,b.y,13,'#fff','center');}}
+      ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,TAU);ctx.fill();ctx.stroke();txt(player.inCar?'降りる':'乗る',b.x,b.y,13,'#fff','center');}
+    if(aaBtnVisible()){const b=aaBtn();ctx.fillStyle=player.aa?'rgba(150,112,40,.85)':'rgba(95,102,68,.85)';
+      ctx.strokeStyle='rgba(255,225,150,.8)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,TAU);ctx.fill();ctx.stroke();
+      txt(player.aa?'離れる':'対空砲',b.x,b.y,12,'#fff','center');}}
   if(banner){const a=clamp(banner.t,0,1);ctx.globalAlpha=a;
     txt(banner.text,W/2,H*.3,Math.min(46,W/9),'#f0dfa0','center');
     if(banner.sub)txt(banner.sub,W/2,H*.3+Math.min(40,W/10),15,'#e8e2c8','center');ctx.globalAlpha=1;}
   if(state==='title'){ctx.fillStyle='rgba(16,20,10,.62)';ctx.fillRect(0,0,W,H);
     const ts=Math.min(52,W/8);txt('戦場シューター',W/2,H*.26,ts,'#f0dfa0','center');
-    const lines=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間・車両が恒久的に強化される','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）'];
+    const lines=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間・車両が恒久的に強化される','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）'];
     lines.forEach((l,i)=>txt(l,W/2,H*.4+i*Math.min(26,H*.05),Math.min(16,W/28),'#e8e2c8','center'));
     if(Math.floor(time*2)%2===0)txt('タップでスタート',W/2,H*.8,22,'#fff','center');
     if(!('ontouchstart' in window))txt('PC：WASD 移動／マウスで狙ってクリック射撃／G 手榴弾／E 乗り降り',W/2,H*.9,12,'rgba(232,226,200,.7)','center');}
