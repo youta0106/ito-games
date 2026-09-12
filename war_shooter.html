@@ -207,6 +207,8 @@ function sfx(type,vol=1){if(!actx||!noiseBuf)return;try{const t=actx.currentTime
 // ---------- マップ ----------
 let obstacles=[],patches=[],waters=[],bridges=[],roads=[],stage=null,stageIdx=-1;
 function stageFor(n){return CFG.stages[Math.floor((n-1)/CFG.stageWaves)%CFG.stages.length];}
+function stageNo(n){return Math.floor((n-1)/CFG.stageWaves)+1;}      // 何ステージ目か
+function waveInStage(n){return (n-1)%CFG.stageWaves+1;}              // ステージ内の何ウェーブ目か
 function inRect(r,x,y){return x>r.x&&x<r.x+r.w&&y>r.y&&y<r.y+r.h;}
 function rectsHit(x,y,w,h,list,pad){for(const r of list)if(x<r.x+r.w+pad&&x+w+pad>r.x&&y<r.y+r.h+pad&&y+h+pad>r.y)return true;return false;}
 function onBridge(x,y){for(const b of bridges)if(inRect(b,x,y))return true;return false;}
@@ -977,12 +979,14 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
   spawnQueue=q;spawnT=1.5;
   const bv=bossType?CFG.vehicles[bossType]:null;
   const dsub=n===4?'敵戦車が来るぞ！手榴弾が有効':(debut?subs[debut]:'');
+  const sn=stageNo(n),wn=waveInStage(n);
   let sub;
   if(bv)sub=`${bv.name}（${bv.country}）　${bv.trait}`;
-  else if(newStage&&debut)sub=`地形：${stage.name}　新手：${CFG.vehicles[debut].name}`;
-  else if(newStage)sub=`地形：${stage.name}　${stage.sub}`;
+  else if(newStage&&debut)sub=`${stage.name}　新手：${CFG.vehicles[debut].name}`;
+  else if(newStage)sub=`${stage.name}　${stage.sub}`;
   else sub=dsub;
-  banner={text:bv?'WAVE '+n+'　BOSS':'WAVE '+n,sub,t:bv||newStage?3.6:2.6};}
+  const text=bv?`ステージ${sn}　ボス戦`:(newStage?`ステージ${sn}`:`ステージ${sn}　ウェーブ${wn}/${CFG.stageWaves}`);
+  banner={text,sub,t:bv||newStage?3.6:2.6};}
 function updateWaves(dt){
   if(spawnQueue.length){spawnT-=dt;if(spawnT<=0&&enemies.length<CFG.maxEnemies){
       const type=spawnQueue.shift();if(!spawnEnemy(type))spawnQueue.unshift(type);spawnT=rand(.4,1);}}
@@ -991,7 +995,10 @@ function updateWaves(dt){
     for(let k=0;k<3;k++){const c=cars[k];if(!c&&!allies.some(a=>a.squad===k))continue;
       if(!c||c.dead)spawnCarNear(k,player.x,player.y);else c.hp=Math.min(c.maxHp,c.hp+c.maxHp*.3);}
     const names=[];for(let i=0;i<CFG.recruitPerWave;i++){const n=allies.length;if(recruitAlly(true))names.push(CFG.allies[n].name);}
-    banner={text:'WAVE CLEAR',sub:names.length?'援軍 '+names.join('・')+' 合流！':'ボーナス +'+bonus+'　HP回復・味方復活',t:3};
+    const sn=stageNo(wave),last=waveInStage(wave)===CFG.stageWaves;
+    const rew=names.length?'援軍 '+names.join('・')+' 合流！':'ボーナス +'+bonus+'　HP回復・味方復活';
+    banner={text:last?`ステージ${sn} クリア！`:`ウェーブ${waveInStage(wave)}/${CFG.stageWaves} クリア`,
+      sub:last?`次は ${stageFor(wave+1).name}　${rew}`:rew,t:last?3.4:3};
     if(names.length)popText(player.x,player.y-40,'+'+bonus,'#dfe8a0');}
   if(waveClearing){clearT-=dt;if(clearT<=0){waveClearing=false;startWave(wave+1);}}}
 function startGame(){stageIdx=-1;applyStage(1,true);player=newPlayer();car=makeCar(WORLD/2-60,WORLD/2+50,-Math.PI/2,CAR_NAMES[0]);
@@ -1412,14 +1419,15 @@ function drawHUD(){
       const g=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.35,W/2,H/2,Math.max(W,H)*.75);
       g.addColorStop(0,'rgba(180,0,0,0)');g.addColorStop(1,`rgba(180,0,0,${a})`);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);}}
   if(state!=='title'){const p=player,x=14,y=14;
-    ctx.fillStyle='rgba(20,24,14,.55)';rrect(x-4,y-4,190,66,8);ctx.fill();
+    ctx.fillStyle='rgba(20,24,14,.55)';rrect(x-4,y-4,190,84,8);ctx.fill();
     txt('HP',x+2,y+8,12,'#e8e2c8');ctx.fillStyle='#2a2a24';ctx.fillRect(x+28,y+2,150,12);
     const r=p.hp/p.maxHp;ctx.fillStyle=r>.5?'#7cc444':r>.25?'#e8c030':'#e04030';ctx.fillRect(x+28,y+2,150*r,12);
-    txt(`WAVE ${wave}　SCORE ${score}`,x+2,y+28,12,'#e8e2c8');
+    txt(`ステージ${stageNo(wave)}　${stage?stage.name:''}`,x+2,y+28,12,'#f0dfa0');
+    txt(`ウェーブ${waveInStage(wave)}/${CFG.stageWaves}　SCORE ${score}`,x+2,y+46,12,'#e8e2c8');
     const w=CFG.weapons[p.weapon],tmp=p.weapon!==p.base;
-    txt(w.name+(tmp?` ${Math.ceil(p.wTime)}s`:'')+(p.baseLvl?`  基本+${p.baseLvl}`:''),x+2,y+47,12,tmp?(w.col||'#ffd45a'):'#e8e2c8');
+    txt(w.name+(tmp?` ${Math.ceil(p.wTime)}s`:'')+(p.baseLvl?`  基本+${p.baseLvl}`:''),x+2,y+65,12,tmp?(w.col||'#ffd45a'):'#e8e2c8');
     const sq=Math.max(1,Math.min(3,Math.ceil(allies.length/3)));
-    const ay=y+70;ctx.fillStyle='rgba(20,24,14,.55)';rrect(x-4,ay-4,190,20+sq*18,8);ctx.fill();
+    const ay=y+88;ctx.fillStyle='rgba(20,24,14,.55)';rrect(x-4,ay-4,190,20+sq*18,8);ctx.fill();
     txt('車両',x+40,ay+4,9,'rgba(232,226,200,.7)');txt(`仲間 ${allies.filter(a=>!a.down).length}/${CFG.allies.length} ${allyLv().label}`,x+108,ay+4,9,allyLvl?'#9fd8ff':'rgba(232,226,200,.7)');
     for(let k=0;k<sq;k++){const yy=ay+20+k*18,c=cars[k];txt(CAR_NAMES[k],x+2,yy,11,'#dfe8a0');
       if(!c||c.dead)txt('大破',x+40,yy,11,'#ff8a70');
@@ -1456,13 +1464,13 @@ function drawHUD(){
     if(banner.sub)txt(banner.sub,W/2,H*.3+Math.min(40,W/10),15,'#e8e2c8','center');ctx.globalAlpha=1;}
   if(state==='title'){ctx.fillStyle='rgba(16,20,10,.62)';ctx.fillRect(0,0,W,H);
     const ts=Math.min(52,W/8);txt('戦場シューター',W/2,H*.26,ts,'#f0dfa0','center');
-    const lines=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器はWAVEが進むほど強くなる','↑アイテムで自分と仲間の武器が恒久的に強化される','5の倍数のWAVEは各国の戦車がボスとして出る','仲間はWAVEをクリアするたびに1人ずつ合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','戦場は5WAVEごとに変わる（河川・市街地ほか）'];
+    const lines=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分と仲間の武器が恒久的に強化される','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）'];
     lines.forEach((l,i)=>txt(l,W/2,H*.4+i*Math.min(26,H*.05),Math.min(16,W/28),'#e8e2c8','center'));
     if(Math.floor(time*2)%2===0)txt('タップでスタート',W/2,H*.8,22,'#fff','center');
     if(!('ontouchstart' in window))txt('PC：WASD 移動／マウスで狙ってクリック射撃／G 手榴弾／E 乗り降り',W/2,H*.9,12,'rgba(232,226,200,.7)','center');}
   if(state==='over'){ctx.fillStyle=`rgba(40,8,6,${Math.min(.6,overT)})`;ctx.fillRect(0,0,W,H);
     txt('作戦失敗',W/2,H*.33,Math.min(50,W/8),'#ff8a70','center');
-    txt(`WAVE ${wave}　SCORE ${score}`,W/2,H*.45,20,'#f0dfa0','center');
+    txt(`ステージ${stageNo(wave)} ウェーブ${waveInStage(wave)}　SCORE ${score}`,W/2,H*.45,20,'#f0dfa0','center');
     txt(`ベスト ${best}`,W/2,H*.52,16,'#e8e2c8','center');
     if(overT>.8&&Math.floor(time*2)%2===0)txt('タップでもう一度',W/2,H*.68,20,'#fff','center');}}
 function draw(){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.fillStyle='#20251a';ctx.fillRect(0,0,W,H);
