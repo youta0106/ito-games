@@ -32,6 +32,17 @@ const CFG={
     mg:     {name:'マシンガン',     rate:.065,dmg:17, spd:1050,spread:.09, pellets:1,life:.65,gun:20, tier:1,wave:1, time:16,tag:'MG', col:'#d8e070'},
     shotgun:{name:'ショットガン',   rate:.55, dmg:16, spd:900, spread:.30, pellets:7,life:.35,gun:14, tier:1,wave:1, time:16,tag:'SG', col:'#e0b070',shake:3},
     hmg:    {name:'重機関銃',       rate:.06, dmg:30, spd:1150,spread:.075,pellets:1,life:.75,gun:24, tier:2,wave:3, time:16,tag:'HMG',col:'#ffd45a',shake:2},
+    // ---- 対テロ戦争の時代の銃器 ----
+    glock:  {name:'グロック17',     rate:.085,dmg:20, spd:1150,spread:.015,pellets:1,life:.7, gun:12, tier:1,wave:1, time:16,tag:'G17',col:'#c8ccd4'},
+    m92fs:  {name:'ベレッタ92FS',   rate:.1,  dmg:26, spd:1150,spread:.02, pellets:1,life:.7, gun:13, tier:1,wave:1, time:16,tag:'92F',col:'#b4bac2'},
+    tmp:    {name:'ステアーTMP',    rate:.045,dmg:14, spd:1050,spread:.10, pellets:1,life:.6, gun:14, tier:2,wave:2, time:16,tag:'TMP',col:'#a6aeb8'},
+    mp5:    {name:'H&K MP5',       rate:.06, dmg:21, spd:1100,spread:.05, pellets:1,life:.7, gun:17, tier:2,wave:2, time:16,tag:'MP5',col:'#98a2ac'},
+    mp7:    {name:'H&K MP7 PDW',   rate:.05, dmg:20, spd:1200,spread:.045,pellets:1,life:.75,gun:15, tier:3,wave:3, time:15,tag:'MP7',col:'#8fd8ff',pierce:1,ap:true},
+    p90:    {name:'FN P90 PDW',    rate:.038,dmg:17, spd:1150,spread:.06, pellets:1,life:.7, gun:16, tier:3,wave:4, time:15,tag:'P90',col:'#bfe4a0',pierce:1},
+    m4a1:   {name:'コルト M4A1',    rate:.075,dmg:34, spd:1250,spread:.03, pellets:1,life:.85,gun:20, tier:4,wave:4, time:15,tag:'M4', col:'#d8d0a0'},
+    g36c:   {name:'H&K G36C',      rate:.065,dmg:30, spd:1200,spread:.04, pellets:1,life:.8, gun:19, tier:4,wave:5, time:15,tag:'G36',col:'#cfd8a0'},
+    m1014:  {name:'ベネリ M1014',   rate:.32, dmg:19, spd:980, spread:.22, pellets:7,life:.42,gun:16, tier:5,wave:6, time:14,tag:'M10',col:'#ffb87a',shake:3},
+    m14dmr: {name:'M14 DMR',       rate:.34, dmg:95, spd:1700,spread:.008,pellets:1,life:1.1,gun:26, tier:6,wave:7, time:13,tag:'M14',col:'#a0ffc8',pierce:2,ap:true,shake:3},
     autosg: {name:'自動ショットガン',rate:.2,  dmg:15, spd:950, spread:.26, pellets:6,life:.4, gun:16, tier:3,wave:4, time:14,tag:'ASG',col:'#ffb04a',shake:3},
     gl:     {name:'グレネードランチャー',rate:.62,dmg:115,spd:640,spread:.02,pellets:1,life:.9,gun:20, tier:4,wave:5, time:14,tag:'GL', col:'#9fe08a',rad:82,shake:4},
     flamer: {name:'火炎放射器',     rate:.04, dmg:8,  spd:690, spread:.20, pellets:2,life:.34,gun:22, tier:5,wave:6, time:13,tag:'FLM',col:'#ff8a3a',flame:true,pierce:2,shake:1},
@@ -455,7 +466,8 @@ function hurtPlayer(d){if(state!=='play')return;if(player.inCar){hurtCar(car,d);
   if(p.hp<=0){p.hp=0;gameOver();}}
 function gameOver(){state='over';overT=0;best=Math.max(best,score);sticks.move=sticks.aim=null;explodeFx(player.x,player.y,45);}
 function weaponPool(){const p=[];for(const k in CFG.weapons){const w=CFG.weapons[k];if(w.tier&&wave>=w.wave)p.push(k);}
-  p.sort((a,b)=>CFG.weapons[a].tier-CFG.weapons[b].tier);return p;}
+  const rk=new Map(p.map(k=>[k,Math.random()]));   // 同じtier内は毎回シャッフル
+  p.sort((a,b)=>(CFG.weapons[a].tier-CFG.weapons[b].tier)||(rk.get(a)-rk.get(b)));return p;}
 function rollWeapon(best){const p=weaponPool();if(!p.length)return 'mg';
   const n=p.length,r=Math.random();
   let i=best?n-1-Math.floor(r*r*Math.min(n,3)):Math.floor(n*(.35+.65*Math.sqrt(r)));
