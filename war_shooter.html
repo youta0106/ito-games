@@ -70,6 +70,7 @@ const CFG={
       form:{name:'16式機動戦闘車', len:110, wid:46, wheels:8, riders:3, turret:'cannonBox', barrel:.56, col:'#5f6742', camo:'#414b2a'}},
   ],
   upDropHeavy:.10, upDropSoldier:.010,
+  carPartRate:.1,  // 車両の強化パーツ（橙）の出やすさ。1で自分・仲間と同じ、.1で1/10
   repairDropHeavy:.012, repairDropSoldier:.003, // 車両回復アイテムのドロップ率
   bossOrder:['type10','m1','leopard2','leclerc','challenger2','t90','t72'], // 5の倍数WAVEごとに順番で出る // 車両／歩兵からのグレードアップ品ドロップ率
   soldier:{hp:60, speed:78, range:330, dmg:6, spread:.10, burst:3, score:100},
@@ -577,7 +578,12 @@ function rollWeapon(best){const p=weaponPool();if(!p.length)return 'mg';
 function upAvailable(k){return k==='wup'?player.baseLvl<CFG.baseWeapons.length-1
   :k==='cup'?carLvl<CFG.carUpgrades.length-1:allyLvl<CFG.allyUpgrades.length-1;}
 function rollUp(){const o=[];if(upAvailable('wup'))o.push('wup');if(upAvailable('sup'))o.push('sup');if(upAvailable('cup'))o.push('cup');
-  return o.length?o[Math.floor(Math.random()*o.length)]:null;}
+  if(!o.length)return null;
+  const k=o[Math.floor(Math.random()*o.length)];
+  if(k==='cup'&&Math.random()>=CFG.carPartRate){   // 車両の強化パーツは出にくい（その場合は自分／仲間の強化になる）
+    const o2=o.filter(x=>x!=='cup');
+    return o2.length?o2[Math.floor(Math.random()*o2.length)]:null;}
+  return k;}
 function dropLoot(e){let t=null,heavy=e.type==='tank'||e.V||e.air||e.F;
   if(heavy){const r=Math.random();
     if(r<CFG.upDropHeavy)t=rollUp();
