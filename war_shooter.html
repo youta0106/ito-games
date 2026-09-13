@@ -71,7 +71,7 @@ const CFG={
   ],
   upDropHeavy:.10, upDropSoldier:.010,
   repairDropHeavy:.12, repairDropSoldier:.03, // 車両回復アイテムのドロップ率
-  bossOrder:['type10','m1','leopard2','challenger2','t90','t72'], // 5の倍数WAVEごとに順番で出る // 車両／歩兵からのグレードアップ品ドロップ率
+  bossOrder:['type10','m1','leopard2','leclerc','challenger2','t90','t72'], // 5の倍数WAVEごとに順番で出る // 車両／歩兵からのグレードアップ品ドロップ率
   soldier:{hp:60, speed:78, range:330, dmg:6, spread:.10, burst:3, score:100},
   gunner: {hp:110,speed:55, range:360, dmg:5, spread:.13, burst:6, score:200},
   tank:   {hp:520,speed:46, range:430, shellDmg:45, shellRadius:75, reload:3, score:1000},
@@ -108,6 +108,13 @@ const CFG={
     apc96:  {name:'96式装輪装甲車',    hp:620, speed:155, turn:1.8, range:350, len:100,wid:44, wheels:8, riders:4, turret:'mg', dmg:8, burst:8, armor:.6, unloadDist:230, score:1300},
     recon87:{name:'87式偵察警戒車',    hp:540, speed:195, turn:2.1, range:420, len:92, wid:40, wheels:6, turret:'cannon25', dmg:20, rate:.2, burst:4, rest:2.2, armor:.65, standoff:320, score:1400},
     aaa87:  {name:'87式自走高射機関砲',hp:700, speed:95,  turn:1.5, range:430, len:96, wid:48, tracked:true, turret:'aa', dmg:10, rate:.09, burst:12, rest:1.8, spread:.07, armor:.55, standoff:330, score:1700},
+    // ---- 世界の現用戦車セット1 ----
+    brad:   {name:'M2A2ブラッドレー戦闘車', hp:880, speed:165, turn:1.7, range:470, len:106,wid:48, tracked:true, riders:6, unloadDist:270,
+      col:'#a89a72', camo:'#8b7f5c', turret:'cannon25', dmg:24, rate:.16, burst:5, rest:2.2, armor:.5, standoff:320,
+      atm:true, atmRange:560, atmEvery:6.5, atmDmg:70, atmRad:88, atmSpd:420, atmTurn:1.5, score:2100},
+    himars: {name:'HIMARS 高機動ロケット砲', hp:640, speed:215, turn:1.9, range:1300, len:112,wid:44, wheels:6, turret:'mlrs', tubes:6,
+      col:'#a89a72', camo:'#8b7f5c', arty:true, salvo:6, salvoRate:.22, shellDmg:56, shellRad:86, reload:11, flight:2, scatter:120,
+      minRange:340, armor:.7, standoff:900, scoot:true, score:3000},
     // ---- 陸上自衛隊 車両セット3 ----
     type74: {name:'74式戦車',        hp:900, speed:115, turn:1.4, range:450, len:100,wid:48, tracked:true, turret:'cannon',
       shellDmg:52, shellRad:84, reload:3.4, armor:.45, standoff:340, score:1700},
@@ -142,10 +149,10 @@ const CFG={
     type10:    {name:'10式戦車', country:'日本', boss:true, hp:3400, speed:170, ramSpeed:230, reverse:130, accel:300, turn:2.0, range:520,
       len:120,wid:56, tracked:true, turret:'cannon10', shellDmg:66, shellRad:105, reload:2.7, armor:.28, standoff:300, dash:true,
       mgDmg:6, mgRate:.1, mgBurst:7, mgRest:1.9, mgRange:400, score:9000, trait:'高機動・突進'},
-    m1:        {name:'M1エイブラムス', country:'アメリカ', boss:true, hp:4000, speed:165, ramSpeed:225, reverse:130, accel:330, turn:1.9, range:540,
+    m1:        {name:'M1A2エイブラムス', country:'アメリカ', boss:true, hp:4000, speed:165, ramSpeed:225, reverse:130, accel:330, turn:1.9, range:540,
       len:126,wid:58, tracked:true, turret:'cannonBox', barrel:.6, twinMG:true, col:'#a89570', camo:'#8e7d5c', shellDmg:72, shellRad:110, reload:2.5, armor:.26, standoff:320, dash:true,
       mgDmg:7, mgRate:.08, mgBurst:10, mgRest:1.6, mgRange:420, score:11000, trait:'ガスタービンで加速　機関銃2丁'},
-    leopard2:  {name:'レオパルト2', country:'ドイツ', boss:true, hp:4600, speed:150, reverse:120, accel:290, turn:1.8, range:560,
+    leopard2:  {name:'レオパルト2 A6', country:'ドイツ', boss:true, hp:4600, speed:150, reverse:120, accel:290, turn:1.8, range:560,
       len:130,wid:58, tracked:true, turret:'cannonBox', barrel:.66, wedge:true, col:'#6d6b48', camo:'#46402a', shellDmg:80, shellRad:115, reload:2.0, armor:.25, standoff:360,
       mgDmg:6, mgRate:.1, mgBurst:6, mgRest:2, mgRange:380, score:13000, trait:'長砲身　装填が速い'},
     challenger2:{name:'チャレンジャー2', country:'イギリス', boss:true, hp:5600, speed:115, reverse:95, accel:240, turn:1.4, range:560,
@@ -155,6 +162,9 @@ const CFG={
       len:124,wid:56, tracked:true, turret:'cannonRound', barrel:.62, era:true, missile:true, missileEvery:6, missileDmg:110, missileRad:95, col:'#5d6a45', camo:'#3e4a2c',
       shellDmg:74, shellRad:112, reload:2.3, armor:.26, rocketRes:.45, standoff:360,
       mgDmg:6, mgRate:.1, mgBurst:7, mgRest:2, mgRange:390, score:16000, trait:'爆発反応装甲　対戦車ミサイル'},
+    leclerc:   {name:'ルクレール', country:'フランス', boss:true, hp:4200, speed:185, ramSpeed:245, reverse:135, accel:345, turn:2.1, range:545,
+      len:122,wid:54, tracked:true, turret:'cannonBox', barrel:.7, col:'#5c6a46', camo:'#3c4a2c', shellDmg:70, shellRad:104, reload:1.7, armor:.27, standoff:330, dash:true,
+      mgDmg:6, mgRate:.09, mgBurst:8, mgRest:1.8, mgRange:400, score:14000, trait:'自動装てんで最速の連射　機動力も高い'},
     t72:       {name:'T-72', country:'ウクライナ', boss:true, hp:4000, speed:140, reverse:115, accel:270, turn:1.7, range:520,
       len:120,wid:54, tracked:true, turret:'cannonRound', barrel:.6, col:'#54603c', camo:'#38442a', shellDmg:66, shellRad:105, reload:1.9, armor:.32, standoff:330,
       mgDmg:6, mgRate:.11, mgBurst:6, mgRest:2, mgRange:370, score:12000, trait:'自動装てんで速射　装甲は薄め'},
@@ -869,6 +879,7 @@ function makeEnemy(type,x,y){const c=CFG[type],V=CFG.vehicles[type],A=CFG.aircra
   e.maxHp=e.hp;if(type==='tank'){e.body=rand(0,TAU);e.tAng=e.body;e.tread=0;}
   if(V){e.V=V;e.name=V.name;e.ang=Math.atan2(player.y-y,player.x-x);e.tAng=e.ang;e.speed=0;e.steer=0;
     e.mode=(V.riders||V.deploy)?'drive':'fight';e.stateT=0;e.revT=0;e.revSteer=1;e.bumpT=0;e.stuckT=1;e.tread=0;e.gasT=rand(1,3);
+    if(V.atm)e.missileT=rand(2.5,5);
     if(V.boss){e.boss=true;e.charge=0;e.chargeT=rand(6,9);e.rage=false;e.mgCd=rand(.5,1.5);e.mgBurst=0;e.missileT=rand(3,6);e.hp=V.hp*(1+Math.max(0,(wave/5-1))*.45);e.maxHp=e.hp;}
     const st=vehSeats(V);e.riders=st.map((s,i)=>({seat:i,ang:e.ang,fireCd:rand(.8,2),burst:0,x,y}));}
   if(F){e.F=F;e.fort=true;e.name=F.name;e.r=F.r;e.riders=[];e.seed=Math.random();
@@ -953,6 +964,14 @@ function updateVehicle(e,dt){const V=e.V,t=e.tgt;e.bumpT-=dt;e.stateT+=dt;
         bullets.push({x:bx,y:by,vx:Math.cos(e.tAng)*300,vy:Math.sin(e.tAng)*300,owner:'e',rocket:true,homing:t,turn:1.5,spd:330,
           dmg:V.missileDmg,rad:V.missileRad,life:6});
         smoke(bx,by,6,14);sfx('cannon',clamp(1-d/700,.1,1)*.8);popText(e.x,e.y-60,'ミサイル発射！','#ff9a5a');}}}
+  if(V.atm){e.missileT-=dt; // 対戦車ミサイル（ブラッドレーのTOWなど）
+    if(t&&e.los&&d<V.atmRange&&e.missileT<=0&&Math.abs(angDiff(e.tAng,toT))<.3){
+      e.missileT=V.atmEvery*(e.fcs?.75:1)*rand(.9,1.15);
+      const bx=e.x+Math.cos(e.tAng)*V.len*.3,by=e.y+Math.sin(e.tAng)*V.len*.3;
+      bullets.push({x:bx,y:by,vx:Math.cos(e.tAng)*240,vy:Math.sin(e.tAng)*240,owner:'e',rocket:true,homing:t,
+        turn:V.atmTurn*(e.fcs?1.4:1),spd:V.atmSpd,dmg:V.atmDmg,rad:V.atmRad,life:6});
+      smoke(bx,by,5,13);sfx('cannon',clamp(1-d/700,.1,1)*.7);
+      if(d<800)popText(e.x,e.y-40,'対戦車ミサイル！','#ff9a5a');}}
   if(e.mode==='drive'){
     if(t){if(d>V.unloadDist||!e.los){throttle=1;steerTo=toT;}else{e.mode='unload';e.stateT=0;}}
     if(e.hp<e.maxHp*.4&&e.riders.length){e.mode='unload';e.stateT=0;}}
@@ -962,7 +981,8 @@ function updateVehicle(e,dt){const V=e.V,t=e.tgt;e.bumpT-=dt;e.stateT+=dt;
     if(!e.riders.length&&e.stateT>1.2){e.mode=canRam?'ram':'fight';e.stateT=0;}}
   else if(e.mode==='ram'){if(t){throttle=1;steerTo=toT;}}
   else if(t){ // fight: 射程を保ちつつ動く
-    if((!e.los&&!V.arty)||d>V.range*.8){throttle=1;steerTo=toT;}
+    if(V.scoot&&e.burst<=0&&e.fireCd>1.5){throttle=1;steerTo=toT+Math.PI+(e.strafe>0?.6:-.6);}  // 撃ったら陣地変換
+    else if((!e.los&&!V.arty)||d>V.range*.8){throttle=1;steerTo=toT;}
     else if(d<V.standoff*.8){throttle=-.7;steerTo=toT;}
     else if(d<V.standoff*1.3){throttle=.45;steerTo=toT+(e.strafe>0?1.3:-1.3);}}
   if(e.revT>0){e.revT-=dt;throttle=-.8;steerTo=null;e.steer=e.revSteer;}
@@ -1263,6 +1283,7 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     [7,'cmd82',1],[8,'chem',1],[9,'aaa87',1],[10,'type90',1],
     [6,'pillbox',1,3],[9,'atpit',1,2],[12,'type74',1,3],
     [20,'ifv89',1,2],[21,'aav7',1,2],[22,'aav7c',1,1],[23,'mlrs',1,2],[24,'tractor',1,2],[25,'trailer73',1,1],
+    [26,'brad',1,3],[27,'himars',1,2],
     [11,'mcv16',1,3],[12,'truck35',1,2],[13,'sam93',1,2],[14,'atm96',1,2],
     [16,'sam81',1,2],[17,'fc81',1,1],[18,'ssm12',1,2],[19,'spg99',1,2],
     // ステージ3以降の空襲（対空砲でしか落とせない）
@@ -1278,7 +1299,7 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     for(let i=0;i<bn;i++)q.push(bossType);}
   const debut={2:'jeep',3:'lav',4:'truck73',5:'apc96',6:'recon87',7:'cmd82',8:'chem',9:'aaa87',10:'type90',
     11:'f4ej',12:'type74',13:'f2a',14:'rf4ej',16:'rf4e',17:'u125',18:'f2b',19:'spg99',
-    20:'ifv89',21:'aav7',22:'aav7c',23:'mlrs',24:'tractor',25:'trailer73'}[n];
+    20:'ifv89',21:'aav7',22:'aav7c',23:'mlrs',24:'tractor',25:'trailer73',26:'brad',27:'himars'}[n];
   const subs={jeep:'敵の車両が兵士を運んでくる！',lav:'軽装甲機動車が突っ込んでくる',truck73:'73式大型トラックが6人を降ろす',
     apc96:'96式装輪装甲車 出現　装甲が厚い',recon87:'87式偵察警戒車 出現　25mm砲に注意',cmd82:'82式指揮通信車 出現　周りの敵が強化される',
     pillbox:'敵トーチカ 構築　動かないが硬い',atpit:'敵の対戦車砲陣地　車両で近づくな',
@@ -1294,7 +1315,8 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     type74:'74式戦車 出現　数で押してくる',ifv89:'89式装甲戦闘車　35mm機関砲と6人の兵',
     aav7:'AAV7 人員輸送型　川もそのまま渡ってくる',aav7c:'AAV7 指揮通信型　周りの敵が強くなる',
     mlrs:'多連装ロケット　10発の一斉射に注意',tractor:'中砲けん引車　FH70を降ろして撃ってくる',
-    trailer73:'73式セミトレーラー　74式戦車を運んでくる'};
+    trailer73:'73式セミトレーラー　74式戦車を運んでくる',
+    brad:'M2A2ブラッドレー　25mm機関砲とTOWミサイル',himars:'HIMARS　撃っては陣地を変える長射程ロケット'};
   spawnQueue=q;spawnT=1.5;
   const bv=bossType?CFG.vehicles[bossType]:null;
   const dsub=n===4?'敵戦車が来るぞ！手榴弾が有効':(debut?subs[debut]:'');
