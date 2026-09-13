@@ -264,6 +264,7 @@ const CFG={
   allyTargetBias:.85, // 1未満だと敵は味方よりプレイヤーを優先して狙う
   // ---- ステージ（地形）----
   stageWaves:5,        // 何WAVEごとに戦場が変わるか
+  homeStages:12,       // ホーム画面で選べるステージ数（クリアで順に解放）
   waterSlow:.55, waterCarSlow:.45,   // 川の中の移動速度（歩兵／車両）
   roadBoost:1.12,                    // 舗装路での車両の速度
   snowSlow:.85, snowCarSlow:.92,     // 雪原での移動速度
@@ -447,6 +448,14 @@ let hazards=[],aas=[],forts=[],mines=[];
 let allyLvl=0,carLvl=0;
 let state='title',player=null,car=null,cars=[],allies=[],enemies=[],bullets=[],grenades=[],particles=[],pickups=[],decals=[];
 let score=0,best=0,wave=0,spawnQueue=[],spawnT=0,waveClearing=false,clearT=0,banner=null;
+// ---------- ホーム画面（ステージ選択） ----------
+let maxStage=1,homeSel=1,homeTab='stage',homeMsg=null,homeMsgT=0;
+function loadSave(){try{const v=JSON.parse(localStorage.getItem('ws_save')||'{}');
+    maxStage=clamp(v.maxStage||1,1,CFG.homeStages);best=v.best||0;homeSel=clamp(v.lastStage||1,1,maxStage);}catch(e){}}
+function saveGame(){try{localStorage.setItem('ws_save',JSON.stringify({maxStage,best,lastStage:homeSel}));}catch(e){}}
+function unlockStage(n){if(n>maxStage&&n<=CFG.homeStages){maxStage=n;saveGame();}}
+function stageDefOf(s){return CFG.stages[(s-1)%CFG.stages.length];}
+function stageBoss(s){return CFG.vehicles[CFG.bossOrder[(s-1)%CFG.bossOrder.length]];}
 let zoom=1,shake=0,camX=WORLD/2,camY=WORLD/2,overT=0,time=0;
 function newPlayer(){return{x:WORLD/2,y:WORLD/2,r:14,hp:CFG.playerHp,maxHp:CFG.playerHp,ang:-Math.PI/2,moveAng:-Math.PI/2,inCar:false,fireCd:0,grenCd:0,
   gren:CFG.startGrenades,base:'rifle',baseLvl:0,weapon:'rifle',wTime:0,hurt:0,walk:0,aa:null};}
@@ -456,7 +465,7 @@ const sticks={move:null,aim:null},keys={},mouse={x:0,y:0,down:false,used:false};
 let touchUsed=false;
 function grenBtn(){return{x:W-66,y:Math.max(120,H-215),r:34};}
 cv.addEventListener('touchstart',e=>{e.preventDefault();unlockAudio();touchUsed=true;
-  if(state!=='play'){handleTap();return;}
+  if(state!=='play'){for(const t of e.changedTouches)handleTap(t.clientX,t.clientY);return;}
   for(const t of e.changedTouches){const x=t.clientX,y=t.clientY,g=grenBtn();
     const ab=aaBtn();if(aaBtnVisible()&&Math.hypot(x-ab.x,y-ab.y)<ab.r+10){toggleAA();continue;}
     const cb=carBtn();if(carBtnVisible()&&Math.hypot(x-cb.x,y-cb.y)<cb.r+10){toggleCar();continue;}
@@ -471,14 +480,19 @@ function tEnd(e){e.preventDefault();for(const t of e.changedTouches)for(const k 
 cv.addEventListener('touchend',tEnd,{passive:false});cv.addEventListener('touchcancel',tEnd,{passive:false});
 document.addEventListener('gesturestart',e=>e.preventDefault());
 cv.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;mouse.used=true;});
-cv.addEventListener('mousedown',e=>{unlockAudio();if(state!=='play'){handleTap();return;}
+cv.addEventListener('mousedown',e=>{unlockAudio();if(state!=='play'){handleTap(e.clientX,e.clientY);return;}
   const cb=carBtn(),ab=aaBtn(),g=grenBtn();
   if(aaBtnVisible()&&Math.hypot(e.clientX-ab.x,e.clientY-ab.y)<ab.r){toggleAA();return;}
   if(carBtnVisible()&&Math.hypot(e.clientX-cb.x,e.clientY-cb.y)<cb.r){toggleCar();return;}
   if(Math.hypot(e.clientX-g.x,e.clientY-g.y)<g.r){throwGrenade();return;}mouse.down=true;mouse.used=true;});
 window.addEventListener('mouseup',()=>{mouse.down=false;});
 window.addEventListener('keydown',e=>{keys[e.code]=true;unlockAudio();
-  if(state!=='play'){if(e.code==='Enter'||e.code==='Space')handleTap();return;}
+  if(state!=='play'){
+    if(state==='title'){ // PCは矢印キーでステージを選べる
+      const d=e.code==='ArrowRight'||e.code==='KeyD'?1:e.code==='ArrowLeft'||e.code==='KeyA'?-1:0;
+      if(d){homeSel=clamp(homeSel+d,1,maxStage);saveGame();e.preventDefault();}
+      if(e.code==='Tab'){homeTab=homeTab==='stage'?'help':'stage';e.preventDefault();}}
+    if(e.code==='Enter'||e.code==='Space')handleTap();return;}
   if(e.code==='KeyG'||e.code==='Space'){throwGrenade();e.preventDefault();}
   if(e.code==='KeyE'||e.code==='KeyF')toggleCar();
   if(e.code==='KeyR')toggleAA();});
@@ -584,7 +598,7 @@ function killEnemy(e){e.dead=true;score+=e.score;dropLoot(e);
   else{addDecal({kind:'corpse',x:e.x,y:e.y,ang:e.ang,col:e.type==='gunner'?'#4a3528':'#5a4a34',t:25});sparks(e.x,e.y,6,'#c9b48a');}}
 function hurtPlayer(d){if(state!=='play')return;if(player.inCar){hurtCar(car,d);return;}const p=player;p.hp-=d;p.hurt=.25;shake=Math.max(shake,4);
   if(p.hp<=0){p.hp=0;gameOver();}}
-function gameOver(){state='over';overT=0;best=Math.max(best,score);sticks.move=sticks.aim=null;explodeFx(player.x,player.y,45);}
+function gameOver(){state='over';overT=0;best=Math.max(best,score);saveGame();sticks.move=sticks.aim=null;explodeFx(player.x,player.y,45);}
 function weaponPool(){const p=[];for(const k in CFG.weapons){const w=CFG.weapons[k];if(w.tier&&wave>=w.wave)p.push(k);}
   const rk=new Map(p.map(k=>[k,Math.random()]));   // 同じtier内は毎回シャッフル
   p.sort((a,b)=>(CFG.weapons[a].tier-CFG.weapons[b].tier)||(rk.get(a)-rk.get(b)));return p;}
@@ -1440,7 +1454,7 @@ function applyStage(n,first){
   return true;}
 
 // ---------- ウェーブ ----------
-function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
+function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const newStage=applyStage(n);const q=[];
   for(let i=0;i<CFG.soldiersBase+(n-1)*CFG.soldiersPerWave;i++)q.push('soldier');
   for(let i=0;i<Math.floor(n/2);i++)q.splice(Math.floor(Math.random()*(q.length+1)),0,'gunner');
   const sched=[ // [wave, type, 台数の増え方, 最大台数]
@@ -1518,12 +1532,35 @@ function updateWaves(dt){
       sub:last?`次は ${stageFor(wave+1).name}　${rew}`:rew,t:last?3.4:3};
     if(names.length)popText(player.x,player.y-40,'+'+bonus,'#dfe8a0');}
   if(waveClearing){clearT-=dt;if(clearT<=0){waveClearing=false;startWave(wave+1);}}}
-function startGame(){stageIdx=-1;applyStage(1,true);player=newPlayer();car=makeCar(WORLD/2-60,WORLD/2+50,-Math.PI/2,CAR_NAMES[0]);
+// 途中のステージから始めるときは、そこまで育った分の装備・仲間を最初から持たせる
+function startGame(sel){const s=clamp(sel||1,1,CFG.homeStages),w0=(s-1)*CFG.stageWaves+1;
+  homeSel=s;unlockStage(s);saveGame();
+  wave=w0;stageIdx=-1;
+  allyLvl=clamp(s-1,0,CFG.allyUpgrades.length-1);
+  carLvl=clamp(Math.floor((s-1)/2),0,CFG.carUpgrades.length-1);
+  applyStage(w0,true);player=newPlayer();
+  player.baseLvl=clamp(s-1,0,CFG.baseWeapons.length-1);
+  player.base=CFG.baseWeapons[player.baseLvl];player.weapon=player.base;
+  player.gren=Math.min(CFG.maxGrenades,CFG.startGrenades+(s-1)*2);
+  car=makeCar(WORLD/2-60,WORLD/2+50,-Math.PI/2,CAR_NAMES[0]);
   cars=[car,null,null];allies=[];enemies=[];bullets=[];grenades=[];particles=[];pickups=[];decals=[];
-  hazards=[];allyLvl=0;carLvl=0;score=0;waveClearing=false;sticks.move=sticks.aim=null;camX=player.x;camY=player.y;state='play';
-  for(let i=0;i<CFG.startAllies;i++)recruitAlly(true);
-  startWave(1);}
-function handleTap(){if(state==='title')startGame();else if(state==='over'&&overT>.8)startGame();}
+  hazards=[];score=0;waveClearing=false;sticks.move=sticks.aim=null;camX=player.x;camY=player.y;state='play';
+  const na=Math.min(CFG.allies.length,CFG.startAllies+(w0-1)*CFG.recruitPerWave);
+  for(let i=0;i<na;i++)recruitAlly(true);
+  startWave(w0);}
+function goHome(){state='title';homeTab='stage';homeSel=clamp(homeSel,1,maxStage);sticks.move=sticks.aim=null;saveGame();}
+function inBox(x,y,b){return x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h;}
+function homeHit(x,y){
+  if(x===undefined){startGame(homeSel);return;}
+  const L=homeLayout();
+  for(const t of L.tabs)if(inBox(x,y,t)){homeTab=t.key;sfx('pickup',.5);return;}
+  if(inBox(x,y,L.btn)){startGame(homeSel);return;}
+  if(homeTab==='stage')for(const c of L.cards){if(!inBox(x,y,c))continue;
+    if(c.locked){homeMsg=`ステージ${c.s-1}をクリアすると解放`;homeMsgT=time+1.6;sfx('eshot',.5);}
+    else if(homeSel===c.s)startGame(c.s);
+    else{homeSel=c.s;sfx('pickup',.5);saveGame();}
+    return;}}
+function handleTap(x,y){if(state==='title')homeHit(x,y);else if(state==='over'&&overT>.8)goHome();}
 
 // ---------- メインループ ----------
 function update(dt){time+=dt;shake=Math.max(0,shake-dt*25);
@@ -2196,22 +2233,87 @@ function drawHUD(){
   if(banner){const a=clamp(banner.t,0,1);ctx.globalAlpha=a;
     txt(banner.text,W/2,H*.3,Math.min(46,W/9),'#f0dfa0','center');
     if(banner.sub)txt(banner.sub,W/2,H*.3+Math.min(40,W/10),15,'#e8e2c8','center');ctx.globalAlpha=1;}
-  if(state==='title'){ctx.fillStyle='rgba(16,20,10,.62)';ctx.fillRect(0,0,W,H);
-    const ts=Math.min(52,W/8);txt('戦場シューター',W/2,H*.26,ts,'#f0dfa0','center');
-    const lines=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間が強化。車両は進化する','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）'];
-    lines.forEach((l,i)=>txt(l,W/2,H*.4+i*Math.min(26,H*.05),Math.min(16,W/28),'#e8e2c8','center'));
-    if(Math.floor(time*2)%2===0)txt('タップでスタート',W/2,H*.8,22,'#fff','center');
-    if(!('ontouchstart' in window))txt('PC：WASD 移動／マウスで狙ってクリック射撃／G 手榴弾／E 乗り降り',W/2,H*.9,12,'rgba(232,226,200,.7)','center');}
+  if(state==='title')drawHome();
   if(state==='over'){ctx.fillStyle=`rgba(40,8,6,${Math.min(.6,overT)})`;ctx.fillRect(0,0,W,H);
     txt('作戦失敗',W/2,H*.33,Math.min(50,W/8),'#ff8a70','center');
     txt(`ステージ${stageNo(wave)} ウェーブ${waveInStage(wave)}　SCORE ${score}`,W/2,H*.45,20,'#f0dfa0','center');
     txt(`ベスト ${best}`,W/2,H*.52,16,'#e8e2c8','center');
-    if(overT>.8&&Math.floor(time*2)%2===0)txt('タップでもう一度',W/2,H*.68,20,'#fff','center');}}
+    if(overT>.8&&Math.floor(time*2)%2===0)txt('タップでホームへ',W/2,H*.68,20,'#fff','center');}}
+// ---------- ホーム画面 ----------
+const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間が強化。車両は進化する','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','地雷はWAVE8から。近づくと赤い輪で見える'];
+function rbox(x,y,w,h,r){r=Math.min(r,w/2,h/2);ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function homeLayout(){
+  const pad=Math.max(10,W*.025),tabY=Math.max(72,H*.17),th=Math.min(36,H*.07),tw=Math.min(160,W*.3);
+  const tabs=[{key:'stage',label:'ステージ選択'},{key:'help',label:'遊び方'}]
+    .map((t,i)=>({key:t.key,label:t.label,x:W/2-tw-6+i*(tw+12),y:tabY,w:tw,h:th}));
+  const bw=Math.min(320,W*.66),bh=Math.min(54,H*.1),btn={x:W/2-bw/2,y:H-bh-Math.max(12,H*.035),w:bw,h:bh};
+  const cols=W<520?2:(W<880?3:4),n=CFG.homeStages,rows=Math.ceil(n/cols);
+  const top=tabY+th+pad,bottom=btn.y-pad-Math.max(14,H*.028),gap=Math.max(6,W*.012);
+  const cw=Math.min((W-pad*2-gap*(cols-1))/cols,230),ch=Math.min(112,(bottom-top-gap*(rows-1))/rows);
+  const gw=cw*cols+gap*(cols-1),x0=W/2-gw/2,y0=top+Math.max(0,(bottom-top-(ch*rows+gap*(rows-1)))/2);
+  const cards=[];
+  for(let i=0;i<n;i++){const s=i+1,r=Math.floor(i/cols),c=i%cols;
+    cards.push({s,x:x0+c*(cw+gap),y:y0+r*(ch+gap),w:cw,h:ch,locked:s>maxStage});}
+  return{tabs,cards,btn};}
+function txtFit(s,x,y,size,color,maxW,align){ // 枠に収まるように字を縮める
+  ctx.font=`bold ${size}px ${FONT}`;const w=ctx.measureText(s).width;
+  txt(s,x,y,w>maxW?Math.max(8,size*maxW/w):size,color,align);}
+function drawStagePrev(x,y,w,h,def){ // ステージの雰囲気を小さく描く
+  ctx.save();rbox(x,y,w,h,4);ctx.clip();
+  ctx.fillStyle=PATS[def.ground]||PATS.grass;ctx.fillRect(x,y,w,h);
+  if(def.river){ctx.fillStyle='#3d6b86';ctx.fillRect(x+w*.36,y,w*.26,h);
+    ctx.fillStyle='#6e6450';ctx.fillRect(x+w*.3,y+h*.36,w*.4,h*.16);}
+  if(def.roads){ctx.fillStyle='rgba(40,40,36,.55)';ctx.fillRect(x,y+h*.42,w,h*.16);ctx.fillRect(x+w*.42,y,w*.16,h);
+    ctx.fillStyle='#6a6a5e';for(let i=0;i<4;i++)ctx.fillRect(x+w*(.08+i*.24),y+h*.1,w*.12,h*.2);}
+  if(def.trees>60){ctx.fillStyle='#2f4420';for(let i=0;i<14;i++){const a=i*2.4;
+      ctx.beginPath();ctx.arc(x+w*(.1+(i*.37)%.82),y+h*(.15+(i*.29+Math.sin(a)*.1)%.72),Math.min(w,h)*.1,0,TAU);ctx.fill();}}
+  if(def.key==='field'){ctx.fillStyle='rgba(120,98,62,.5)';ctx.fillRect(x,y+h*.62,w,h*.1);
+    ctx.fillStyle='#6e6450';ctx.fillRect(x+w*.14,y+h*.2,w*.18,h*.2);ctx.fillRect(x+w*.6,y+h*.3,w*.2,h*.22);}
+  if(def.snow){ctx.fillStyle='#3c4a2c';for(let i=0;i<5;i++)ctx.fillRect(x+w*(.12+i*.18),y+h*.5,w*.05,h*.3);}
+  ctx.restore();ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=1;rbox(x,y,w,h,4);ctx.stroke();}
+function drawStageCard(c){
+  const def=stageDefOf(c.s),sel=homeSel===c.s,boss=stageBoss(c.s);
+  rbox(c.x,c.y,c.w,c.h,10);
+  ctx.fillStyle=c.locked?'rgba(22,26,18,.9)':(sel?'rgba(72,84,48,.95)':'rgba(44,52,34,.9)');ctx.fill();
+  ctx.strokeStyle=sel?'#ffd45a':(c.locked?'rgba(130,130,118,.3)':'rgba(232,226,200,.35)');
+  ctx.lineWidth=sel?3:1.5;ctx.stroke();
+  const pw=Math.min(c.w*.34,c.h*.68),px=c.x+9,py=c.y+(c.h-pw*.78)/2,ph=pw*.78;
+  const tx=px+pw+9,aw=c.x+c.w-8-tx,fs=Math.min(15,c.h*.2);
+  if(c.locked){
+    ctx.save();ctx.globalAlpha=.35;drawStagePrev(px,py,pw,ph,def);ctx.restore();
+    txtFit(`ステージ${c.s}　${def.name}`,tx,c.y+c.h*.34,fs,'rgba(200,200,186,.55)',aw);
+    txtFit(`🔒 ステージ${c.s-1}クリアで解放`,tx,c.y+c.h*.62,Math.min(11,c.h*.15),'rgba(200,200,186,.5)',aw);
+    return;}
+  drawStagePrev(px,py,pw,ph,def);
+  txtFit(`ステージ${c.s}`,tx,c.y+c.h*.27,fs,sel?'#ffe9a8':'#f0dfa0',aw);
+  txtFit(`${def.name}　W${(c.s-1)*CFG.stageWaves+1}-${c.s*CFG.stageWaves}`,tx,c.y+c.h*.53,Math.min(12,c.h*.16),'#e8e2c8',aw);
+  txtFit(`BOSS ${boss?boss.name:'？'}`,tx,c.y+c.h*.78,Math.min(11,c.h*.15),'#ff9a80',aw);}
+function drawHome(){
+  ctx.fillStyle='rgba(16,20,10,.74)';ctx.fillRect(0,0,W,H);
+  const L=homeLayout(),ts=Math.min(46,W/9);
+  txt('戦場シューター',W/2,Math.max(34,H*.07),ts,'#f0dfa0','center');
+  txt(`ベスト ${best}　到達 ステージ${maxStage}/${CFG.homeStages}`,W/2,Math.max(34,H*.07)+ts*.72,13,'#e8e2c8','center');
+  for(const t of L.tabs){const on=homeTab===t.key;
+    rbox(t.x,t.y,t.w,t.h,9);ctx.fillStyle=on?'rgba(120,124,64,.95)':'rgba(34,40,26,.9)';ctx.fill();
+    ctx.strokeStyle=on?'#f0dfa0':'rgba(232,226,200,.4)';ctx.lineWidth=2;ctx.stroke();
+    txt(t.label,t.x+t.w/2,t.y+t.h/2,Math.min(15,t.w/7),on?'#fff':'#c8ccb4','center');}
+  if(homeTab==='stage'){for(const c of L.cards)drawStageCard(c);}
+  else{const lines=HELP_LINES.concat('ontouchstart' in window?[]:['PC：WASD 移動／マウスで狙ってクリック射撃／G 手榴弾／E 乗り降り','PC：ホームは←→でステージ選択、Enterで出撃']);
+    const y0=L.tabs[0].y+L.tabs[0].h+Math.max(14,H*.04),step=Math.min(26,(L.btn.y-y0-10)/lines.length);
+    lines.forEach((l,i)=>txtFit(l,W/2,y0+i*step,Math.min(16,W/28),'#e8e2c8',W-28,'center'));}
+  const b=L.btn,def=stageDefOf(homeSel);
+  rbox(b.x,b.y,b.w,b.h,12);ctx.fillStyle='rgba(150,120,40,.95)';ctx.fill();
+  ctx.strokeStyle='#ffd45a';ctx.lineWidth=2.5;ctx.stroke();
+  txtFit(`ステージ${homeSel}　${def.name}　出撃`,b.x+b.w/2,b.y+b.h/2,Math.min(21,b.h*.42),'#fff',b.w-24,'center');
+  if(homeSel>1)txt('途中ステージは装備・仲間が強化された状態で始まります',W/2,b.y-Math.max(8,H*.022),Math.min(12,W/34),'rgba(232,226,200,.75)','center');
+  if(homeMsg&&time<homeMsgT)txt(homeMsg,W/2,b.y-Math.max(26,H*.06),Math.min(15,W/26),'#ff9a80','center');}
 function draw(){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.fillStyle='#20251a';ctx.fillRect(0,0,W,H);
   ctx.save();ctx.translate(W/2+(Math.random()-.5)*shake,H/2+(Math.random()-.5)*shake);ctx.scale(S,S);ctx.translate(-camX,-camY);
   drawWorld();ctx.restore();drawHUD();}
 
-applyStage(1,true);player=newPlayer();
+loadSave();applyStage(1,true);player=newPlayer();
 let last=performance.now();
 let fbGone=false;
 function loop(now){const dt=Math.min((now-last)/1000,.033);last=now;update(dt);draw();
