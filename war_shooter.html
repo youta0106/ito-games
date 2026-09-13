@@ -108,6 +108,25 @@ const CFG={
     apc96:  {name:'96式装輪装甲車',    hp:620, speed:155, turn:1.8, range:350, len:100,wid:44, wheels:8, riders:4, turret:'mg', dmg:8, burst:8, armor:.6, unloadDist:230, score:1300},
     recon87:{name:'87式偵察警戒車',    hp:540, speed:195, turn:2.1, range:420, len:92, wid:40, wheels:6, turret:'cannon25', dmg:20, rate:.2, burst:4, rest:2.2, armor:.65, standoff:320, score:1400},
     aaa87:  {name:'87式自走高射機関砲',hp:700, speed:95,  turn:1.5, range:430, len:96, wid:48, tracked:true, turret:'aa', dmg:10, rate:.09, burst:12, rest:1.8, spread:.07, armor:.55, standoff:330, score:1700},
+    // ---- 世界の現用戦車セット2 ----
+    btr70:  {name:'BTR-70装甲兵員輸送車', hp:620, speed:190, turn:1.9, range:350, len:100,wid:44, wheels:8, riders:7, unloadDist:260,
+      col:'#5b6338', camo:'#44502c', turret:'mg', dmg:8, burst:7, armor:.7, score:1500},
+    btr80:  {name:'BTR-80装甲兵員輸送車', hp:700, speed:195, turn:1.9, range:380, len:104,wid:46, wheels:8, riders:7, unloadDist:250,
+      col:'#5b6338', camo:'#44502c', turret:'mg', dmg:12, rate:.1, burst:9, rest:1.6, armor:.62, score:1700},
+    bmp1:   {name:'BMP-1歩兵戦闘車', hp:780, speed:160, turn:1.6, range:420, len:100,wid:46, tracked:true, riders:6, unloadDist:270,
+      col:'#586034', camo:'#414c29', turret:'cannon', shellDmg:44, shellRad:70, reload:3.6, armor:.55, standoff:300,
+      atm:true, atmRange:500, atmEvery:7.5, atmDmg:64, atmRad:82, atmSpd:360, atmTurn:1.2, score:1900},
+    bmp2m:  {name:'BMP-2M歩兵戦闘車', hp:840, speed:170, turn:1.7, range:450, len:102,wid:46, tracked:true, riders:6, unloadDist:260,
+      col:'#586034', camo:'#414c29', turret:'cannon25', dmg:20, rate:.14, burst:6, rest:2, armor:.5, standoff:310,
+      atm:true, atmRange:560, atmEvery:6, atmDmg:72, atmRad:86, atmSpd:430, atmTurn:1.6, score:2200},
+    t72b3:  {name:'T-72B3戦車', hp:1250, speed:130, turn:1.5, range:480, len:106,wid:50, tracked:true, turret:'cannonRound', barrel:.62, era:true,
+      col:'#5a6338', camo:'#414c29', shellDmg:60, shellRad:92, reload:2.8, armor:.4, rocketRes:.35, standoff:350, score:2400},
+    t90m:   {name:'T-90M戦車', hp:1500, speed:140, turn:1.6, range:510, len:110,wid:52, tracked:true, turret:'cannonRound', barrel:.64, era:true,
+      col:'#5a6338', camo:'#414c29', shellDmg:68, shellRad:98, reload:2.5, armor:.34, rocketRes:.5, standoff:360,
+      atm:true, atmRange:600, atmEvery:8, atmDmg:80, atmRad:92, atmSpd:400, atmTurn:1.3, score:3000},
+    msta:   {name:'2S19M2 ムスタ-S', hp:960, speed:115, turn:1.3, range:1050, len:120,wid:52, tracked:true, turret:'howitzer',
+      col:'#5a6338', camo:'#414c29', arty:true, shellDmg:82, shellRad:134, reload:5.6, flight:1.9, scatter:78, minRange:250,
+      armor:.5, standoff:720, score:3100},
     // ---- 世界の現用戦車セット1 ----
     brad:   {name:'M2A2ブラッドレー戦闘車', hp:880, speed:165, turn:1.7, range:470, len:106,wid:48, tracked:true, riders:6, unloadDist:270,
       col:'#a89a72', camo:'#8b7f5c', turret:'cannon25', dmg:24, rate:.16, burst:5, rest:2.2, armor:.5, standoff:320,
@@ -939,7 +958,8 @@ function vehShoot(e,t,d){const V=e.V,vol=clamp(1-Math.hypot(player.x-e.x,player.
       shake=Math.max(shake,1.5*vol);return;}
     e.fireCd=V.reload*rand(.9,1.15);smoke(bx,by,8,20);addP({x:bx,y:by,life:.12,size:22,color:'#ffe08a',kind:'flash'});
     sfx('cannon',Math.max(vol,.35));shake=Math.max(shake,3*vol);return;}
-  if(V.turret==='cannon'){if(Math.abs(angDiff(e.tAng,Math.atan2(t.y-e.y,t.x-e.x)))>.12)return;
+  if(V.shellDmg){ // 主砲（cannon / cannonBox / cannonRound / cannon10 すべて）
+    if(Math.abs(angDiff(e.tAng,Math.atan2(t.y-e.y,t.x-e.x)))>.12)return;
     bullets.push({x:bx,y:by,vx:Math.cos(e.tAng)*400,vy:Math.sin(e.tAng)*400,owner:'e',shell:true,dmg:V.shellDmg,rad:V.shellRad,life:Math.min(d,V.range)/400});
     e.fireCd=V.reload*rand(.85,1.15)*(e.rage?.6:1);smoke(bx,by,4,14);addP({x:bx,y:by,life:.08,size:15,color:'#ffe08a',kind:'flash'});
     sfx('cannon',vol);shake=Math.max(shake,3*vol);return;}
@@ -1284,6 +1304,7 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     [6,'pillbox',1,3],[9,'atpit',1,2],[12,'type74',1,3],
     [20,'ifv89',1,2],[21,'aav7',1,2],[22,'aav7c',1,1],[23,'mlrs',1,2],[24,'tractor',1,2],[25,'trailer73',1,1],
     [26,'brad',1,3],[27,'himars',1,2],
+    [28,'btr70',1,3],[29,'bmp1',1,3],[30,'btr80',1,3],[31,'bmp2m',1,3],[32,'t72b3',1,3],[33,'msta',1,2],[34,'t90m',1,2],
     [11,'mcv16',1,3],[12,'truck35',1,2],[13,'sam93',1,2],[14,'atm96',1,2],
     [16,'sam81',1,2],[17,'fc81',1,1],[18,'ssm12',1,2],[19,'spg99',1,2],
     // ステージ3以降の空襲（対空砲でしか落とせない）
@@ -1299,7 +1320,7 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     for(let i=0;i<bn;i++)q.push(bossType);}
   const debut={2:'jeep',3:'lav',4:'truck73',5:'apc96',6:'recon87',7:'cmd82',8:'chem',9:'aaa87',10:'type90',
     11:'f4ej',12:'type74',13:'f2a',14:'rf4ej',16:'rf4e',17:'u125',18:'f2b',19:'spg99',
-    20:'ifv89',21:'aav7',22:'aav7c',23:'mlrs',24:'tractor',25:'trailer73',26:'brad',27:'himars'}[n];
+    20:'ifv89',21:'aav7',22:'aav7c',23:'mlrs',24:'tractor',25:'trailer73',26:'brad',27:'himars',28:'btr70',29:'bmp1',31:'bmp2m',32:'t72b3',33:'msta',34:'t90m'}[n];
   const subs={jeep:'敵の車両が兵士を運んでくる！',lav:'軽装甲機動車が突っ込んでくる',truck73:'73式大型トラックが6人を降ろす',
     apc96:'96式装輪装甲車 出現　装甲が厚い',recon87:'87式偵察警戒車 出現　25mm砲に注意',cmd82:'82式指揮通信車 出現　周りの敵が強化される',
     pillbox:'敵トーチカ 構築　動かないが硬い',atpit:'敵の対戦車砲陣地　車両で近づくな',
@@ -1316,7 +1337,11 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     aav7:'AAV7 人員輸送型　川もそのまま渡ってくる',aav7c:'AAV7 指揮通信型　周りの敵が強くなる',
     mlrs:'多連装ロケット　10発の一斉射に注意',tractor:'中砲けん引車　FH70を降ろして撃ってくる',
     trailer73:'73式セミトレーラー　74式戦車を運んでくる',
-    brad:'M2A2ブラッドレー　25mm機関砲とTOWミサイル',himars:'HIMARS　撃っては陣地を変える長射程ロケット'};
+    brad:'M2A2ブラッドレー　25mm機関砲とTOWミサイル',himars:'HIMARS　撃っては陣地を変える長射程ロケット',
+    btr70:'BTR-70　8輪APCが7人を運んでくる',btr80:'BTR-80　14.5mm機銃で弾幕を張る',
+    bmp1:'BMP-1　73mm砲と対戦車ミサイル',bmp2m:'BMP-2M　30mm機関砲とコルネット',
+    t72b3:'T-72B3　爆発反応装甲で爆発に強い',t90m:'T-90M　最硬クラス＋砲発射ミサイル',
+    msta:'2S19 ムスタ-S　152mmの曲射に注意'};
   spawnQueue=q;spawnT=1.5;
   const bv=bossType?CFG.vehicles[bossType]:null;
   const dsub=n===4?'敵戦車が来るぞ！手榴弾が有効':(debut?subs[debut]:'');
