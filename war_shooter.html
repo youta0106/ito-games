@@ -190,6 +190,10 @@ const CFG={
       mgDmg:6, mgRate:.11, mgBurst:6, mgRest:2, mgRange:370, score:12000, trait:'自動装てんで速射　装甲は薄め'},
     type90: {name:'90式戦車',          hp:1100,speed:90,  turn:1.3, range:470, len:104,wid:50, tracked:true, turret:'cannon', shellDmg:58, shellRad:88, reload:3.2, armor:.4, standoff:360, score:2000},
   },
+  // ---- 敵の地雷 ----
+  mineFromWave:8,    // 何WAVEから埋まっているか
+  minesBase:14, minesPerWave:.8, minesMax:46,
+  mine:{r:17, dmg:60, rad:84, carDmg:170, arm:1},
   // ---- 固定砲台 ----
   fortsPerStage:3,   // 1ステージに置かれる味方の固定砲台の数
   forts:{ // 味方の固定砲台（マップに据え付け。自動で撃つ）
@@ -396,6 +400,14 @@ function genMap(def,cx,cy){
         placeNear(gx2,gy2,240,sz,sz,'tree',140,16);}}}
   else for(let i=0;i<S.trees;i++){const sz=rand(30,42);place(sz,sz,'tree',140,40,true);}
   for(let i=0;i<40;i++)patches.push({x:rand(0,WORLD),y:rand(0,WORLD),rx:rand(40,140),ry:rand(30,90),rot:rand(0,TAU)});
+  mines=[];
+  if(wave>=CFG.mineFromWave){ // 敵が埋めた地雷
+    const n=Math.min(CFG.minesMax,Math.round(CFG.minesBase+(wave-CFG.mineFromWave)*CFG.minesPerWave));
+    for(let i=0;i<n;i++)for(let t=0;t<30;t++){
+      const x=rand(90,WORLD-90),y=rand(90,WORLD-90);
+      if(circleBlocked(x,y,20)||rectsHit(x-16,y-16,32,32,waters,4))continue;
+      if(Math.abs(x-kx)<260&&Math.abs(y-ky)<260)continue;      // 開始地点のそばには埋めない
+      mines.push({x,y,arm:CFG.mine.arm,r:CFG.mine.r,dead:false});break;}}
   forts=[];{ // 味方の固定砲台
     const fk=Object.keys(CFG.forts);
     for(let i=0;i<CFG.fortsPerStage;i++)for(let t=0;t<80;t++){
@@ -431,7 +443,7 @@ function moveEntity(e,dx,dy){e.x+=dx;e.y+=dy;pushOut(e);
     addP({x:e.x+rand(-7,7),y:e.y+rand(-7,7),vx:rand(-25,25),vy:rand(-45,-10),life:.35,size:3,grow:3,color:'#cfe8f2',kind:'dot',drag:2});}
 
 // ---------- 状態 ----------
-let hazards=[],aas=[],forts=[];
+let hazards=[],aas=[],forts=[],mines=[];
 let allyLvl=0,carLvl=0;
 let state='title',player=null,car=null,cars=[],allies=[],enemies=[],bullets=[],grenades=[],particles=[],pickups=[],decals=[];
 let score=0,best=0,wave=0,spawnQueue=[],spawnT=0,waveClearing=false,clearT=0,banner=null;
@@ -516,6 +528,8 @@ function addDecal(d){decals.push(d);if(decals.length>90)decals.shift();}
 
 // ---------- ダメージ ----------
 function explode(x,y,rad,dmg,src,hard){explodeFx(x,y,rad);
+  for(const m of mines){if(m.dead)continue;   // 爆風で誘爆する
+    if(Math.hypot(m.x-x,m.y-y)<rad+10&&m.arm<=0)detonateMine(m);}
   if(src==='e'){const mul=hard?4:1;   // 陣地・対空砲へのダメージ（貫通爆弾は4倍）
     for(const f of forts.slice()){const d=Math.hypot(f.x-x,f.y-y);
       if(d<rad+30)hurtFortObj(f,dmg*mul*(1-.5*clamp(d/(rad+30),0,1)));}
@@ -717,6 +731,30 @@ function updateCarMg(c,dt){if(!c||c.dead)return;
   c.gAng+=angDiff(c.gAng,ta)*Math.min(1,dt*(t?8:3));
   c.mgCd-=dt;
   if(t&&c.mgCd<=0&&Math.abs(angDiff(c.gAng,ta))<.15)carMgFire(c);}
+// ---------- 敵の地雷 ----------
+function detonateMine(m){if(m.dead)return;m.dead=true;
+  explode(m.x,m.y,CFG.mine.rad,CFG.mine.dmg,'e');
+  addDecal({kind:'scorch',x:m.x,y:m.y,r:28,t:1e9});
+  for(let i=0;i<10;i++)addP({x:m.x,y:m.y,vx:rand(-180,180),vy:rand(-180,180),life:rand(.3,.8),
+    size:rand(3,6),color:'#9a8a66',kind:'debris',drag:3});
+  shake=Math.max(shake,6);}
+function updateMines(dt){if(!mines.length)return;
+  let boom=false;
+  for(const m of mines){if(m.dead)continue;
+    if(m.arm>0){m.arm-=dt;continue;}
+    let trig=null,trigCar=null;
+    if(state==='play'&&!player.inCar&&!player.aa&&Math.hypot(player.x-m.x,player.y-m.y)<m.r+player.r)trig='踏んだ！';
+    if(!trig)for(const a of allies){if(a.down||a.riding)continue;
+      if(Math.hypot(a.x-m.x,a.y-m.y)<m.r+a.r){trig='地雷！';break;}}
+    if(!trig)for(const c of cars){if(!c||c.dead)continue;
+      if(carCircles(c).some(q=>Math.hypot(q.x-m.x,q.y-m.y)<m.r+q.r)){trig='対戦車地雷！';trigCar=c;break;}}
+    if(!trig)for(const b of bullets){if(b.dead||b.owner==='e')continue;   // 銃撃で誘爆させられる
+      if(Math.hypot(b.x-m.x,b.y-m.y)<m.r){b.dead=true;trig='';break;}}
+    if(trig===null)continue;
+    if(trigCar)hurtCar(trigCar,CFG.mine.carDmg);
+    if(trig)popText(m.x,m.y-26,trig,'#ff8a70');
+    detonateMine(m);boom=true;}
+  if(boom)mines=mines.filter(m=>!m.dead);}
 // ---------- 陣地の被害 ----------
 function wreckEmplacement(x,y,name){
   for(let i=0;i<3;i++)explodeFx(x+rand(-20,20),y+rand(-20,20),70);
@@ -1462,7 +1500,7 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
   let sub;
   if(bv)sub=`${bv.name}（${bv.country}）　${bv.trait}`;
   else if(newStage&&debut)sub=`${stage.name}　新手：${CFG[debut].name}`;
-  else if(newStage)sub=`${stage.name}　${stage.sub}`;
+  else if(newStage)sub=`${stage.name}　`+(mines.length?'地雷に注意':stage.sub);
   else sub=dsub;
   const text=bv?`ステージ${sn}　ボス戦`:(newStage?`ステージ${sn}`:`ステージ${sn}　ウェーブ${wn}/${CFG.stageWaves}`);
   banner={text,sub,t:bv||newStage?3.6:2.6};}
@@ -1493,7 +1531,7 @@ function update(dt){time+=dt;shake=Math.max(0,shake-dt*25);
   else if(state==='over'&&car&&!car.dead)updateCar(car,dt,null);
   if(state!=='title'){const la=player.inCar&&car&&!car.dead?car.ang:player.moveAng;convoyAng+=angDiff(convoyAng,la)*Math.min(1,dt*(player.inCar?4:.8));
     for(let k=1;k<cars.length;k++)if(cars[k]&&!cars[k].dead)updateConvoy(cars[k],k,dt);carSeparation();
-    for(const c of cars)updateCarMg(c,dt);updateForts(dt);}
+    for(const c of cars)updateCarMg(c,dt);updateForts(dt);updateMines(dt);}
   if(state==='over')overT+=dt;
   if(state!=='title'){updateAllies(dt);updateEnemies(dt);updateBullets(dt);updateGrenades(dt);updatePickups(dt);}
   updateHazards(dt);updateDecals(dt);updateParticles(dt);
@@ -1712,6 +1750,12 @@ function drawVehicle(e,wreck){const V=e.V,L=V.len/2,Wd=V.wid/2,fl=!wreck&&e.hurt
     if(e.boss&&e.charge>0){ctx.strokeStyle='rgba(255,120,60,.6)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,V.len*.6,0,TAU);ctx.stroke();}
     if(e.fcs&&V.turret==='missile'){ctx.strokeStyle=`rgba(120,220,255,${.3+.2*Math.sin(time*5)})`;ctx.lineWidth=2;
       ctx.beginPath();ctx.arc(e.x,e.y,V.len*.5,0,TAU);ctx.stroke();}}}
+function drawMine(m){const near=player&&state!=='title'&&Math.hypot(player.x-m.x,player.y-m.y)<180;
+  ctx.fillStyle='rgba(58,52,38,.45)';ctx.beginPath();ctx.ellipse(m.x,m.y+2,15,11,0,0,TAU);ctx.fill();  // 掘り返した土
+  ctx.fillStyle=near?'#4a4438':'#3d392f';ctx.beginPath();ctx.arc(m.x,m.y,9,0,TAU);ctx.fill();
+  ctx.strokeStyle=near?`rgba(255,120,90,${.5+.4*Math.sin(time*6)})`:'rgba(28,26,20,.65)';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle=near?'#6b6254':'#4d493d';ctx.beginPath();ctx.arc(m.x,m.y,4,0,TAU);ctx.fill();
+  if(near&&Math.floor(time*4)%2){ctx.fillStyle='#ff5a4a';ctx.beginPath();ctx.arc(m.x,m.y,2,0,TAU);ctx.fill();}}
 function drawFort(f){const F=CFG.forts[f.type];
   ctx.save();ctx.translate(f.x,f.y);
   ctx.fillStyle='rgba(0,0,0,.28)';ctx.beginPath();ctx.ellipse(4,6,34,28,0,0,TAU);ctx.fill();
@@ -1960,6 +2004,7 @@ function drawWorld(){
       ctx.fillStyle='rgba(40,38,32,.35)';for(let i=0;i<5;i++)ctx.fillRect(d.x+rr(i+3)*d.w*.85,d.y+rr(i+17)*d.h*.85,d.w*.12,d.h*.1);
       ctx.strokeStyle='rgba(40,38,32,.5)';ctx.lineWidth=2;ctx.strokeRect(d.x,d.y,d.w,d.h);}}
   for(const o of obstacles)if(vis(o.x+o.w/2,o.y+o.h/2,Math.max(o.w,o.h)))drawObstacle(o);
+  for(const m of mines)if(vis(m.x,m.y,30))drawMine(m);
   for(const f of forts)if(vis(f.x,f.y,80))drawFort(f);
   for(const g of aas)if(vis(g.x,g.y,80))drawAA(g);
   for(const h of hazards){if(!vis(h.x,h.y,h.r+40))continue;const a=clamp(h.t/2,0,1)*.3;
