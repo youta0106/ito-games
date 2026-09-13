@@ -1711,7 +1711,9 @@ function drawWorld(){
       if(k>0){const dp=seatPos(c,SEATS.driver);drawSoldier(dp.x,dp.y,c.ang,'#5b7a44','#4a6536',0,0,false,'#4fb4ff');}}
     ctx.font=`bold 10px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.6)';
     const ny=c.y-(c.V?c.V.wid/2+40:52);
-    ctx.strokeText(c.name,c.x,ny);ctx.fillStyle='#dfe8a0';ctx.fillText(c.name,c.x,ny);});
+    ctx.strokeText(c.name,c.x,ny);ctx.fillStyle='#dfe8a0';ctx.fillText(c.name,c.x,ny);
+    if(!c.V){const vn=carLv().label;   // 初期形態（高機動車）も車種名を出す
+      ctx.strokeText(vn,c.x,ny+14);ctx.fillStyle='#dfe8a0';ctx.fillText(vn,c.x,ny+14);}});
   for(const a of allies){if(!vis(a.x,a.y,60))continue;
     if(a.down){ctx.globalAlpha=.6;drawSoldier(a.x,a.y,a.ang,'#4f6b35','#3d5428',0,14,false,'#4fb4ff');ctx.globalAlpha=1;
       if(Math.floor(time*3)%2===0){ctx.fillStyle='#fff';ctx.fillRect(a.x-7,a.y-32,14,14);ctx.fillStyle='#d23b30';ctx.fillRect(a.x-5,a.y-27,10,4);ctx.fillRect(a.x-2,a.y-30,4,10);}
