@@ -108,6 +108,21 @@ const CFG={
     apc96:  {name:'96式装輪装甲車',    hp:620, speed:155, turn:1.8, range:350, len:100,wid:44, wheels:8, riders:4, turret:'mg', dmg:8, burst:8, armor:.6, unloadDist:230, score:1300},
     recon87:{name:'87式偵察警戒車',    hp:540, speed:195, turn:2.1, range:420, len:92, wid:40, wheels:6, turret:'cannon25', dmg:20, rate:.2, burst:4, rest:2.2, armor:.65, standoff:320, score:1400},
     aaa87:  {name:'87式自走高射機関砲',hp:700, speed:95,  turn:1.5, range:430, len:96, wid:48, tracked:true, turret:'aa', dmg:10, rate:.09, burst:12, rest:1.8, spread:.07, armor:.55, standoff:330, score:1700},
+    // ---- 陸上自衛隊 車両セット3 ----
+    type74: {name:'74式戦車',        hp:900, speed:115, turn:1.4, range:450, len:100,wid:48, tracked:true, turret:'cannon',
+      shellDmg:52, shellRad:84, reload:3.4, armor:.45, standoff:340, score:1700},
+    ifv89:  {name:'89式装甲戦闘車',  hp:820, speed:150, turn:1.6, range:440, len:98, wid:46, tracked:true, riders:6, unloadDist:260,
+      turret:'cannon25', dmg:22, rate:.18, burst:5, rest:2.2, armor:.5, standoff:300, score:1800},
+    aav7:   {name:'AAV7 人員輸送型', hp:760, speed:135, turn:1.5, range:340, len:112,wid:50, tracked:true, riders:8, unloadDist:280,
+      turret:'mg', dmg:8, burst:8, armor:.6, amphib:true, score:1600},
+    aav7c:  {name:'AAV7 指揮通信型', hp:800, speed:130, turn:1.5, range:350, len:112,wid:50, tracked:true, riders:2,
+      turret:'mg', dmg:7, armor:.6, amphib:true, command:true, cmdRange:380, standoff:300, score:2000},
+    mlrs:   {name:'多連装ロケットシステム', hp:780, speed:120, turn:1.3, range:1150, len:118,wid:52, tracked:true, turret:'mlrs', tubes:12, col:'#5a6440',
+      arty:true, salvo:10, salvoRate:.18, shellDmg:50, shellRad:76, reload:9, flight:1.7, scatter:150, minRange:300, armor:.55, standoff:720, score:2900},
+    tractor:{name:'中砲けん引車',    hp:560, speed:165, turn:1.7, range:300, len:112,wid:44, wheels:6, turret:'mg', dmg:6, armor:.85,
+      deploy:'fh70', unloadDist:560, standoff:430, score:1300},
+    trailer73:{name:'73式特大型セミトレーラー', hp:700, speed:140, turn:1.2, range:300, len:150,wid:46, wheels:8, armor:.8,
+      deploy:'type74', unloadDist:430, standoff:360, score:1800},
     // ---- 陸上自衛隊 車両セット1 ----
     mcv16:  {name:'16式機動戦闘車',    hp:660, speed:225, turn:2.0, range:470, len:104,wid:44, wheels:8, turret:'cannonBox', barrel:.58,
       col:'#5f6742', camo:'#414b2a', shellDmg:52, shellRad:82, reload:2.6, armor:.5, standoff:300, score:1800},
@@ -154,6 +169,8 @@ const CFG={
   enemyForts:{ // 敵の固定砲台（動かないが硬い。倒さないとウェーブが終わらない）
     pillbox:{name:'敵トーチカ',       hp:900, dmg:9,  rate:.09, burst:10, rest:1.9, range:450, spread:.07, spd:540, r:28, score:1200, col:'#6e6552'},
     atpit:  {name:'敵対戦車砲陣地',   hp:820, dmg:66, rate:2.6, burst:1,  rest:2.6, range:620, spread:.02, spd:900, r:28, score:1500, shell:true, rad:66, col:'#6a6248'},
+    fh70:   {name:'155mmりゅう弾砲 FH70', hp:700, r:30, score:1600, col:'#5d6442', gunEmpl:true,
+      arty:true, dmg:72, rad:118, reload:5.2, flight:1.9, scatter:82, minRange:260, range:1000},
   },
   // ---- 対空砲（マップに据え付け。プレイヤーが取り付いて撃つ）----
   airFromStage:3,   // 何ステージ目から空襲が始まるか
@@ -851,7 +868,7 @@ function makeEnemy(type,x,y){const c=CFG[type],V=CFG.vehicles[type],A=CFG.aircra
     hp:c.hp*sc,spd:c.speed,range:c.range,score:c.score};
   e.maxHp=e.hp;if(type==='tank'){e.body=rand(0,TAU);e.tAng=e.body;e.tread=0;}
   if(V){e.V=V;e.name=V.name;e.ang=Math.atan2(player.y-y,player.x-x);e.tAng=e.ang;e.speed=0;e.steer=0;
-    e.mode=V.riders?'drive':'fight';e.stateT=0;e.revT=0;e.revSteer=1;e.bumpT=0;e.stuckT=1;e.tread=0;e.gasT=rand(1,3);
+    e.mode=(V.riders||V.deploy)?'drive':'fight';e.stateT=0;e.revT=0;e.revSteer=1;e.bumpT=0;e.stuckT=1;e.tread=0;e.gasT=rand(1,3);
     if(V.boss){e.boss=true;e.charge=0;e.chargeT=rand(6,9);e.rage=false;e.mgCd=rand(.5,1.5);e.mgBurst=0;e.missileT=rand(3,6);e.hp=V.hp*(1+Math.max(0,(wave/5-1))*.45);e.maxHp=e.hp;}
     const st=vehSeats(V);e.riders=st.map((s,i)=>({seat:i,ang:e.ang,fireCd:rand(.8,2),burst:0,x,y}));}
   if(F){e.F=F;e.fort=true;e.name=F.name;e.r=F.r;e.riders=[];e.seed=Math.random();
@@ -881,6 +898,11 @@ function dismount(e){const V=e.V,st=vehSeats(V);
     if(circleBlocked(q.x,q.y,14))q=seatPos(e,{x:-V.len/2-20,y:0});
     const s=makeEnemy(Math.random()<.3?'gunner':'soldier',q.x,q.y);s.ang=r.ang;s.fireCd=rand(.4,1.1);pushOut(s);enemies.push(s);}
   e.riders=[];if(Math.hypot(e.x-camX,e.y-camY)<700)popText(e.x,e.y-38,'敵兵 降車！','#ff9a80');}
+function deployUnit(e){const V=e.V;e.deployed=true;
+  const bx=clamp(e.x-Math.cos(e.ang)*V.len*.65,40,WORLD-40),by=clamp(e.y-Math.sin(e.ang)*V.len*.65,40,WORLD-40);
+  const n=makeEnemy(V.deploy,bx,by);
+  n.ang=e.ang;n.tAng=e.ang;enemies.push(n);
+  smoke(bx,by,9,22);popText(e.x,e.y-42,CFG[V.deploy].name+' 展開！','#ff9a80');}
 function vehShoot(e,t,d){const V=e.V,vol=clamp(1-Math.hypot(player.x-e.x,player.y-e.y)/700,.1,1);
   const off=V.len*.32,bx=e.x+Math.cos(e.tAng)*off,by=e.y+Math.sin(e.tAng)*off;
   if(V.turret==='missile'){ // 追尾ミサイルを連射（射撃管制装置が近いと強化）
@@ -899,6 +921,11 @@ function vehShoot(e,t,d){const V=e.V,vol=clamp(1-Math.hypot(player.x-e.x,player.
     const tx=clamp(t.x+rand(-V.scatter,V.scatter),20,WORLD-20),ty=clamp(t.y+rand(-V.scatter,V.scatter),20,WORLD-20);
     grenades.push({sx:e.x,sy:e.y,tx,ty,x:e.x,y:e.y,t:0,dur:V.flight,fuse:0,h:0,
       dist:Math.hypot(tx-e.x,ty-e.y),rad:V.shellRad,dmg:V.shellDmg,src:'e',marker:true,shell:true});
+    if(V.salvo){ // 多連装：一斉射のあと長い再装填
+      if(e.burst<=0){e.burst=V.salvo;if(d<1000)popText(e.x,e.y-46,'ロケット一斉射！','#ff9a5a');}
+      e.burst--;e.fireCd=e.burst>0?V.salvoRate:V.reload*rand(.9,1.1);
+      smoke(bx,by,4,14);addP({x:bx,y:by,life:.1,size:16,color:'#ffd08a',kind:'flash'});sfx('cannon',vol*.7);
+      shake=Math.max(shake,1.5*vol);return;}
     e.fireCd=V.reload*rand(.9,1.15);smoke(bx,by,8,20);addP({x:bx,y:by,life:.12,size:22,color:'#ffe08a',kind:'flash'});
     sfx('cannon',Math.max(vol,.35));shake=Math.max(shake,3*vol);return;}
   if(V.turret==='cannon'){if(Math.abs(angDiff(e.tAng,Math.atan2(t.y-e.y,t.x-e.x)))>.12)return;
@@ -931,6 +958,7 @@ function updateVehicle(e,dt){const V=e.V,t=e.tgt;e.bumpT-=dt;e.stateT+=dt;
     if(e.hp<e.maxHp*.4&&e.riders.length){e.mode='unload';e.stateT=0;}}
   else if(e.mode==='unload'){e.speed*=Math.max(0,1-4*dt);
     if(Math.abs(e.speed)<40&&e.riders.length)dismount(e);
+    if(Math.abs(e.speed)<40&&V.deploy&&!e.deployed)deployUnit(e);
     if(!e.riders.length&&e.stateT>1.2){e.mode=canRam?'ram':'fight';e.stateT=0;}}
   else if(e.mode==='ram'){if(t){throttle=1;steerTo=toT;}}
   else if(t){ // fight: 射程を保ちつつ動く
@@ -947,7 +975,7 @@ function updateVehicle(e,dt){const V=e.V,t=e.tgt;e.bumpT-=dt;e.stateT+=dt;
   if(throttle!==0){const target=throttle>0?maxS*throttle:V.reverse*throttle;e.speed+=clamp(target-e.speed,-V.accel*1.6*dt,V.accel*dt);}
   else if(e.mode!=='unload')e.speed*=Math.max(0,1-1.6*dt);
   e.ang+=e.steer*V.turn*clamp(e.speed/120,-1,1)*dt;
-  const etm=terrainMul(e.x,e.y,true);
+  const etm=(V.amphib&&inWater(e.x,e.y))?1:terrainMul(e.x,e.y,true);   // 水陸両用車は川でも速度が落ちない
   e.x+=Math.cos(e.ang)*e.speed*etm*dt;e.y+=Math.sin(e.ang)*e.speed*etm*dt;
   if(Math.random()<dt*.5)e.strafe*=-1;
   e.tread+=Math.abs(e.speed)*dt;
@@ -988,6 +1016,15 @@ function updateEnemyFort(e,dt){const F=e.F,t=e.tgt;e.hurt-=dt;e.fireCd-=dt;
   if(!t)return;
   const d=Math.hypot(t.x-e.x,t.y-e.y),ta=Math.atan2(t.y-e.y,t.x-e.x);
   e.tAng+=clamp(angDiff(e.tAng,ta),-1.6*dt,1.6*dt);
+  if(F.arty){ // FH70：見通しが無くても曲射する
+    if(e.fireCd>0||d>F.range||d<(F.minRange||0))return;
+    const tx=clamp(t.x+rand(-F.scatter,F.scatter),20,WORLD-20),ty=clamp(t.y+rand(-F.scatter,F.scatter),20,WORLD-20);
+    grenades.push({sx:e.x,sy:e.y,tx,ty,x:e.x,y:e.y,t:0,dur:F.flight,fuse:0,h:0,
+      dist:Math.hypot(tx-e.x,ty-e.y),rad:F.rad,dmg:F.dmg,src:'e',marker:true,shell:true});
+    e.fireCd=F.reload*rand(.9,1.15);
+    const bx=e.x+Math.cos(e.tAng)*30,by=e.y+Math.sin(e.tAng)*30;
+    smoke(bx,by,7,18);addP({x:bx,y:by,life:.11,size:20,color:'#ffe08a',kind:'flash'});
+    sfx('cannon',clamp(1-Math.hypot(player.x-e.x,player.y-e.y)/700,.15,1));return;}
   if(!e.los||d>F.range||e.fireCd>0||Math.abs(angDiff(e.tAng,ta))>.14)return;
   const a=e.tAng+rand(-F.spread,F.spread),bx=e.x+Math.cos(e.tAng)*24,by=e.y+Math.sin(e.tAng)*24;
   const vol=clamp(1-Math.hypot(player.x-e.x,player.y-e.y)/700,.1,1);
@@ -1224,7 +1261,8 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
   const sched=[ // [wave, type, 台数の増え方, 最大台数]
     [2,'jeep',1],[3,'lav',1],[4,'truck73',1],[4,'tank',1],[5,'apc96',1],[6,'recon87',1],
     [7,'cmd82',1],[8,'chem',1],[9,'aaa87',1],[10,'type90',1],
-    [6,'pillbox',1,3],[9,'atpit',1,2],
+    [6,'pillbox',1,3],[9,'atpit',1,2],[12,'type74',1,3],
+    [20,'ifv89',1,2],[21,'aav7',1,2],[22,'aav7c',1,1],[23,'mlrs',1,2],[24,'tractor',1,2],[25,'trailer73',1,1],
     [11,'mcv16',1,3],[12,'truck35',1,2],[13,'sam93',1,2],[14,'atm96',1,2],
     [16,'sam81',1,2],[17,'fc81',1,1],[18,'ssm12',1,2],[19,'spg99',1,2],
     // ステージ3以降の空襲（対空砲でしか落とせない）
@@ -1239,7 +1277,8 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     bossType=ord[(n/5-1)%ord.length];const bn=Math.min(3,1+cyc);
     for(let i=0;i<bn;i++)q.push(bossType);}
   const debut={2:'jeep',3:'lav',4:'truck73',5:'apc96',6:'recon87',7:'cmd82',8:'chem',9:'aaa87',10:'type90',
-    11:'f4ej',12:'truck35',13:'f2a',14:'rf4ej',16:'rf4e',17:'u125',18:'f2b',19:'spg99'}[n];
+    11:'f4ej',12:'type74',13:'f2a',14:'rf4ej',16:'rf4e',17:'u125',18:'f2b',19:'spg99',
+    20:'ifv89',21:'aav7',22:'aav7c',23:'mlrs',24:'tractor',25:'trailer73'}[n];
   const subs={jeep:'敵の車両が兵士を運んでくる！',lav:'軽装甲機動車が突っ込んでくる',truck73:'73式大型トラックが6人を降ろす',
     apc96:'96式装輪装甲車 出現　装甲が厚い',recon87:'87式偵察警戒車 出現　25mm砲に注意',cmd82:'82式指揮通信車 出現　周りの敵が強化される',
     pillbox:'敵トーチカ 構築　動かないが硬い',atpit:'敵の対戦車砲陣地　車両で近づくな',
@@ -1251,7 +1290,11 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     f4ej:'F-4EJ 来襲！　対空砲でしか落とせない',f2a:'F-2A 来襲　空対地ミサイルに注意',
     rf4ej:'RF-4EJ 偵察機　爆撃もしてくる',rf4e:'RF-4E 偵察機　建物ごと吹き飛ばす',
     u125:'U-125 飛行点検機　敵のミサイルを強化する',f2b:'F-2B 来襲　ミサイル3連射',
-    u125a:'U-125A 救難捜索機　地上の敵を回復させる'};
+    u125a:'U-125A 救難捜索機　地上の敵を回復させる',
+    type74:'74式戦車 出現　数で押してくる',ifv89:'89式装甲戦闘車　35mm機関砲と6人の兵',
+    aav7:'AAV7 人員輸送型　川もそのまま渡ってくる',aav7c:'AAV7 指揮通信型　周りの敵が強くなる',
+    mlrs:'多連装ロケット　10発の一斉射に注意',tractor:'中砲けん引車　FH70を降ろして撃ってくる',
+    trailer73:'73式セミトレーラー　74式戦車を運んでくる'};
   spawnQueue=q;spawnT=1.5;
   const bv=bossType?CFG.vehicles[bossType]:null;
   const dsub=n===4?'敵戦車が来るぞ！手榴弾が有効':(debut?subs[debut]:'');
@@ -1434,6 +1477,18 @@ function drawTurret(V,tAng,ang,wreck){ctx.save();ctx.rotate(tAng-ang);const T=V.
     for(let i=0;i<n;i++){const yy=-bw/2+bw*(i+.5)/n;ctx.beginPath();ctx.arc(bl-10,yy,rr,0,TAU);ctx.fill();}
     if(!wreck){ctx.strokeStyle='rgba(0,0,0,.3)';ctx.lineWidth=1.4;ctx.beginPath();
       ctx.moveTo(-4,-bw/2+3);ctx.lineTo(bl-12,-bw/2+3);ctx.moveTo(-4,bw/2-3);ctx.lineTo(bl-12,bw/2-3);ctx.stroke();}}
+  else if(T==='mlrs'){const bl=V.len*.44,bw=V.wid*.84;
+    ctx.fillStyle=wreck?'#23241c':shade(V.col||'#5a6440',-26);
+    rrect(-V.wid*.34,-V.wid*.4,V.wid*.68,V.wid*.8,4);ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle='rgba(0,0,0,.25)';rrect(-4,-bw/2+5,bl,bw,3);ctx.fill();          // 影
+    ctx.fillStyle=wreck?'#1c1d15':(V.col||'#5a6440');rrect(-8,-bw/2,bl,bw,3);ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle='#20211a';                                                        // 発射筒
+    for(let r=0;r<2;r++)for(let c=0;c<6;c++){
+      const x=-6+bl*(c+.5)/6,y=-bw/2+bw*(r+.5)/2;ctx.fillRect(x-3.2,y-3.2,6.4,6.4);}
+    if(!wreck){ctx.strokeStyle='rgba(0,0,0,.3)';ctx.lineWidth=1.4;ctx.beginPath();
+      ctx.moveTo(-6,0);ctx.lineTo(bl-8,0);ctx.stroke();}}
   else if(T==='radar'){ctx.fillStyle=wreck?'#23241c':shade(V.col||'#5c6442',-24);
     rrect(-V.wid*.3,-V.wid*.34,V.wid*.6,V.wid*.68,4);ctx.fill();
     ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=2;ctx.stroke();
@@ -1514,6 +1569,22 @@ function drawFort(f){const F=CFG.forts[f.type];
   ctx.font=`bold 10px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.6)';
   ctx.strokeText(F.name,f.x,f.y-44);ctx.fillStyle='#dfe8a0';ctx.fillText(F.name,f.x,f.y-44);}
 function drawEnemyFort(e){const F=e.F,fl=e.hurt>0,sd=e.seed||.5;
+  if(F.gunEmpl){ // 牽引式のりゅう弾砲（射撃姿勢）
+    ctx.save();ctx.translate(e.x,e.y);
+    ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(6,8,32,24,0,0,TAU);ctx.fill();
+    ctx.rotate(e.tAng||0);
+    ctx.strokeStyle=fl?'#fff':'#4a5136';ctx.lineWidth=7;ctx.lineCap='round';ctx.beginPath();   // 開脚した駐鋤
+    ctx.moveTo(-6,0);ctx.lineTo(-42,-24);ctx.moveTo(-6,0);ctx.lineTo(-42,24);ctx.stroke();ctx.lineCap='butt';
+    ctx.fillStyle='#1c1c18';for(const sy of[-1,1]){ctx.save();ctx.translate(-2,sy*21);ctx.fillRect(-9,-6,18,12);ctx.restore();}
+    ctx.fillStyle=fl?'#fff':(F.col||'#5d6442');rrect(-13,-14,27,28,4);ctx.fill();
+    ctx.strokeStyle='#2a2f1e';ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle=fl?'#fff':shade(F.col||'#5d6442',16);ctx.fillRect(6,-17,6,34);                // 防盾
+    ctx.fillStyle='#20211a';ctx.fillRect(10,-4,54,8);                                           // 長砲身
+    ctx.fillStyle='#15160f';ctx.fillRect(62,-6,11,12);
+    ctx.restore();
+    ctx.font=`bold 10px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.6)';
+    ctx.strokeText(F.name,e.x,e.y-42);ctx.fillStyle='#ffb0a0';ctx.fillText(F.name,e.x,e.y-42);
+    return;}
   ctx.save();ctx.translate(e.x,e.y);
   ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(5,7,32,27,0,0,TAU);ctx.fill();
   ctx.fillStyle=fl?'#fff':(F.col||'#6e6552');ctx.beginPath();ctx.arc(0,0,26,0,TAU);ctx.fill();   // コンクリート
