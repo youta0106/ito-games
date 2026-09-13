@@ -461,7 +461,7 @@ let allyLvl=0,carLvl=0;
 let state='title',player=null,car=null,cars=[],allies=[],enemies=[],bullets=[],grenades=[],particles=[],pickups=[],decals=[];
 let score=0,best=0,wave=0,spawnQueue=[],spawnT=0,waveClearing=false,clearT=0,banner=null;
 // ---------- ホーム画面（ステージ選択） ----------
-let maxStage=1,homeSel=1,homeTab='stage',homeMsg=null,homeMsgT=0;
+let maxStage=1,homeSel=1,homeTab='stage',homeMsg=null,homeMsgT=0,won=false;
 function loadSave(){try{const v=JSON.parse(localStorage.getItem('ws_save')||'{}');
     maxStage=clamp(v.maxStage||1,1,CFG.homeStages);best=v.best||0;homeSel=clamp(v.lastStage||1,1,maxStage);}catch(e){}}
 function saveGame(){try{localStorage.setItem('ws_save',JSON.stringify({maxStage,best,lastStage:homeSel}));}catch(e){}}
@@ -610,7 +610,7 @@ function killEnemy(e){e.dead=true;score+=e.score;dropLoot(e);
   else{addDecal({kind:'corpse',x:e.x,y:e.y,ang:e.ang,col:e.type==='gunner'?'#4a3528':'#5a4a34',t:25});sparks(e.x,e.y,6,'#c9b48a');}}
 function hurtPlayer(d){if(state!=='play')return;if(player.inCar){hurtCar(car,d);return;}const p=player;p.hp-=d;p.hurt=.25;shake=Math.max(shake,4);
   if(p.hp<=0){p.hp=0;gameOver();}}
-function gameOver(){state='over';overT=0;best=Math.max(best,score);saveGame();sticks.move=sticks.aim=null;explodeFx(player.x,player.y,45);}
+function gameOver(){state='over';won=false;overT=0;best=Math.max(best,score);saveGame();sticks.move=sticks.aim=null;explodeFx(player.x,player.y,45);}
 function weaponPool(){const p=[];for(const k in CFG.weapons){const w=CFG.weapons[k];if(w.tier&&wave>=w.wave)p.push(k);}
   const rk=new Map(p.map(k=>[k,Math.random()]));   // 同じtier内は毎回シャッフル
   p.sort((a,b)=>(CFG.weapons[a].tier-CFG.weapons[b].tier)||(rk.get(a)-rk.get(b)));return p;}
@@ -1546,9 +1546,15 @@ function updateWaves(dt){
     const sn=stageNo(wave),last=waveInStage(wave)===CFG.stageWaves;
     const rew=names.length?'援軍 '+names.join('・')+' 合流！':'ボーナス +'+bonus+'　HP回復・味方復活';
     banner={text:last?`ステージ${sn} クリア！`:`ウェーブ${waveInStage(wave)}/${CFG.stageWaves} クリア`,
-      sub:last?`次は ${stageFor(wave+1).name}　${rew}`:rew,t:last?3.4:3};
+      sub:last?`ボーナス +${bonus}`:rew,t:last?3:3};
     if(names.length)popText(player.x,player.y-40,'+'+bonus,'#dfe8a0');}
-  if(waveClearing){clearT-=dt;if(clearT<=0){waveClearing=false;startWave(wave+1);}}}
+  if(waveClearing){clearT-=dt;if(clearT<=0){waveClearing=false;
+    if(waveInStage(wave)===CFG.stageWaves)stageClear();else startWave(wave+1);}}}
+// ステージの最終ウェーブをクリアしたらリザルトを出してホーム画面へ
+function stageClear(){const sn=stageNo(wave);
+  state='over';won=true;overT=0;best=Math.max(best,score);
+  unlockStage(sn+1);homeSel=clamp(sn+1,1,maxStage);saveGame();
+  sticks.move=sticks.aim=null;banner=null;}
 // 途中のステージから始めるときは、そこまで育った分の装備・仲間を最初から持たせる
 function startGame(sel){const s=clamp(sel||1,1,CFG.homeStages),w0=(s-1)*CFG.stageWaves+1;
   homeSel=s;unlockStage(s);saveGame();
@@ -2251,13 +2257,15 @@ function drawHUD(){
     txt(banner.text,W/2,H*.3,Math.min(46,W/9),'#f0dfa0','center');
     if(banner.sub)txt(banner.sub,W/2,H*.3+Math.min(40,W/10),15,'#e8e2c8','center');ctx.globalAlpha=1;}
   if(state==='title')drawHome();
-  if(state==='over'){ctx.fillStyle=`rgba(40,8,6,${Math.min(.6,overT)})`;ctx.fillRect(0,0,W,H);
-    txt('作戦失敗',W/2,H*.33,Math.min(50,W/8),'#ff8a70','center');
-    txt(`ステージ${stageNo(wave)} ウェーブ${waveInStage(wave)}　SCORE ${score}`,W/2,H*.45,20,'#f0dfa0','center');
+  if(state==='over'){const sn=stageNo(wave),all=won&&sn>=CFG.homeStages;
+    ctx.fillStyle=won?`rgba(14,30,12,${Math.min(.7,overT)})`:`rgba(40,8,6,${Math.min(.6,overT)})`;ctx.fillRect(0,0,W,H);
+    txt(won?(all?'全ステージ クリア！':`ステージ${sn} クリア！`):'作戦失敗',W/2,H*.33,Math.min(50,W/8),won?'#f0dfa0':'#ff8a70','center');
+    txt(won?`SCORE ${score}`:`ステージ${sn} ウェーブ${waveInStage(wave)}　SCORE ${score}`,W/2,H*.45,20,'#f0dfa0','center');
     txt(`ベスト ${best}`,W/2,H*.52,16,'#e8e2c8','center');
+    if(won&&!all)txt(`ステージ${sn+1}　${stageDefOf(sn+1).name} が解放された！`,W/2,H*.59,16,'#9fd8ff','center');
     if(overT>.8&&Math.floor(time*2)%2===0)txt('タップでホームへ',W/2,H*.68,20,'#fff','center');}}
 // ---------- ホーム画面 ----------
-const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間が強化。車両は進化する','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','地雷はWAVE8から。近づくと赤い輪で見える'];
+const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間が強化。車両は進化する','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','地雷はWAVE8から。近づくと赤い輪で見える','ステージ（5ウェーブ）をクリアするとホームに戻る'];
 function rbox(x,y,w,h,r){r=Math.min(r,w/2,h/2);ctx.beginPath();
   ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
   ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
