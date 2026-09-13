@@ -224,6 +224,24 @@ const CFG={
       radar:true, radarRange:660},
     u125a:{name:'U-125A 救難捜索機',hp:860, speed:225, turn:.68,len:86, wid:76, r:33, score:2400, col:'#a8bfcf', camo:'#8aa5bb', biz:true,
       rescue:true, healEvery:3, healRad:280, healAmt:45},
+    // ---- 世界の最新ステルス戦闘機2020（ステルス機はミニマップに映らない）----
+    f35c: {name:'F-35C 米海軍', hp:780, speed:375, turn:1.05, len:86, wid:70, r:32, score:3000, col:'#6f737a', camo:'#5b6067', stealth:true,
+      guns:true, gunDmg:10, gunRate:.075, gunBurst:9, gunRange:450, bombs:2, bombDmg:86, bombRad:124,
+      missiles:1, missileDmg:60, missileRad:88, missileSpd:540, missileTurn:1.7},
+    f22:  {name:'F-22 米空軍', hp:840, speed:430, turn:1.25, len:90, wid:74, r:33, score:3300, col:'#9aa0a6', camo:'#82888e', stealth:true,
+      guns:true, gunDmg:12, gunRate:.07, gunBurst:10, gunRange:470,
+      missiles:2, missileDmg:64, missileRad:90, missileSpd:600, missileTurn:1.9},
+    su35: {name:'Su-35S 露空軍', hp:920, speed:400, turn:1.2, len:94, wid:76, r:34, score:3100, col:'#8496a8', camo:'#5f7386',
+      guns:true, gunDmg:11, gunRate:.08, gunBurst:10, gunRange:460,
+      missiles:3, missileDmg:58, missileRad:86, missileSpd:560, missileTurn:1.8},
+    su57: {name:'Su-57 露空軍', hp:880, speed:415, turn:1.2, len:92, wid:74, r:33, score:3400, col:'#b9bfc4', camo:'#7f868c', stealth:true,
+      guns:true, gunDmg:11, gunRate:.075, gunBurst:9, gunRange:460,
+      missiles:3, missileDmg:62, missileRad:90, missileSpd:580, missileTurn:1.8},
+    j20:  {name:'J-20 中国空軍', hp:900, speed:405, turn:1.1, len:94, wid:74, r:34, score:3500, col:'#a5aab0', camo:'#8b9096', stealth:true,
+      missiles:4, missileDmg:66, missileRad:94, missileSpd:560, missileTurn:1.5},
+    j31:  {name:'J-31 中国空軍', hp:800, speed:395, turn:1.15, len:86, wid:70, r:32, score:3200, col:'#3f434a', camo:'#2e3238', stealth:true,
+      guns:true, gunDmg:10, gunRate:.075, gunBurst:9, gunRange:440, bombs:2, bombDmg:84, bombRad:120,
+      missiles:1, missileDmg:58, missileRad:86, missileSpd:540, missileTurn:1.7},
   },
   car:{hp:400, maxSpeed:330, reverseSpeed:130, accel:320, turn:2.5, ramDmg:.5, smashSpeed:140,
     repair:170, // 回復アイテム1個で味方車両が回復する量
@@ -1304,6 +1322,7 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     [6,'pillbox',1,3],[9,'atpit',1,2],[12,'type74',1,3],
     [20,'ifv89',1,2],[21,'aav7',1,2],[22,'aav7c',1,1],[23,'mlrs',1,2],[24,'tractor',1,2],[25,'trailer73',1,1],
     [26,'brad',1,3],[27,'himars',1,2],
+    [28,'f35c',1,2],[30,'f22',1,2],[32,'su35',1,2],[34,'su57',1,2],[36,'j20',1,2],[38,'j31',1,2],
     [28,'btr70',1,3],[29,'bmp1',1,3],[30,'btr80',1,3],[31,'bmp2m',1,3],[32,'t72b3',1,3],[33,'msta',1,2],[34,'t90m',1,2],
     [11,'mcv16',1,3],[12,'truck35',1,2],[13,'sam93',1,2],[14,'atm96',1,2],
     [16,'sam81',1,2],[17,'fc81',1,1],[18,'ssm12',1,2],[19,'spg99',1,2],
@@ -1320,7 +1339,8 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     for(let i=0;i<bn;i++)q.push(bossType);}
   const debut={2:'jeep',3:'lav',4:'truck73',5:'apc96',6:'recon87',7:'cmd82',8:'chem',9:'aaa87',10:'type90',
     11:'f4ej',12:'type74',13:'f2a',14:'rf4ej',16:'rf4e',17:'u125',18:'f2b',19:'spg99',
-    20:'ifv89',21:'aav7',22:'aav7c',23:'mlrs',24:'tractor',25:'trailer73',26:'brad',27:'himars',28:'btr70',29:'bmp1',31:'bmp2m',32:'t72b3',33:'msta',34:'t90m'}[n];
+    20:'ifv89',21:'aav7',22:'aav7c',23:'mlrs',24:'tractor',25:'trailer73',26:'brad',27:'himars',28:'f35c',29:'bmp1',30:'f22',31:'bmp2m',32:'t72b3',33:'msta',34:'su57',
+    36:'j20',38:'j31'}[n];
   const subs={jeep:'敵の車両が兵士を運んでくる！',lav:'軽装甲機動車が突っ込んでくる',truck73:'73式大型トラックが6人を降ろす',
     apc96:'96式装輪装甲車 出現　装甲が厚い',recon87:'87式偵察警戒車 出現　25mm砲に注意',cmd82:'82式指揮通信車 出現　周りの敵が強化される',
     pillbox:'敵トーチカ 構築　動かないが硬い',atpit:'敵の対戦車砲陣地　車両で近づくな',
@@ -1341,7 +1361,10 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     btr70:'BTR-70　8輪APCが7人を運んでくる',btr80:'BTR-80　14.5mm機銃で弾幕を張る',
     bmp1:'BMP-1　73mm砲と対戦車ミサイル',bmp2m:'BMP-2M　30mm機関砲とコルネット',
     t72b3:'T-72B3　爆発反応装甲で爆発に強い',t90m:'T-90M　最硬クラス＋砲発射ミサイル',
-    msta:'2S19 ムスタ-S　152mmの曲射に注意'};
+    msta:'2S19 ムスタ-S　152mmの曲射に注意',
+    f35c:'F-35C 来襲　ステルスはミニマップに映らない',f22:'F-22 来襲　最速のステルス戦闘機',
+    su35:'Su-35S 来襲　ミサイル3連射',su57:'Su-57 来襲　ステルスの多目的機',
+    j20:'J-20 来襲　長射程ミサイル4連射',j31:'J-31 来襲　ステルス爆撃'};
   spawnQueue=q;spawnT=1.5;
   const bv=bossType?CFG.vehicles[bossType]:null;
   const dsub=n===4?'敵戦車が来るぞ！手榴弾が有効':(debut?subs[debut]:'');
@@ -1899,7 +1922,8 @@ function drawStick(st,hx,hy,label){
     ctx.font=`bold 13px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='rgba(255,255,255,.3)';ctx.fillText(label,hx,hy);}}
 function drawHUD(){
   if(state==='play'){
-    for(const e of enemies){const sx=(e.x-camX)*S+W/2,sy=(e.y-camY)*S+H/2;if(sx>-10&&sx<W+10&&sy>-10&&sy<H+10)continue;
+    for(const e of enemies){if(e.A&&e.A.stealth)continue;   // ステルス機は接近を知らせない
+      const sx=(e.x-camX)*S+W/2,sy=(e.y-camY)*S+H/2;if(sx>-10&&sx<W+10&&sy>-10&&sy<H+10)continue;
       const d=Math.hypot(e.x-player.x,e.y-player.y);if(d>950)continue;
       const a=Math.atan2(sy-H/2,sx-W/2),c=Math.cos(a),s=Math.sin(a);
       const t=Math.min((W/2-22)/Math.max(Math.abs(c),1e-6),(H/2-22)/Math.max(Math.abs(s),1e-6));
@@ -1965,7 +1989,8 @@ function drawHUD(){
     for(const b of bridges)mrect(b,'rgba(198,168,112,.9)');
     ctx.fillStyle='rgba(200,190,170,.5)';for(const o of obstacles)if(o.type==='building')ctx.fillRect(mx+o.x*k,my+o.y*k,Math.max(1,o.w*k),Math.max(1,o.h*k));
     ctx.fillStyle='rgba(120,170,110,.45)';for(const o of obstacles)if(o.type==='tree')ctx.fillRect(mx+o.x*k,my+o.y*k,Math.max(1,o.w*k),Math.max(1,o.h*k));
-    for(const e of enemies){ctx.fillStyle=e.boss?'#ffd45a':e.air?'#bfe4ff':e.type==='tank'?'#ffae3a':e.V?'#ff7a4a':'#ff5a4a';const s=e.boss?6:e.air?5:e.type==='tank'||e.V?4:2.5;ctx.fillRect(mx+e.x*k-s/2,my+e.y*k-s/2,s,s);}
+    for(const e of enemies){if(e.A&&e.A.stealth)continue;   // ステルス機はミニマップに映らない
+      ctx.fillStyle=e.boss?'#ffd45a':e.air?'#bfe4ff':e.type==='tank'?'#ffae3a':e.V?'#ff7a4a':'#ff5a4a';const s=e.boss?6:e.air?5:e.type==='tank'||e.V?4:2.5;ctx.fillRect(mx+e.x*k-s/2,my+e.y*k-s/2,s,s);}
     for(const a of allies){if(a.down&&Math.floor(time*4)%2)continue;ctx.fillStyle=a.down?'#fff':'#4fb4ff';ctx.fillRect(mx+a.x*k-1.5,my+a.y*k-1.5,3,3);}
     for(const f of forts){ctx.fillStyle='#a8e08a';ctx.fillRect(mx+f.x*k-2.5,my+f.y*k-2.5,5,5);}
     for(const g of aas){ctx.fillStyle=player.aa===g?'#ffd45a':'#8fe0ff';ctx.fillRect(mx+g.x*k-3,my+g.y*k-1,6,2);ctx.fillRect(mx+g.x*k-1,my+g.y*k-3,2,6);}
