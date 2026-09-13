@@ -212,6 +212,9 @@ const CFG={
   aaGuns:{
     aa57:{name:'57mm高射砲',      hp:900, dmg:300, rate:.7,  spd:1600, spread:.015, range:1100, gun:40, prox:54, col:'#5c6442'},
     aa35:{name:'35mm連装機関砲',  hp:820, dmg:44,  rate:.085,spd:1700, spread:.045, range:900,  gun:32, prox:30, twin:true, col:'#515a3a'},
+    // 対空ミサイル砲：狙った航空機を追尾するミサイルを2連射する（ステージ3の空襲から登場）
+    sam03:{name:'03式中SAM',      hp:780, dmg:240, rate:1.9, spd:560,  spread:.02,  range:1500, gun:30, prox:48,
+           missile:true, tubes:6, salvo:2, salvoRate:.32, rad:104, turn:2.9, col:'#5a6440'},
   },
   // ---- 航空機（航空自衛隊機セット4）対空砲でしか落とせない ----
   aircraft:{
@@ -559,7 +562,7 @@ function explodeFx(x,y,rad){shake=Math.max(shake,rad/9);
 function addDecal(d){decals.push(d);if(decals.length>90)decals.shift();}
 
 // ---------- ダメージ ----------
-function explode(x,y,rad,dmg,src,hard){explodeFx(x,y,rad);
+function explode(x,y,rad,dmg,src,hard,air){explodeFx(x,y,rad);
   for(const m of mines){if(m.dead)continue;   // 爆風で誘爆する
     if(Math.hypot(m.x-x,m.y-y)<rad+10&&m.arm<=0)detonateMine(m);}
   if(src==='e'){const mul=hard?4:1;   // 陣地・対空砲へのダメージ（貫通爆弾は4倍）
@@ -567,7 +570,7 @@ function explode(x,y,rad,dmg,src,hard){explodeFx(x,y,rad);
       if(d<rad+30)hurtFortObj(f,dmg*mul*(1-.5*clamp(d/(rad+30),0,1)));}
     for(const g of aas.slice()){const d=Math.hypot(g.x-x,g.y-y);
       if(d<rad+30)hurtAAObj(g,dmg*mul*(1-.5*clamp(d/(rad+30),0,1)));}}
-  if(src!=='e')for(const e of enemies){if(e.dead||e.air)continue;const d=Math.hypot(e.x-x,e.y-y);
+  if(src!=='e')for(const e of enemies){if(e.dead||(e.air&&!air))continue;const d=Math.hypot(e.x-x,e.y-y);
     if(d<rad+e.r)hurtEnemy(e,dmg*(1-.6*clamp(d/(rad+e.r),0,1)),true,x,y);}
   if(state==='play'&&src!=='a'&&!player.inCar){const p=player,d=Math.hypot(p.x-x,p.y-y);
     if(d<rad+p.r)hurtPlayer(dmg*(1-.6*clamp(d/(rad+p.r),0,1))*(src==='p'?.4:1));}
@@ -837,7 +840,23 @@ function toggleAA(){if(state!=='play')return;
   if(player.inCar)return;
   const g=aaNear(player.x,player.y,78);if(!g)return;
   player.aa=g;popText(g.x,g.y-42,CFG.aaGuns[g.type].name+'　対空戦闘！','#ffd45a');}
-function aaFire(g){const G=CFG.aaGuns[g.type],n=G.twin?2:1,co=Math.cos(g.ang),si=Math.sin(g.ang);
+function airTarget(g,G){ // 照準に一番近い航空機（ミサイルの追尾先）
+  let best=null,bd=.7;
+  for(const e of enemies){if(e.dead||!e.air)continue;
+    if(Math.hypot(e.x-g.x,e.y-g.y)>G.range)continue;
+    const df=Math.abs(angDiff(g.ang,Math.atan2(e.y-g.y,e.x-g.x)));
+    if(df<bd){bd=df;best=e;}}
+  return best;}
+function aaMissile(g,G){const t=airTarget(g,G),co=Math.cos(g.ang),si=Math.sin(g.ang);
+  if(!g.burst)g.burst=G.salvo;
+  g.burst--;g.cd=g.burst>0?G.salvoRate:G.rate*rand(.95,1.1);g.flash=.09;
+  const off=rand(-11,11),mx=g.x+co*G.gun-si*off,my=g.y+si*G.gun+co*off,v0=t?240:G.spd;
+  bullets.push({x:mx,y:my,vx:co*v0,vy:si*v0,owner:'p',rocket:true,aa:true,ap:true,homing:t||null,
+    turn:G.turn,spd:G.spd,dmg:G.dmg,rad:G.rad,prox:G.prox,life:2600/G.spd});
+  smoke(mx,my,6,15);addP({x:mx,y:my,life:.1,size:15,color:'#ffd08a',kind:'flash'});
+  shake=Math.max(shake,3);sfx('cannon',.75);}
+function aaFire(g){const G=CFG.aaGuns[g.type];if(G.missile){aaMissile(g,G);return;}
+  const n=G.twin?2:1,co=Math.cos(g.ang),si=Math.sin(g.ang);
   g.cd=G.rate;g.flash=.07;
   for(let i=0;i<n;i++){const off=G.twin?(i?8:-8):0,a=g.ang+rand(-G.spread,G.spread);
     const bx=g.x+co*G.gun-si*off,by=g.y+si*G.gun+co*off;
@@ -1367,7 +1386,7 @@ function updateEnemies(dt){
   enemies=enemies.filter(e=>!e.dead);}
 
 // ---------- 弾・手榴弾・アイテム ----------
-function bulletBoom(b){explode(b.x,b.y,b.rad,b.dmg,b.owner==='e'?'e':'a');}
+function bulletBoom(b){explode(b.x,b.y,b.rad,b.dmg,b.owner==='e'?'e':'a',false,b.aa);}
 function updateBullets(dt){let obsChanged=false;const fr=[player,...allies];
   for(const b of bullets){if(b.dead)continue;const ex=b.shell||b.rocket,steps=ex?1:2;
     if(ex&&Math.random()<.4)addP({x:b.x,y:b.y,life:.4,size:4,grow:10,color:'#8a8a80',kind:'smoke'});
@@ -1380,7 +1399,7 @@ function updateBullets(dt){let obsChanged=false;const fr=[player,...allies];
       if(Math.random()<.2)addP({x:b.x,y:b.y,life:.6,size:6,grow:18,color:'#5a5a52',kind:'smoke'});}
     if(b.ap&&Math.random()<.6)addP({x:b.x,y:b.y,life:.15,size:3,color:'#bfe4ff',kind:'flash'});
     for(let s=0;s<steps&&!b.dead;s++){b.x+=b.vx*dt/steps;b.y+=b.vy*dt/steps;
-      const o=solidAt(b.x,b.y,false);
+      const o=b.aa?null:solidAt(b.x,b.y,false);   // 対空弾は空を狙うので建物に当たらない
       if(o){b.dead=true;
         if(ex)bulletBoom(b);
         else{sparks(b.x,b.y,b.flame?2:4,o.type==='building'?'#dddccc':'#e8cf96');if(o.hp!==Infinity){hurtObstacle(o,b.dmg*(b.ap?2:.5));obsChanged=true;}}
@@ -1878,12 +1897,24 @@ function drawAA(g){const G=CFG.aaGuns[g.type],manned=player&&player.aa===g;
   ctx.fillStyle='#2b2f22';for(let i=0;i<4;i++){const a=i*Math.PI/2+Math.PI/4;ctx.beginPath();ctx.arc(Math.cos(a)*30,Math.sin(a)*30,5.5,0,TAU);ctx.fill();}
   ctx.fillStyle='#1c1c18';ctx.fillRect(-11,-28,22,10);ctx.fillRect(-11,18,22,10); // 車輪
   ctx.rotate(g.ang);
+  if(G.missile){ // 箱型のミサイルランチャー
+    ctx.fillStyle=shade(G.col,-22);rrect(-16,-16,28,32,5);ctx.fill();ctx.strokeStyle='#2a2f1e';ctx.lineWidth=2;ctx.stroke();
+    const bl=G.gun+10,bw=32;
+    ctx.fillStyle='rgba(0,0,0,.25)';rrect(-2,-bw/2+4,bl,bw,3);ctx.fill();
+    ctx.fillStyle=G.col;rrect(-5,-bw/2,bl,bw,3);ctx.fill();ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=2;ctx.stroke();
+    ctx.strokeStyle='rgba(0,0,0,.3)';ctx.lineWidth=1.4;ctx.beginPath();
+    ctx.moveTo(-3,-bw/2+3);ctx.lineTo(bl-13,-bw/2+3);ctx.moveTo(-3,bw/2-3);ctx.lineTo(bl-13,bw/2-3);ctx.stroke();
+    ctx.fillStyle='#20211a';const nt=G.tubes||6;
+    for(let i=0;i<nt;i++){const yy=-bw/2+bw*(i+.5)/nt;ctx.beginPath();ctx.arc(bl-9,yy,Math.min(4.5,bw/nt*.44),0,TAU);ctx.fill();}
+    ctx.fillStyle=shade(G.col,20);ctx.fillRect(-19,-7,7,14);                      // 後ろのレーダー箱
+    if(g.flash>0){ctx.fillStyle='#ffe08a';ctx.beginPath();ctx.moveTo(bl+4,0);ctx.lineTo(bl+26,-12);ctx.lineTo(bl+26,12);ctx.closePath();ctx.fill();}}
+  else{
   ctx.fillStyle=G.col;rrect(-17,-15,32,30,5);ctx.fill();ctx.strokeStyle='#2a2f1e';ctx.lineWidth=2;ctx.stroke();
   ctx.fillStyle=shade(G.col,16);ctx.fillRect(3,-18,6,36);                        // 防盾
   ctx.fillStyle='#20211a';
   if(G.twin){ctx.fillRect(8,-9.5,G.gun,6);ctx.fillRect(8,3.5,G.gun,6);}
   else{ctx.fillRect(8,-4,G.gun,8);ctx.fillStyle='#15160f';ctx.fillRect(G.gun+4,-6,9,12);}
-  if(g.flash>0){ctx.fillStyle='#ffe08a';ctx.beginPath();ctx.moveTo(G.gun+12,0);ctx.lineTo(G.gun+30,-10);ctx.lineTo(G.gun+30,10);ctx.closePath();ctx.fill();}
+  if(g.flash>0){ctx.fillStyle='#ffe08a';ctx.beginPath();ctx.moveTo(G.gun+12,0);ctx.lineTo(G.gun+30,-10);ctx.lineTo(G.gun+30,10);ctx.closePath();ctx.fill();}}
   ctx.restore();
   if(!manned){const raid=enemies.some(e=>e.air&&!e.dead);
     ctx.strokeStyle=raid?`rgba(255,210,90,${.35+.3*Math.sin(time*6)})`:'rgba(206,222,170,.22)';
@@ -2119,7 +2150,8 @@ function drawWorld(){
   ctx.lineCap='round';
   for(const b of bullets){if(!vis(b.x,b.y,20))continue;
     if(b.rocket){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx));ctx.fillStyle='rgba(255,170,60,.55)';ctx.beginPath();ctx.arc(-9,0,5,0,TAU);ctx.fill();
-      ctx.fillStyle='#4a5236';ctx.fillRect(-7,-2.5,14,5);ctx.fillStyle='#c33';ctx.fillRect(5,-2.5,3,5);ctx.restore();}
+      ctx.fillStyle=b.aa?'#8fb4cc':'#4a5236';ctx.fillRect(-7,-2.5,14,5);ctx.fillStyle='#c33';ctx.fillRect(5,-2.5,3,5);
+      if(b.aa){ctx.fillStyle='#2e3a42';ctx.fillRect(-8,-5,4,10);}ctx.restore();}
     else if(b.shell){ctx.fillStyle='rgba(255,160,60,.35)';ctx.beginPath();ctx.arc(b.x,b.y,9,0,TAU);ctx.fill();ctx.fillStyle='#222';ctx.beginPath();ctx.arc(b.x,b.y,5,0,TAU);ctx.fill();}
     else if(b.homing){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx));
       ctx.fillStyle='rgba(255,160,60,.5)';ctx.beginPath();ctx.arc(-10,0,5,0,TAU);ctx.fill();
@@ -2272,7 +2304,7 @@ function drawHUD(){
     if(won&&!all)txt(`ステージ${sn+1}　${stageDefOf(sn+1).name} が解放された！`,W/2,H*.59,16,'#9fd8ff','center');
     if(overT>.8&&Math.floor(time*2)%2===0)txt('タップでホームへ',W/2,H*.68,20,'#fff','center');}}
 // ---------- ホーム画面 ----------
-const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間が強化。車両は進化する','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','地雷はWAVE8から。近づくと赤い輪で見える','ステージ（5ウェーブ）をクリアするとホームに戻る'];
+const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間が強化。車両は進化する','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','対空ミサイル砲（03式中SAM）は狙った機を追尾する','地雷はWAVE8から。近づくと赤い輪で見える','ステージ（5ウェーブ）をクリアするとホームに戻る'];
 function rbox(x,y,w,h,r){r=Math.min(r,w/2,h/2);ctx.beginPath();
   ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
   ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
