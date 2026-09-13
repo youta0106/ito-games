@@ -241,6 +241,9 @@ const CFG={
       missiles:3, missileDmg:62, missileRad:90, missileSpd:580, missileTurn:1.8},
     j20:  {name:'J-20 中国空軍', hp:900, speed:405, turn:1.1, len:94, wid:74, r:34, score:3500, col:'#a5aab0', camo:'#8b9096', stealth:true,
       missiles:4, missileDmg:66, missileRad:94, missileSpd:560, missileTurn:1.5},
+    c2:   {name:'C-2 輸送機', hp:1700, speed:235, turn:.55, len:122, wid:140, r:46, score:5000,
+      col:'#9aa4ad', camo:'#7d8892', cargo:true, land:true, landDist:400, landTime:1.7,
+      troops:30, dropEvery:.22, dropPer:2},
     b2:   {name:'B-2 スピリット', hp:1200, speed:255, turn:.6, len:98, wid:136, r:42, score:6000,
       col:'#6b7078', camo:'#565c63', stealth:true, wing:true,
       bb:4, bbDmg:175, bbRad:195, bombs:3, bombDmg:98, bombRad:136},
@@ -559,7 +562,7 @@ function killEnemy(e){e.dead=true;score+=e.score;dropLoot(e);
     for(let i=0;i<14;i++)addP({x:e.x+rand(-20,20),y:e.y+rand(-20,20),vx:rand(-150,150),vy:rand(-150,150),
       life:rand(.5,1.1),size:rand(3,8),color:'#a58a5a',kind:'debris',drag:3});
     sfx('boom',.9);shake=Math.max(shake,6);}
-  else if(e.air){ // 撃墜
+  else if(e.A){ // 撃墜
     for(let i=0;i<3;i++)explodeFx(e.x+rand(-34,34),e.y+rand(-34,34),74);
     popText(e.x,e.y-44,e.name+' 撃墜！','#ffd45a');
     addDecal({kind:'scorch',x:e.x,y:e.y,r:48,t:1e9});
@@ -584,7 +587,7 @@ function rollUp(){const o=[];if(upAvailable('wup'))o.push('wup');if(upAvailable(
     const o2=o.filter(x=>x!=='cup');
     return o2.length?o2[Math.floor(Math.random()*o2.length)]:null;}
   return k;}
-function dropLoot(e){let t=null,heavy=e.type==='tank'||e.V||e.air||e.F;
+function dropLoot(e){let t=null,heavy=e.type==='tank'||e.V||e.A||e.F;
   if(heavy){const r=Math.random();
     if(r<CFG.upDropHeavy)t=rollUp();
     if(!t){const r2=Math.random();t=r2<.18?'health':r2<.30?'grenade':r2<.30+CFG.repairDropHeavy?'repair':rollWeapon(true);}}
@@ -956,7 +959,7 @@ function makeEnemy(type,x,y){const c=CFG[type],V=CFG.vehicles[type],A=CFG.aircra
     const st=vehSeats(V);e.riders=st.map((s,i)=>({seat:i,ang:e.ang,fireCd:rand(.8,2),burst:0,x,y}));}
   if(F){e.F=F;e.fort=true;e.name=F.name;e.r=F.r;e.riders=[];e.seed=Math.random();
     e.ang=Math.atan2(player.y-y,player.x-x);e.tAng=e.ang;}
-  if(A){e.A=A;e.air=true;e.name=A.name;e.r=A.r;e.riders=[];
+  if(A){e.A=A;e.air=true;e.name=A.name;e.r=A.r;e.riders=[];e.alt=1;
     e.ang=Math.atan2(player.y-y,player.x-x);e.run=true;e.turnT=0;e.turnDir=Math.random()<.5?1:-1;
     e.bombLeft=A.bombs||0;e.bbLeft=A.bb||0;e.bombCd=0;e.gunCd=rand(.4,1.2);e.gunBurst=0;e.msCd=rand(1,2.5);e.healT=rand(1,3);}
   return e;}
@@ -965,7 +968,8 @@ function spawnEnemy(type){
     const a=rand(0,TAU),d=rand(1000,1300);
     const first=!enemies.some(o=>o.air&&!o.dead);
     enemies.push(makeEnemy(type,player.x+Math.cos(a)*d,player.y+Math.sin(a)*d));
-    if(CFG.aircraft[type].wing)banner={text:'戦略爆撃機 接近',sub:'B-2 スピリット　陣地が狙われる',t:3.2};
+    if(CFG.aircraft[type].land)banner={text:'輸送機 接近',sub:'C-2 が着陸して増援を降ろす　着陸前に叩け',t:3.2};
+    else if(CFG.aircraft[type].wing)banner={text:'戦略爆撃機 接近',sub:'B-2 スピリット　陣地が狙われる',t:3.2};
     else if(first)banner={text:'空襲警報',sub:'対空砲に取り付け！　銃では落とせない',t:2.8};
     return true;}
   const V=CFG.vehicles[type],F=CFG.enemyForts[type],r=V?V.len/2+8:F?F.r+10:type==='tank'?36:15;
@@ -1157,7 +1161,40 @@ function airMissile(e,t,d){const A=e.A;e.msCd=rand(3.2,4.6);
     turn:A.missileTurn*(e.fcs?1.4:1),spd:A.missileSpd,dmg:A.missileDmg,rad:A.missileRad,life:6});
   smoke(bx,by,5,13);sfx('cannon',clamp(1-d/800,.1,1)*.7);
   if(d<760)popText(e.x,e.y+34,'空対地ミサイル！','#ff9a5a');}
-function updateAircraft(e,dt){const A=e.A;e.hurt-=dt;e.gunCd-=dt;e.bombCd-=dt;e.msCd-=dt;
+function dropTroops(e,n){const A=e.A;
+  for(let i=0;i<n&&e.left>0;i++){e.left--;
+    const bx=e.x-Math.cos(e.ang)*A.len*.55+rand(-26,26),by=e.y-Math.sin(e.ang)*A.len*.55+rand(-26,26);
+    const s=makeEnemy(Math.random()<.25?'gunner':'soldier',clamp(bx,30,WORLD-30),clamp(by,30,WORLD-30));
+    s.ang=e.ang+Math.PI;pushOut(s);enemies.push(s);}
+  smoke(e.x-Math.cos(e.ang)*A.len*.5,e.y-Math.sin(e.ang)*A.len*.5,3,14);}
+function updateTransport(e,dt){const A=e.A;e.hurt-=dt;
+  const t=state==='play'?player:null,tx=t?t.x:WORLD/2,ty=t?t.y:WORLD/2;
+  const d=Math.hypot(tx-e.x,ty-e.y),toT=Math.atan2(ty-e.y,tx-e.x);
+  if(e.spd2===undefined){e.spd2=A.speed;e.ph='in';e.left=A.troops;e.unT=0;e.offT=0;e.landT=0;}
+  if(e.ph==='in'){const df=angDiff(e.ang,toT);e.ang+=clamp(df,-A.turn*dt,A.turn*dt);
+    if(d<A.landDist&&Math.abs(df)<.3&&!circleBlocked(e.x,e.y,50)){e.ph='land';e.landT=0;
+      popText(e.x,e.y+40,'C-2 着陸態勢','#ffb0a0');}}
+  else if(e.ph==='land'){e.landT+=dt;e.alt=Math.max(0,1-e.landT/A.landTime);
+    e.spd2=Math.max(45,A.speed*(1-(e.landT/A.landTime)*.82));
+    if(Math.random()<dt*26)addP({x:e.x+rand(-40,40),y:e.y+rand(-24,24),vx:rand(-30,30),vy:rand(-30,30),
+      life:rand(.4,.9),size:8,grow:20,color:'#9a9280',kind:'smoke',drag:2});
+    if(e.alt<=0){e.ph='unload';e.air=false;e.alt=0;e.spd2=0;e.unT=.6;e.offT=0;
+      shake=Math.max(shake,7);sfx('boom',.5);
+      popText(e.x,e.y-46,'C-2 着陸！　増援30名が降りてくる','#ff8a70');}}
+  else if(e.ph==='unload'){e.unT-=dt;
+    if(e.left>0&&e.unT<=0){e.unT=A.dropEvery;dropTroops(e,A.dropPer);}
+    if(e.left<=0){e.offT+=dt;if(e.offT>1.2){e.ph='off';e.air=true;e.landT=0;
+      e.turnDir=Math.random()<.5?1:-1;popText(e.x,e.y-46,'C-2 離陸','#ffb0a0');}}}
+  else{e.landT+=dt;e.alt=Math.min(1,e.landT/A.landTime);
+    e.spd2=Math.min(A.speed,e.spd2+A.speed/A.landTime*dt);
+    e.ang+=A.turn*.35*(e.turnDir||1)*dt;
+    if(e.landT>A.landTime+7)e.dead=true;}
+  e.x+=Math.cos(e.ang)*e.spd2*dt;e.y+=Math.sin(e.ang)*e.spd2*dt;
+  if(e.x<-700||e.x>WORLD+700||e.y<-700||e.y>WORLD+700){
+    if(e.ph==='in'){e.ang=Math.atan2(WORLD/2-e.y,WORLD/2-e.x);}else e.dead=true;}}
+function updateAircraft(e,dt){const A=e.A;
+  if(A.land){updateTransport(e,dt);return;}
+  e.hurt-=dt;e.gunCd-=dt;e.bombCd-=dt;e.msCd-=dt;
   const t=e.tgt&&!e.tgt.dead&&!e.tgt.down?e.tgt:(state==='play'?player:null);
   const tx=t?t.x:WORLD/2,ty=t?t.y:WORLD/2;
   const d=Math.hypot(tx-e.x,ty-e.y),toT=Math.atan2(ty-e.y,tx-e.x),df=angDiff(e.ang,toT);
@@ -1374,7 +1411,7 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     [6,'pillbox',1,3],[9,'atpit',1,2],[12,'type74',1,3],
     [20,'ifv89',1,2],[21,'aav7',1,2],[22,'aav7c',1,1],[23,'mlrs',1,2],[24,'tractor',1,2],[25,'trailer73',1,1],
     [26,'brad',1,3],[27,'himars',1,2],
-    [28,'f35c',1,2],[30,'f22',1,2],[32,'su35',1,2],[34,'su57',1,2],[36,'j20',1,2],[37,'b2',1,1],[38,'j31',1,2],
+    [28,'f35c',1,2],[30,'f22',1,2],[32,'su35',1,2],[34,'su57',1,2],[33,'c2',1,1],[36,'j20',1,2],[37,'b2',1,1],[38,'j31',1,2],
     [28,'btr70',1,3],[29,'bmp1',1,3],[30,'btr80',1,3],[31,'bmp2m',1,3],[32,'t72b3',1,3],[33,'msta',1,2],[34,'t90m',1,2],
     [11,'mcv16',1,3],[12,'truck35',1,2],[13,'sam93',1,2],[14,'atm96',1,2],
     [16,'sam81',1,2],[17,'fc81',1,1],[18,'ssm12',1,2],[19,'spg99',1,2],
@@ -1746,6 +1783,17 @@ function drawAA(g){const G=CFG.aaGuns[g.type],manned=player&&player.aa===g;
   ctx.font=`bold 10px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.6)';
   ctx.strokeText(G.name,g.x,g.y-48);ctx.fillStyle=manned?'#ffd45a':'#dfe8a0';ctx.fillText(G.name,g.x,g.y-48);}
 function planePath(A,L,Wd){ctx.beginPath();
+  if(A.cargo){ // 輸送機（C-2）：太い胴体・高翼・T字尾翼
+    ctx.moveTo(L,0);
+    ctx.lineTo(L*.8,-Wd*.13);ctx.lineTo(L*.12,-Wd*.16);
+    ctx.lineTo(L*.06,-Wd);ctx.lineTo(-L*.22,-Wd);ctx.lineTo(-L*.12,-Wd*.16);
+    ctx.lineTo(-L*.7,-Wd*.15);
+    ctx.lineTo(-L*.76,-Wd*.5);ctx.lineTo(-L,-Wd*.46);ctx.lineTo(-L*.9,-Wd*.11);
+    ctx.lineTo(-L*.9,Wd*.11);ctx.lineTo(-L,Wd*.46);ctx.lineTo(-L*.76,Wd*.5);
+    ctx.lineTo(-L*.7,Wd*.15);
+    ctx.lineTo(-L*.12,Wd*.16);ctx.lineTo(-L*.22,Wd);ctx.lineTo(L*.06,Wd);
+    ctx.lineTo(L*.12,Wd*.16);ctx.lineTo(L*.8,Wd*.13);
+    ctx.closePath();return;}
   if(A.wing){ // 全翼機（B-2）
     ctx.moveTo(L,0);
     ctx.lineTo(L*.14,-Wd*.24);ctx.lineTo(-L*.14,-Wd);      // 左翼端まで後退角
@@ -1769,9 +1817,10 @@ function planePath(A,L,Wd){ctx.beginPath();
     ctx.lineTo(-L*.78,Wd*.54);ctx.lineTo(-L*.48,Wd*.2);ctx.lineTo(-L*.6,Wd);
     ctx.lineTo(-L*.38,Wd);ctx.lineTo(0,Wd*.16);ctx.lineTo(L*.34,Wd*.13);ctx.closePath();}}
 function drawAircraft(e){const A=e.A,L=A.len/2,Wd=A.wid/2,fl=e.hurt>0;
-  ctx.save();ctx.translate(e.x+36,e.y+46);ctx.rotate(e.ang);                    // 地面の影
-  ctx.globalAlpha=.2;ctx.fillStyle='#000';planePath(A,L,Wd);ctx.fill();ctx.restore();ctx.globalAlpha=1;
-  ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.ang);
+  const al=e.alt===undefined?1:e.alt;                                            // 1=上空 0=接地
+  ctx.save();ctx.translate(e.x+36*al,e.y+46*al);ctx.rotate(e.ang);               // 地面の影
+  ctx.globalAlpha=.2+.1*(1-al);ctx.fillStyle='#000';planePath(A,L,Wd);ctx.fill();ctx.restore();ctx.globalAlpha=1;
+  ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.ang);ctx.scale(.88+al*.12,.88+al*.12);
   ctx.fillStyle=fl?'#fff':(A.col||'#8e99a4');planePath(A,L,Wd);ctx.fill();
   ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=2;ctx.stroke();
   if(!fl){ctx.save();planePath(A,L,Wd);ctx.clip();                              // 迷彩・帯
@@ -1780,7 +1829,14 @@ function drawAircraft(e){const A=e.A,L=A.len/2,Wd=A.wid/2,fl=e.hurt>0;
     else{ctx.beginPath();ctx.ellipse(-L*.15,-Wd*.45,L*.5,Wd*.3,.3,0,TAU);ctx.fill();
       ctx.beginPath();ctx.ellipse(-L*.5,Wd*.4,L*.4,Wd*.26,-.2,0,TAU);ctx.fill();}
     ctx.restore();}
-  if(A.wing){ // コクピットの膨らみと4基のエンジン
+  if(A.cargo){ // コクピットと2基のエンジン
+    ctx.fillStyle='#2b3a44';ctx.beginPath();ctx.ellipse(L*.66,0,L*.12,Wd*.09,0,0,TAU);ctx.fill();
+    ctx.fillStyle='#4a5058';
+    for(const sy of[-1,1]){ctx.save();ctx.translate(L*.05,sy*Wd*.42);
+      rrect(-L*.13,-Wd*.07,L*.3,Wd*.14,4);ctx.fill();ctx.restore();}
+    ctx.fillStyle='#c8322a';ctx.beginPath();ctx.arc(-L*.3,-Wd*.62,Wd*.07,0,TAU);ctx.fill();
+    ctx.beginPath();ctx.arc(-L*.3,Wd*.62,Wd*.07,0,TAU);ctx.fill();}
+  else if(A.wing){ // コクピットの膨らみと4基のエンジン
     ctx.fillStyle='#2b3a44';ctx.beginPath();ctx.ellipse(L*.44,0,L*.14,Wd*.05,0,0,TAU);ctx.fill();
     ctx.fillStyle=shade(A.col||'#6b7078',10);
     for(const sy of[-1,1]){ctx.beginPath();ctx.ellipse(L*.2,sy*Wd*.1,L*.24,Wd*.08,0,0,TAU);ctx.fill();}
