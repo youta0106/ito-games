@@ -265,8 +265,18 @@ const CFG={
   // ---- ステージ（地形）----
   stageWaves:5,        // 何WAVEごとに戦場が変わるか
   homeStages:12,       // ホーム画面で選べるステージ数（クリアで順に解放）
-  // ステージ1（WAVE1〜5）だけは出てくる敵を固定する。歩兵・機関銃兵の数は今まで通りWAVEごとに増える
-  stage1Units:[[],['jeep'],['jeep','tank'],['jeep','tank'],['jeep','tank']],
+  // ---- ウェーブごとの編成の上書き（キーは通しのWAVE番号）----
+  // units:[...] …車両などをこのリストに固定（歩兵・機関銃兵の数は今まで通り増える）
+  // half:true   …敵の数を半分にする（ボスは別枠なので減らない）
+  waveSetup:{
+    1:{units:[]},                       // ステージ1 W1：歩兵だけ
+    2:{units:['jeep']},                 // ステージ1 W2：高機動車＋歩兵
+    3:{units:['jeep','tank']},          // ステージ1 W3：＋戦車
+    4:{units:['jeep','tank']},          // ステージ1 W4
+    5:{units:['jeep','tank']},          // ステージ1 W5（ボス戦）
+    6:{units:['jeep','jeep','tank']},   // ステージ2 W1：歩兵・高機動車・戦車だけ
+    7:{half:true},                      // ステージ2 W2：いつもの編成で数だけ半分
+  },
   waterSlow:.55, waterCarSlow:.45,   // 川の中の移動速度（歩兵／車両）
   roadBoost:1.12,                    // 舗装路での車両の速度
   snowSlow:.85, snowCarSlow:.92,     // 雪原での移動速度
@@ -1459,7 +1469,7 @@ function applyStage(n,first){
 function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const newStage=applyStage(n);const q=[];
   for(let i=0;i<CFG.soldiersBase+(n-1)*CFG.soldiersPerWave;i++)q.push('soldier');
   for(let i=0;i<Math.floor(n/2);i++)q.splice(Math.floor(Math.random()*(q.length+1)),0,'gunner');
-  const s1=n<=CFG.stageWaves?CFG.stage1Units[n-1]:null; // ステージ1は固定編成
+  const setup=CFG.waveSetup[n]||null;   // ウェーブごとの編成の上書き
   const sched=[ // [wave, type, 台数の増え方, 最大台数]
     [2,'jeep',1],[3,'lav',1],[4,'truck73',1],[4,'tank',1],[5,'apc96',1],[6,'recon87',1],
     [7,'cmd82',1],[8,'chem',1],[9,'aaa87',1],[10,'type90',1],
@@ -1472,17 +1482,19 @@ function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const
     [16,'sam81',1,2],[17,'fc81',1,1],[18,'ssm12',1,2],[19,'spg99',1,2],
     // ステージ3以降の空襲（対空砲でしか落とせない）
     [11,'f4ej',1,2],[13,'f2a',1,2],[14,'rf4ej',1,1],[16,'rf4e',1,1],[17,'u125',1,1],[18,'f2b',1,2],[19,'u125a',1,1]];
-  if(s1){for(const type of s1)q.splice(Math.floor(q.length*rand(.3,.8)),0,type);}
+  if(setup&&setup.units){for(const type of setup.units)q.splice(Math.floor(q.length*rand(.3,.8)),0,type);}
   else for(const [w,type,base,cap] of sched){if(n<w)continue;
     const cnt=Math.min(cap||3,base+Math.floor((n-w)/3));
     for(let i=0;i<cnt;i++){if(type==='tank')q.push('tank');
       else if(CFG.aircraft[type])q.splice(Math.floor(q.length*rand(.05,.45)),0,type); // 空襲は早めに来る
       else q.splice(Math.floor(q.length*rand(.15,.85)),0,type);}}
+  if(setup&&setup.half){const keep=Math.ceil(q.length/2); // 敵の数を半分に
+    while(q.length>keep)q.splice(Math.floor(Math.random()*q.length),1);}
   let bossType=null;
   if(n%5===0){const ord=CFG.bossOrder,cyc=Math.floor((n/5-1)/ord.length);
     bossType=ord[(n/5-1)%ord.length];const bn=Math.min(3,1+cyc);
     for(let i=0;i<bn;i++)q.push(bossType);}
-  const debut={2:'jeep',6:'recon87',7:'cmd82',8:'chem',9:'aaa87',10:'type90',
+  const debut={2:'jeep',7:'cmd82',8:'chem',9:'aaa87',10:'type90',
     11:'f4ej',12:'type74',13:'f2a',14:'rf4ej',16:'rf4e',17:'u125',18:'f2b',19:'spg99',
     20:'ifv89',21:'aav7',22:'aav7c',23:'mlrs',24:'tractor',25:'trailer73',26:'brad',27:'himars',28:'f35c',29:'bmp1',30:'f22',31:'bmp2m',32:'t72b3',33:'msta',34:'su57',
     36:'j20',37:'b2',38:'j31'}[n];
@@ -1520,6 +1532,7 @@ function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const
   else if(newStage&&debut)sub=`${stage.name}　新手：${CFG[debut].name}`;
   else if(newStage)sub=`${stage.name}　`+(mines.length?'地雷に注意':stage.sub);
   else sub=dsub||(wn===1?`${stage.name}　`+(mines.length?'地雷に注意':stage.sub):''); // ステージ最初のウェーブは地形の説明を出す
+  if(setup&&setup.half)sub=sub?`${sub}（敵は少なめ）`:'敵の数は少なめ　態勢を立て直せ';
   const text=bv?`ステージ${sn}　ボス戦`:(newStage?`ステージ${sn}`:`ステージ${sn}　ウェーブ${wn}/${CFG.stageWaves}`);
   banner={text,sub,t:bv||newStage?3.6:2.6};}
 function updateWaves(dt){
