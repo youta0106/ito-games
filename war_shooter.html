@@ -240,6 +240,9 @@ const CFG={
       missiles:3, missileDmg:62, missileRad:90, missileSpd:580, missileTurn:1.8},
     j20:  {name:'J-20 中国空軍', hp:900, speed:405, turn:1.1, len:94, wid:74, r:34, score:3500, col:'#a5aab0', camo:'#8b9096', stealth:true,
       missiles:4, missileDmg:66, missileRad:94, missileSpd:560, missileTurn:1.5},
+    b2:   {name:'B-2 スピリット', hp:1200, speed:255, turn:.6, len:98, wid:136, r:42, score:6000,
+      col:'#6b7078', camo:'#565c63', stealth:true, wing:true,
+      bb:4, bbDmg:175, bbRad:195, bombs:3, bombDmg:98, bombRad:136},
     j31:  {name:'J-31 中国空軍', hp:800, speed:395, turn:1.15, len:86, wid:70, r:32, score:3200, col:'#3f434a', camo:'#2e3238', stealth:true,
       guns:true, gunDmg:10, gunRate:.075, gunBurst:9, gunRange:440, bombs:2, bombDmg:84, bombRad:120,
       bb:2, bbDmg:160, bbRad:180,
@@ -956,7 +959,8 @@ function spawnEnemy(type){
     const a=rand(0,TAU),d=rand(1000,1300);
     const first=!enemies.some(o=>o.air&&!o.dead);
     enemies.push(makeEnemy(type,player.x+Math.cos(a)*d,player.y+Math.sin(a)*d));
-    if(first)banner={text:'空襲警報',sub:'対空砲に取り付け！　銃では落とせない',t:2.8};
+    if(CFG.aircraft[type].wing)banner={text:'戦略爆撃機 接近',sub:'B-2 スピリット　陣地が狙われる',t:3.2};
+    else if(first)banner={text:'空襲警報',sub:'対空砲に取り付け！　銃では落とせない',t:2.8};
     return true;}
   const V=CFG.vehicles[type],F=CFG.enemyForts[type],r=V?V.len/2+8:F?F.r+10:type==='tank'?36:15;
   for(let t=0;t<30;t++){const a=rand(0,TAU),d=rand(650,950);
@@ -1364,7 +1368,7 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     [6,'pillbox',1,3],[9,'atpit',1,2],[12,'type74',1,3],
     [20,'ifv89',1,2],[21,'aav7',1,2],[22,'aav7c',1,1],[23,'mlrs',1,2],[24,'tractor',1,2],[25,'trailer73',1,1],
     [26,'brad',1,3],[27,'himars',1,2],
-    [28,'f35c',1,2],[30,'f22',1,2],[32,'su35',1,2],[34,'su57',1,2],[36,'j20',1,2],[38,'j31',1,2],
+    [28,'f35c',1,2],[30,'f22',1,2],[32,'su35',1,2],[34,'su57',1,2],[36,'j20',1,2],[37,'b2',1,1],[38,'j31',1,2],
     [28,'btr70',1,3],[29,'bmp1',1,3],[30,'btr80',1,3],[31,'bmp2m',1,3],[32,'t72b3',1,3],[33,'msta',1,2],[34,'t90m',1,2],
     [11,'mcv16',1,3],[12,'truck35',1,2],[13,'sam93',1,2],[14,'atm96',1,2],
     [16,'sam81',1,2],[17,'fc81',1,1],[18,'ssm12',1,2],[19,'spg99',1,2],
@@ -1382,7 +1386,7 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
   const debut={2:'jeep',3:'lav',4:'truck73',5:'apc96',6:'recon87',7:'cmd82',8:'chem',9:'aaa87',10:'type90',
     11:'f4ej',12:'type74',13:'f2a',14:'rf4ej',16:'rf4e',17:'u125',18:'f2b',19:'spg99',
     20:'ifv89',21:'aav7',22:'aav7c',23:'mlrs',24:'tractor',25:'trailer73',26:'brad',27:'himars',28:'f35c',29:'bmp1',30:'f22',31:'bmp2m',32:'t72b3',33:'msta',34:'su57',
-    36:'j20',38:'j31'}[n];
+    36:'j20',37:'b2',38:'j31'}[n];
   const subs={jeep:'敵の車両が兵士を運んでくる！',lav:'軽装甲機動車が突っ込んでくる',truck73:'73式大型トラックが6人を降ろす',
     apc96:'96式装輪装甲車 出現　装甲が厚い',recon87:'87式偵察警戒車 出現　25mm砲に注意',cmd82:'82式指揮通信車 出現　周りの敵が強化される',
     pillbox:'敵トーチカ 構築　動かないが硬い',atpit:'敵の対戦車砲陣地　車両で近づくな',
@@ -1406,7 +1410,8 @@ function startWave(n){wave=n;const newStage=applyStage(n);const q=[];
     msta:'2S19 ムスタ-S　152mmの曲射に注意',
     f35c:'F-35C 来襲　ステルスはミニマップに映らない',f22:'F-22 来襲　最速のステルス戦闘機',
     su35:'Su-35S 来襲　ミサイル3連射',su57:'Su-57 来襲　ステルスの多目的機',
-    j20:'J-20 来襲　長射程ミサイル4連射',j31:'J-31 来襲　ステルス爆撃'};
+    j20:'J-20 来襲　長射程ミサイル4連射',j31:'J-31 来襲　ステルス爆撃',
+    b2:'B-2 スピリット　貫通爆弾4発を積んだ戦略爆撃機'};
   spawnQueue=q;spawnT=1.5;
   const bv=bossType?CFG.vehicles[bossType]:null;
   const dsub=n===4?'敵戦車が来るぞ！手榴弾が有効':(debut?subs[debut]:'');
@@ -1735,6 +1740,16 @@ function drawAA(g){const G=CFG.aaGuns[g.type],manned=player&&player.aa===g;
   ctx.font=`bold 10px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.6)';
   ctx.strokeText(G.name,g.x,g.y-48);ctx.fillStyle=manned?'#ffd45a':'#dfe8a0';ctx.fillText(G.name,g.x,g.y-48);}
 function planePath(A,L,Wd){ctx.beginPath();
+  if(A.wing){ // 全翼機（B-2）
+    ctx.moveTo(L,0);
+    ctx.lineTo(L*.14,-Wd*.24);ctx.lineTo(-L*.14,-Wd);      // 左翼端まで後退角
+    ctx.lineTo(-L*.52,-Wd*.76);ctx.lineTo(-L*.26,-Wd*.5);  // のこぎり状の後縁
+    ctx.lineTo(-L*.64,-Wd*.24);ctx.lineTo(-L*.36,-Wd*.05);
+    ctx.lineTo(-L,0);                                       // 中央後端
+    ctx.lineTo(-L*.36,Wd*.05);ctx.lineTo(-L*.64,Wd*.24);
+    ctx.lineTo(-L*.26,Wd*.5);ctx.lineTo(-L*.52,Wd*.76);
+    ctx.lineTo(-L*.14,Wd);ctx.lineTo(L*.14,Wd*.24);
+    ctx.closePath();return;}
   if(A.biz){ // ビジネスジェット（U-125系）
     ctx.moveTo(L,0);ctx.lineTo(L*.5,-Wd*.15);ctx.lineTo(-L*.05,-Wd*.17);
     ctx.lineTo(-L*.3,-Wd);ctx.lineTo(-L*.5,-Wd);ctx.lineTo(-L*.42,-Wd*.2);
@@ -1759,10 +1774,17 @@ function drawAircraft(e){const A=e.A,L=A.len/2,Wd=A.wid/2,fl=e.hurt>0;
     else{ctx.beginPath();ctx.ellipse(-L*.15,-Wd*.45,L*.5,Wd*.3,.3,0,TAU);ctx.fill();
       ctx.beginPath();ctx.ellipse(-L*.5,Wd*.4,L*.4,Wd*.26,-.2,0,TAU);ctx.fill();}
     ctx.restore();}
-  ctx.fillStyle='#2b3a44';ctx.beginPath();ctx.ellipse(L*.42,0,L*.16,Wd*.09,0,0,TAU);ctx.fill(); // キャノピー
+  if(A.wing){ // コクピットの膨らみと4基のエンジン
+    ctx.fillStyle='#2b3a44';ctx.beginPath();ctx.ellipse(L*.44,0,L*.14,Wd*.05,0,0,TAU);ctx.fill();
+    ctx.fillStyle=shade(A.col||'#6b7078',10);
+    for(const sy of[-1,1]){ctx.beginPath();ctx.ellipse(L*.2,sy*Wd*.1,L*.24,Wd*.08,0,0,TAU);ctx.fill();}
+    ctx.fillStyle='#22252a';
+    for(const sy of[-1,1]){ctx.fillRect(-L*.1,sy*Wd*.09-Wd*.035,L*.2,Wd*.07);
+      ctx.fillRect(-L*.1,sy*Wd*.22-Wd*.03,L*.18,Wd*.06);}}
+  else{ctx.fillStyle='#2b3a44';ctx.beginPath();ctx.ellipse(L*.42,0,L*.16,Wd*.09,0,0,TAU);ctx.fill(); // キャノピー
   ctx.fillStyle='#c8322a';ctx.beginPath();ctx.arc(-L*.3,-Wd*.55,Wd*.1,0,TAU);ctx.fill();        // 日の丸
   ctx.beginPath();ctx.arc(-L*.3,Wd*.55,Wd*.1,0,TAU);ctx.fill();
-  ctx.fillStyle='#22252a';ctx.fillRect(-L,-Wd*.14,L*.18,Wd*.28);                                // 排気
+  ctx.fillStyle='#22252a';ctx.fillRect(-L,-Wd*.14,L*.18,Wd*.28);}                               // 排気
   ctx.restore();
   const w=A.len*.7,yy=e.y-Wd-16;
   if(e.hp<e.maxHp){ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(e.x-w/2,yy,w,5);
