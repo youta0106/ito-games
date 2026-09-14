@@ -269,6 +269,7 @@ const CFG={
         vehBias:.35, mount:{x:-24,y:0}}},
   allyTargetBias:.85, // 1未満だと敵は味方よりプレイヤーを優先して狙う
   // ---- ステージ（地形）----
+  buildingW:[104,200], buildingH:[88,168],  // 建物の大きさ（幅・高さの範囲）
   stageWaves:5,        // 何WAVEごとに戦場が変わるか
   homeStages:12,       // ホーム画面で選べるステージ数（クリアで順に解放）
   // ---- ウェーブごとの編成の上書き（キーは通しのWAVE番号）----
@@ -409,7 +410,7 @@ function genMap(def,cx,cy){
     if(rectsHit(x,y,w,h,waters,14)||rectsHit(x,y,w,h,roads,8))continue;
     obstacles.push({x,y,w,h,type,hp,maxHp:hp,seed:Math.random()});return;}}
   const S=stage;
-  for(let i=0;i<S.buildings;i++)place(rand(130,250),rand(110,210),'building',Infinity,S.roads?70:110,true);
+  for(let i=0;i<S.buildings;i++)place(rand(CFG.buildingW[0],CFG.buildingW[1]),rand(CFG.buildingH[0],CFG.buildingH[1]),'building',Infinity,S.roads?70:110,true);
   for(let i=0;i<S.sandbags;i++){if(Math.random()<.5)place(rand(80,150),22,'sandbag',180,50,!!S.roads);else place(22,rand(80,150),'sandbag',180,50,!!S.roads);}
   for(let i=0;i<S.crates;i++)place(34,34,'crate',90,40,!!S.roads);
   if(S.key==='forest'){ // 木立をかたまりで置いて、林と開けた場所を作る
