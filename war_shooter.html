@@ -199,6 +199,9 @@ const CFG={
   forts:{ // 味方の固定砲台（マップに据え付け。自動で撃つ）
     mgnest:{name:'機関銃陣地', hp:700, dmg:15, rate:.1,  burst:9, rest:1.7, range:490, spread:.06, spd:1050, gun:26, col:'#6b6a4a'},
     atgun: {name:'対戦車砲',   hp:820, dmg:95, rate:2.3, burst:1, rest:2.3, range:650, spread:.02, spd:1500, gun:42, ap:true, col:'#5c6442'},
+    // 自動対空砲：航空機だけを狙って勝手に撃つ（空襲のあるステージにだけ置かれる）
+    aanest:{name:'自動対空機関砲', hp:760, dmg:24, rate:.075, burst:16, rest:2.4, range:860, spread:.03,
+            spd:1500, gun:28, prox:32, aa:true, twin:true, col:'#4f5a3c'},
   },
   enemyForts:{ // 敵の固定砲台（動かないが硬い。倒さないとウェーブが終わらない）
     pillbox:{name:'敵トーチカ',       hp:900, dmg:9,  rate:.09, burst:10, rest:1.9, range:450, spread:.07, spd:540, r:28, score:1200, col:'#6e6552'},
@@ -425,8 +428,9 @@ function genMap(def,cx,cy){
       if(Math.abs(x-kx)<260&&Math.abs(y-ky)<260)continue;      // 開始地点のそばには埋めない
       mines.push({x,y,arm:CFG.mine.arm,r:CFG.mine.r,dead:false});break;}}
   forts=[];{ // 味方の固定砲台
-    const fk=Object.keys(CFG.forts);
-    for(let i=0;i<CFG.fortsPerStage;i++)for(let t=0;t<80;t++){
+    const raid=stageNo(wave)>=CFG.airFromStage;   // 空襲のあるステージにだけ自動対空砲を置く
+    const fk=Object.keys(CFG.forts).filter(k=>raid||!CFG.forts[k].aa);
+    for(let i=0;i<CFG.fortsPerStage+(raid?1:0);i++)for(let t=0;t<80;t++){
       const x=rand(150,WORLD-150),y=rand(150,WORLD-150);
       if(circleBlocked(x,y,40)||rectsHit(x-30,y-30,60,60,waters,12)||rectsHit(x-30,y-30,60,60,roads,6))continue;
       if(Math.abs(x-kx)<190&&Math.abs(y-ky)<190)continue;
@@ -808,14 +812,21 @@ function hurtAAObj(g,d){if(g.hp===undefined)return;g.hp-=d;
   wreckEmplacement(g.x,g.y,CFG.aaGuns[g.type].name);}
 // ---------- 味方の固定砲台 ----------
 function fortTarget(f,F){let best=null,bd=1e9;
-  for(const e of enemies){if(e.dead||e.air)continue;
+  for(const e of enemies){if(e.dead)continue;
+    if(F.aa?!e.air:e.air)continue;                   // 自動対空砲は航空機だけを狙う
     let d=Math.hypot(e.x-f.x,e.y-f.y);if(d>F.range)continue;
     if(F.ap&&(e.type==='tank'||e.V||e.F))d*=.4;      // 対戦車砲は車両を優先
-    if(d<bd&&lineClear(f.x,f.y,e.x,e.y)){bd=d;best=e;}}
+    if(d<bd&&(F.aa||lineClear(f.x,f.y,e.x,e.y))){bd=d;best=e;}}
   return best;}
+function fortAimAt(f,F,t){ // 対空砲は弾着までの動きを見越して撃つ
+  if(!F.aa||!t.A)return{x:t.x,y:t.y};
+  const tt=Math.hypot(t.x-f.x,t.y-f.y)/F.spd;
+  return{x:t.x+Math.cos(t.ang)*t.A.speed*tt,y:t.y+Math.sin(t.ang)*t.A.speed*tt};}
 function fortFire(f,F){const a=f.ang+rand(-F.spread,F.spread),co=Math.cos(f.ang),si=Math.sin(f.ang);
-  const bx=f.x+co*F.gun,by=f.y+si*F.gun;
-  bullets.push({x:bx,y:by,vx:Math.cos(a)*F.spd,vy:Math.sin(a)*F.spd,owner:'a',dmg:F.dmg,life:F.range/F.spd,ap:!!F.ap});
+  const off=F.twin?(f.side=f.side?0:1,f.side?7:-7):0;
+  const bx=f.x+co*F.gun-si*off,by=f.y+si*F.gun+co*off;
+  bullets.push({x:bx,y:by,vx:Math.cos(a)*F.spd,vy:Math.sin(a)*F.spd,owner:'a',dmg:F.dmg,life:F.range/F.spd,
+    ap:!!F.ap||!!F.aa,aa:!!F.aa,prox:F.prox});
   addP({x:bx,y:by,life:.06,size:F.ap?13:8,color:'#ffe08a',kind:'flash'});
   if(F.ap)smoke(bx,by,3,12);
   f.flash=.06;
@@ -828,9 +839,10 @@ function updateForts(dt){for(const f of forts){const F=CFG.forts[f.type];
     if(f.tgt&&f.tgt.dead)f.tgt=null;
     if(f.checkT<=0){f.checkT=rand(.2,.35);f.tgt=fortTarget(f,F);}
     const t=f.tgt;
-    const ta=t?Math.atan2(t.y-f.y,t.x-f.x):f.ang;
-    f.ang+=angDiff(f.ang,ta)*Math.min(1,dt*(t?6:2));
-    if(t&&f.cd<=0&&Math.abs(angDiff(f.ang,ta))<.16)fortFire(f,F);}}
+    const ap=t?fortAimAt(f,F,t):null;
+    const ta=ap?Math.atan2(ap.y-f.y,ap.x-f.x):f.ang;
+    f.ang+=angDiff(f.ang,ta)*Math.min(1,dt*(t?(F.aa?9:6):2));
+    if(t&&f.cd<=0&&Math.abs(angDiff(f.ang,ta))<(F.aa?.1:.16))fortFire(f,F);}}
 // ---------- 対空砲 ----------
 function aaNear(x,y,rad){let best=null,bd=rad;for(const g of aas){const d=Math.hypot(g.x-x,g.y-y);if(d<bd){bd=d;best=g;}}return best;}
 function aaBtn(){const g=grenBtn();return{x:W-150,y:g.y-58,r:30};}
@@ -1293,7 +1305,7 @@ function updateAircraft(e,dt){const A=e.A;
     if(e.turnT<=0){e.run=true;e.bombLeft=A.bombs||0;e.bbLeft=A.bb||0;}}
   e.x+=Math.cos(e.ang)*A.speed*dt;e.y+=Math.sin(e.ang)*A.speed*dt;
   if(e.x<-700||e.x>WORLD+700||e.y<-700||e.y>WORLD+700){e.ang=Math.atan2(WORLD/2-e.y,WORLD/2-e.x);e.run=true;}
-  if(!aas.length){e.rtb=(e.rtb||0)+dt;   // 対空砲が全滅＝落とす手段がないので、ひとしきり爆撃して去る
+  if(!aas.length&&!forts.some(f=>CFG.forts[f.type].aa)){e.rtb=(e.rtb||0)+dt;   // 対空砲が全滅＝落とす手段がないので、ひとしきり爆撃して去る
     if(e.rtb>22){e.dead=true;
       if(!enemies.some(o=>o!==e&&o.air&&!o.dead&&(o.rtb||0)<=22))popText(player.x,player.y-60,'敵機は爆撃を終えて去っていった…','#ffb0a0');
       return;}}
@@ -1863,7 +1875,11 @@ function drawFort(f){const F=CFG.forts[f.type];
   ctx.rotate(f.ang);
   ctx.fillStyle=F.col;rrect(-12,-11,24,22,4);ctx.fill();ctx.strokeStyle='#2a2f1e';ctx.lineWidth=2;ctx.stroke();
   ctx.fillStyle=shade(F.col,16);ctx.fillRect(2,-13,5,26);                            // 防盾
-  ctx.fillStyle='#20211a';ctx.fillRect(6,-3.5,F.gun,7);
+  ctx.fillStyle='#20211a';
+  if(F.twin){ctx.fillRect(6,-10,F.gun,6);ctx.fillRect(6,4,F.gun,6);                  // 連装砲身
+    ctx.fillStyle=shade(F.col,-18);ctx.fillRect(-9,-6,7,12);                         // 後ろの照準器
+    ctx.fillStyle='#8fe0ff';ctx.beginPath();ctx.arc(-5.5,0,2.2,0,TAU);ctx.fill();}
+  else ctx.fillRect(6,-3.5,F.gun,7);
   if(F.ap){ctx.fillStyle='#15160f';ctx.fillRect(F.gun+4,-5.5,9,11);}
   if(f.flash>0){ctx.fillStyle='#ffe08a';ctx.beginPath();ctx.moveTo(F.gun+10,0);ctx.lineTo(F.gun+26,-9);ctx.lineTo(F.gun+26,9);ctx.closePath();ctx.fill();}
   ctx.restore();
@@ -2284,7 +2300,8 @@ function drawHUD(){
     for(const e of enemies){if(e.A&&e.A.stealth)continue;   // ステルス機はミニマップに映らない
       ctx.fillStyle=e.boss?'#ffd45a':e.air?'#bfe4ff':e.type==='tank'?'#ffae3a':e.V?'#ff7a4a':'#ff5a4a';const s=e.boss?6:e.air?5:e.type==='tank'||e.V?4:2.5;ctx.fillRect(mx+e.x*k-s/2,my+e.y*k-s/2,s,s);}
     for(const a of allies){if(a.down&&Math.floor(time*4)%2)continue;ctx.fillStyle=a.down?'#fff':'#4fb4ff';ctx.fillRect(mx+a.x*k-1.5,my+a.y*k-1.5,3,3);}
-    for(const f of forts){ctx.fillStyle='#a8e08a';ctx.fillRect(mx+f.x*k-2.5,my+f.y*k-2.5,5,5);}
+    for(const f of forts){const aa=CFG.forts[f.type].aa;ctx.fillStyle=aa?'#8fe0ff':'#a8e08a';   // 自動対空砲は水色
+      ctx.fillRect(mx+f.x*k-2.5,my+f.y*k-2.5,5,5);}
     for(const g of aas){ctx.fillStyle=player.aa===g?'#ffd45a':'#8fe0ff';ctx.fillRect(mx+g.x*k-3,my+g.y*k-1,6,2);ctx.fillRect(mx+g.x*k-1,my+g.y*k-3,2,6);}
     for(const c of cars){if(!c||c.dead)continue;ctx.fillStyle='#e8e0a0';ctx.fillRect(mx+c.x*k-2.5,my+c.y*k-2.5,5,5);}
     ctx.fillStyle='#9f6';ctx.fillRect(mx+p.x*k-2,my+p.y*k-2,4,4);
@@ -2316,7 +2333,7 @@ function drawHUD(){
     if(won&&!all)txt(`ステージ${sn+1}　${stageDefOf(sn+1).name} が解放された！`,W/2,H*.59,16,'#9fd8ff','center');
     if(overT>.8&&Math.floor(time*2)%2===0)txt('タップでホームへ',W/2,H*.68,20,'#fff','center');}}
 // ---------- ホーム画面 ----------
-const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間が強化。車両は進化する','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','対空ミサイル砲（03式中SAM）は狙った機を追尾する','地雷はWAVE8から。近づくと赤い輪で見える','ステージ（5ウェーブ）をクリアするとホームに戻る'];
+const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間が強化。車両は進化する','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','対空ミサイル砲（03式中SAM）は狙った機を追尾する','自動対空機関砲は放っておいても敵機を撃ってくれる','地雷はWAVE8から。近づくと赤い輪で見える','ステージ（5ウェーブ）をクリアするとホームに戻る'];
 function rbox(x,y,w,h,r){r=Math.min(r,w/2,h/2);ctx.beginPath();
   ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
   ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
