@@ -1491,7 +1491,17 @@ function applyStage(n,first){
   return true;}
 
 // ---------- ウェーブ ----------
-function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const newStage=applyStage(n);const q=[];
+// 敵の数を半分に間引く（keepAir=true なら航空機は減らさない）
+function halveQueue(q,keepAir,keep){
+  const tgt=[];let kept=false;
+  for(let i=0;i<q.length;i++){
+    if(keepAir&&CFG.aircraft[q[i]])continue;
+    if(keep&&q[i]===keep&&!kept){kept=true;continue;}   // 新手として紹介する敵は1体残す
+    tgt.push(i);}
+  const cut=new Set(),need=Math.floor(tgt.length/2);
+  while(cut.size<need)cut.add(tgt[Math.floor(Math.random()*tgt.length)]);
+  return q.filter((t,i)=>!cut.has(i));}
+function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const newStage=applyStage(n);let q=[];
   for(let i=0;i<CFG.soldiersBase+(n-1)*CFG.soldiersPerWave;i++)q.push('soldier');
   for(let i=0;i<Math.floor(n/2);i++)q.splice(Math.floor(Math.random()*(q.length+1)),0,'gunner');
   const setup=CFG.waveSetup[n]||null;   // ウェーブごとの編成の上書き
@@ -1513,16 +1523,17 @@ function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const
     for(let i=0;i<cnt;i++){if(type==='tank')q.push('tank');
       else if(CFG.aircraft[type])q.splice(Math.floor(q.length*rand(.05,.45)),0,type); // 空襲は早めに来る
       else q.splice(Math.floor(q.length*rand(.15,.85)),0,type);}}
-  if(setup&&setup.half){const keep=Math.ceil(q.length/2); // 敵の数を半分に
-    while(q.length>keep)q.splice(Math.floor(Math.random()*q.length),1);}
-  let bossType=null;
-  if(n%5===0){const ord=CFG.bossOrder,cyc=Math.floor((n/5-1)/ord.length);
-    bossType=ord[(n/5-1)%ord.length];const bn=Math.min(3,1+cyc);
-    for(let i=0;i<bn;i++)q.push(bossType);}
   const debut={2:'jeep',7:'cmd82',8:'chem',9:'aaa87',10:'type90',
     11:'f4ej',12:'type74',13:'f2a',14:'rf4ej',16:'rf4e',17:'u125',18:'f2b',19:'spg99',
     20:'ifv89',21:'aav7',22:'aav7c',23:'mlrs',24:'tractor',25:'trailer73',26:'brad',27:'himars',28:'f35c',29:'bmp1',30:'f22',31:'bmp2m',32:'t72b3',33:'msta',34:'su57',
     36:'j20',37:'b2',38:'j31'}[n];
+  const airRaid=q.some(t=>CFG.aircraft[t]);       // 戦闘機が来るウェーブ
+  if(setup&&setup.half)q=halveQueue(q,false,debut);    // 編成指定で「数を半分」
+  else if(airRaid)q=halveQueue(q,true,debut);          // 空襲中は地上の敵を半分に
+  let bossType=null;
+  if(n%5===0){const ord=CFG.bossOrder,cyc=Math.floor((n/5-1)/ord.length);
+    bossType=ord[(n/5-1)%ord.length];const bn=Math.min(3,1+cyc);
+    for(let i=0;i<bn;i++)q.push(bossType);}
   const subs={jeep:'敵の車両が兵士を運んでくる！',lav:'軽装甲機動車が突っ込んでくる',truck73:'73式大型トラックが6人を降ろす',
     apc96:'96式装輪装甲車 出現　装甲が厚い',recon87:'87式偵察警戒車 出現　25mm砲に注意',cmd82:'82式指揮通信車 出現　周りの敵が強化される',
     pillbox:'敵トーチカ 構築　動かないが硬い',atpit:'敵の対戦車砲陣地　車両で近づくな',
@@ -1558,6 +1569,7 @@ function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const
   else if(newStage)sub=`${stage.name}　`+(mines.length?'地雷に注意':stage.sub);
   else sub=dsub||(wn===1?`${stage.name}　`+(mines.length?'地雷に注意':stage.sub):''); // ステージ最初のウェーブは地形の説明を出す
   if(setup&&setup.half)sub=sub?`${sub}（敵は少なめ）`:'敵の数は少なめ　態勢を立て直せ';
+  else if(airRaid)sub=sub?`${sub}（地上の敵は少なめ）`:'空襲中　地上の敵は少なめ';
   const text=bv?`ステージ${sn}　ボス戦`:(newStage?`ステージ${sn}`:`ステージ${sn}　ウェーブ${wn}/${CFG.stageWaves}`);
   banner={text,sub,t:bv||newStage?3.6:2.6};}
 function updateWaves(dt){
