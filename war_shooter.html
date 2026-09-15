@@ -278,6 +278,7 @@ const CFG={
   // ---- ウェーブごとの編成の上書き（キーは通しのWAVE番号）----
   // units:[...] …車両などをこのリストに固定（歩兵・機関銃兵の数は今まで通り増える）
   // half:true   …敵の数を半分にする（ボスは別枠なので減らない）
+  // mul:0.7     …そのウェーブの敵の数をさらに0.7倍にする（空襲ウェーブは半分にした後から掛かる）
   waveSetup:{
     1:{units:[]},                       // ステージ1 W1：歩兵だけ
     2:{units:['jeep']},                 // ステージ1 W2：高機動車＋歩兵
@@ -286,6 +287,9 @@ const CFG={
     5:{units:['jeep','tank']},          // ステージ1 W5（ボス戦）
     6:{units:['jeep','jeep','tank']},   // ステージ2 W1：歩兵・高機動車・戦車だけ
     7:{half:true},                      // ステージ2 W2：いつもの編成で数だけ半分
+    // ステージ3（初めての空襲）は少し軽くする
+    11:{mul:.6},                        // ステージ3 W1：初めての戦闘機。かなり控えめ
+    12:{mul:.7}, 13:{mul:.7}, 14:{mul:.75}, 15:{mul:.75},
   },
   waterSlow:.55, waterCarSlow:.45,   // 川の中の移動速度（歩兵／車両）
   roadBoost:1.12,                    // 舗装路での車両の速度
@@ -1520,13 +1524,14 @@ function applyStage(n,first){
 
 // ---------- ウェーブ ----------
 // 敵の数を半分に間引く（keepAir=true なら航空機は減らさない）
-function halveQueue(q,keepAir,keep){
+// 敵の数を frac 倍に間引く（keepAir=true なら航空機は減らさない）
+function cutQueue(q,frac,keepAir,keep){
   const tgt=[];let kept=false;
   for(let i=0;i<q.length;i++){
     if(keepAir&&CFG.aircraft[q[i]])continue;
     if(keep&&q[i]===keep&&!kept){kept=true;continue;}   // 新手として紹介する敵は1体残す
     tgt.push(i);}
-  const cut=new Set(),need=Math.floor(tgt.length/2);
+  const cut=new Set(),need=Math.min(tgt.length,Math.round(tgt.length*(1-frac)));
   while(cut.size<need)cut.add(tgt[Math.floor(Math.random()*tgt.length)]);
   return q.filter((t,i)=>!cut.has(i));}
 function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const newStage=applyStage(n);let q=[];
@@ -1556,8 +1561,9 @@ function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const
     20:'ifv89',21:'aav7',22:'aav7c',23:'mlrs',24:'tractor',25:'trailer73',26:'brad',27:'himars',28:'f35c',29:'bmp1',30:'f22',31:'bmp2m',32:'t72b3',33:'msta',34:'su57',
     36:'j20',37:'b2',38:'j31'}[n];
   const airRaid=q.some(t=>CFG.aircraft[t]);       // 戦闘機が来るウェーブ
-  if(setup&&setup.half)q=halveQueue(q,false,debut);    // 編成指定で「数を半分」
-  else if(airRaid)q=halveQueue(q,true,debut);          // 空襲中は地上の敵を半分に
+  let frac=setup&&setup.half?.5:(airRaid?.5:1);  // 空襲中は地上の敵を半分に
+  if(setup&&setup.mul)frac*=setup.mul;           // ウェーブごとの追加調整
+  if(frac<1)q=cutQueue(q,frac,airRaid&&!(setup&&setup.half),debut);
   let bossType=null;
   if(n%5===0){const ord=CFG.bossOrder,cyc=Math.floor((n/5-1)/ord.length);
     bossType=ord[(n/5-1)%ord.length];const bn=Math.min(3,1+cyc);
