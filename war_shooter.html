@@ -49,6 +49,9 @@ const CFG={
     minigun:{name:'ミニガン',       rate:.03, dmg:22, spd:1250,spread:.11, pellets:1,life:.8, gun:26, tier:6,wave:7, time:13,tag:'MIN',col:'#ffe08a',shake:3},
     at20:   {name:'20mm対物ライフル',rate:.55,dmg:150,spd:1900,spread:.01, pellets:1,life:1,  gun:28, tier:7,wave:9, time:12,tag:'20m',col:'#a0d8ff',pierce:4,ap:true,shake:5},
     rpg:    {name:'ロケットランチャー',rate:1.0,dmg:265,spd:760,spread:.01,pellets:1,life:1.2,gun:24, tier:8,wave:11,time:12,tag:'RPG',col:'#ff6a4a',rad:120,shake:6},
+    // RPG-7：狙った敵を追いかける弾。車両・砲台に吸い付く
+    rpg7:   {name:'RPG-7 追尾弾',  rate:1.15,dmg:230,spd:600,spread:.01, pellets:1,life:1.9,gun:26, tier:8,wave:10,time:12,tag:'RPG7',col:'#ffa030',rad:110,shake:5,
+             homing:true, hTurn:2.7, hRange:900, hArc:.5},
   },
   powerupTime:15, weaponDropRate:.12,
   // ---- 恒久グレードアップ ----
@@ -653,11 +656,23 @@ function dropLoot(e){let t=null,heavy=e.type==='tank'||e.V||e.A||e.F;
   if(t)pickups.push({x:e.x,y:e.y,type:t,t:(t==='wup'||t==='sup'||t==='cup')?30:(t==='repair'?24:15),bob:rand(0,6)});}
 
 // ---------- プレイヤー ----------
+function lockTarget(w,x,y,ang){ // 追尾弾のロック先：狙っている方向で一番近い敵（車両・砲台を優先）
+  let best=null,bs=1e9;
+  for(const e of enemies){if(e.dead||e.air)continue;
+    const dx=e.x-x,dy=e.y-y,d=Math.hypot(dx,dy);
+    if(d>(w.hRange||900))continue;
+    const df=Math.abs(angDiff(ang,Math.atan2(dy,dx)));
+    if(df>(w.hArc||.5))continue;
+    const sc=df*((e.V||e.F||e.type==='tank')?.45:1);
+    if(sc<bs){bs=sc;best=e;}}
+  return best;}
 function playerFire(){const p=player,w=CFG.weapons[p.weapon];p.fireCd=w.rate;
   const mx=p.x+Math.cos(p.ang)*24,my=p.y+Math.sin(p.ang)*24;
   for(let i=0;i<w.pellets;i++){const a=p.ang+rand(-w.spread,w.spread),s=w.spd*(w.pellets>1?rand(.85,1.1):1);
     const b={x:mx,y:my,vx:Math.cos(a)*s,vy:Math.sin(a)*s,dmg:w.dmg,owner:'p',life:w.life};
     if(w.rad){b.rocket=true;b.rad=w.rad;}
+    if(w.homing){const t=lockTarget(w,p.x,p.y,p.ang);   // 追尾弾
+      if(t){b.homing=t;b.turn=w.hTurn;b.spd=w.spd;}}
     if(w.pierce){b.pierce=w.pierce;b.hit=[];}
     if(w.ap)b.ap=true;
     if(w.flame){b.flame=true;b.dmg=w.dmg;}
@@ -1860,6 +1875,11 @@ function drawVehicle(e,wreck){const V=e.V,L=V.len/2,Wd=V.wid/2,fl=!wreck&&e.hurt
     if(e.boss&&e.charge>0){ctx.strokeStyle='rgba(255,120,60,.6)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,V.len*.6,0,TAU);ctx.stroke();}
     if(e.fcs&&V.turret==='missile'){ctx.strokeStyle=`rgba(120,220,255,${.3+.2*Math.sin(time*5)})`;ctx.lineWidth=2;
       ctx.beginPath();ctx.arc(e.x,e.y,V.len*.5,0,TAU);ctx.stroke();}}}
+function drawLock(e){const r=(e.V?Math.max(e.V.len,e.V.wid)*.6:e.r+10)+6+Math.sin(time*7)*2;
+  ctx.strokeStyle='#ffb050';ctx.lineWidth=2.5;
+  for(let i=0;i<4;i++){const a=i*Math.PI/2+Math.PI/4;
+    ctx.beginPath();ctx.arc(e.x,e.y,r,a-.32,a+.32);ctx.stroke();}
+  ctx.fillStyle='rgba(255,176,80,.9)';ctx.beginPath();ctx.arc(e.x,e.y,2.5,0,TAU);ctx.fill();}
 function drawMine(m){const near=player&&state!=='title'&&Math.hypot(player.x-m.x,player.y-m.y)<180;
   ctx.fillStyle='rgba(58,52,38,.45)';ctx.beginPath();ctx.ellipse(m.x,m.y+2,15,11,0,0,TAU);ctx.fill();  // 掘り返した土
   ctx.fillStyle=near?'#4a4438':'#3d392f';ctx.beginPath();ctx.arc(m.x,m.y,9,0,TAU);ctx.fill();
@@ -2169,6 +2189,8 @@ function drawWorld(){
       if(a.hp<a.maxHp){ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(a.x-13,a.y-19,26,3);ctx.fillStyle='#4fb4ff';ctx.fillRect(a.x-13,a.y-19,26*a.hp/a.maxHp,3);}}}
   for(const c of cars)if(c&&!c.dead&&vis(c.x,c.y,80))drawCarMg(c);
   for(const e of enemies)if(e.A&&!e.dead&&vis(e.x,e.y,150))drawAircraft(e);
+  if(state==='play'&&player&&!player.aa){const w=CFG.weapons[player.weapon];   // 追尾弾のロック先を表示
+    if(w.homing){const t=lockTarget(w,player.x,player.y,player.ang);if(t&&vis(t.x,t.y,80))drawLock(t);}}
   if(player&&state!=='title'){const p=player;
     if(state==='over'){ctx.globalAlpha=.6;drawSoldier(p.x,p.y,p.ang,'#3d5428','#2f4020',0,14,false);ctx.globalAlpha=1;}
     else{if(sticks.aim){ctx.strokeStyle='rgba(255,240,180,.25)';ctx.lineWidth=2;ctx.setLineDash([8,10]);ctx.beginPath();
@@ -2180,7 +2202,8 @@ function drawWorld(){
   for(const b of bullets){if(!vis(b.x,b.y,20))continue;
     if(b.rocket){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx));ctx.fillStyle='rgba(255,170,60,.55)';ctx.beginPath();ctx.arc(-9,0,5,0,TAU);ctx.fill();
       ctx.fillStyle=b.aa?'#8fb4cc':'#4a5236';ctx.fillRect(-7,-2.5,14,5);ctx.fillStyle='#c33';ctx.fillRect(5,-2.5,3,5);
-      if(b.aa){ctx.fillStyle='#2e3a42';ctx.fillRect(-8,-5,4,10);}ctx.restore();}
+      if(b.aa){ctx.fillStyle='#2e3a42';ctx.fillRect(-8,-5,4,10);}
+      else if(b.homing){ctx.fillStyle='#3a3020';ctx.fillRect(-8,-5.5,4,11);}ctx.restore();}
     else if(b.shell){ctx.fillStyle='rgba(255,160,60,.35)';ctx.beginPath();ctx.arc(b.x,b.y,9,0,TAU);ctx.fill();ctx.fillStyle='#222';ctx.beginPath();ctx.arc(b.x,b.y,5,0,TAU);ctx.fill();}
     else if(b.homing){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.atan2(b.vy,b.vx));
       ctx.fillStyle='rgba(255,160,60,.5)';ctx.beginPath();ctx.arc(-10,0,5,0,TAU);ctx.fill();
@@ -2334,7 +2357,7 @@ function drawHUD(){
     if(won&&!all)txt(`ステージ${sn+1}　${stageDefOf(sn+1).name} が解放された！`,W/2,H*.59,16,'#9fd8ff','center');
     if(overT>.8&&Math.floor(time*2)%2===0)txt('タップでホームへ',W/2,H*.68,20,'#fff','center');}}
 // ---------- ホーム画面 ----------
-const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間が強化。車両は進化する','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','対空ミサイル砲（03式中SAM）は狙った機を追尾する','自動対空機関砲は放っておいても敵機を撃ってくれる','地雷はWAVE8から。近づくと赤い輪で見える','ステージ（5ウェーブ）をクリアするとホームに戻る'];
+const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間が強化。車両は進化する','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','対空ミサイル砲（03式中SAM）は狙った機を追尾する','自動対空機関砲は放っておいても敵機を撃ってくれる','RPG-7は狙った敵を追いかける（橙の照準が目印）','地雷はWAVE8から。近づくと赤い輪で見える','ステージ（5ウェーブ）をクリアするとホームに戻る'];
 function rbox(x,y,w,h,r){r=Math.min(r,w/2,h/2);ctx.beginPath();
   ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
   ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
