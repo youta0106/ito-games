@@ -209,6 +209,9 @@ const CFG={
   enemyForts:{ // 敵の固定砲台（動かないが硬い。倒さないとウェーブが終わらない）
     pillbox:{name:'敵トーチカ',       hp:900, dmg:9,  rate:.09, burst:10, rest:1.9, range:450, spread:.07, spd:540, r:28, score:1200, col:'#6e6552'},
     atpit:  {name:'敵対戦車砲陣地',   hp:820, dmg:66, rate:2.6, burst:1,  rest:2.6, range:620, spread:.02, spd:900, r:28, score:1500, shell:true, rad:66, col:'#6a6248'},
+    // 土のうで囲った砲座。正面・側面は土のうが弾を止めるので、裏に回らないと倒せない
+    sandpit:{name:'土のう砲座',       hp:1000,dmg:58, rate:2.2, burst:1,  rest:2.2, range:640, spread:.025,spd:950, r:30, score:2200,
+      shell:true, rad:62, col:'#6b6248', ring:true, ringArc:2.2, trav:1.0},
     fh70:   {name:'155mmりゅう弾砲 FH70', hp:700, r:30, score:1600, col:'#5d6442', gunEmpl:true,
       arty:true, dmg:72, rad:118, reload:5.2, flight:1.9, scatter:82, minRange:260, range:1000},
   },
@@ -597,7 +600,14 @@ function hurtObstacle(o,d){if(o.hp<=0)return;o.hp-=d;if(o.hp<=0){o.hp=0;
   for(let i=0;i<10;i++)addP({x:o.x+rand(0,o.w),y:o.y+rand(0,o.h),vx:rand(-120,120),vy:rand(-120,120),life:rand(.4,.9),
     size:rand(3,6),color:o.type==='crate'?'#7a5428':o.type==='tree'?'#4e6b32':'#a58a5a',kind:'debris',drag:3});
   smoke(o.x+o.w/2,o.y+o.h/2,6,18);}}
-function hurtEnemy(e,dmg,expl,hx,hy){if(e.dead)return;if(e.type==='tank'&&!expl)dmg*=CFG.tankBulletMul;
+function hurtEnemy(e,dmg,expl,hx,hy){if(e.dead)return;
+  if(e.F&&e.F.ring&&hx!==undefined){   // 土のう砲座：守られている向きからは効かない
+    const df=Math.abs(angDiff(e.ang,Math.atan2(hy-e.y,hx-e.x)));
+    if(df<e.F.ringArc){
+      if(!expl){sparks(hx,hy,4,'#d8c49a');
+        if(Math.random()<.08)popText(e.x,e.y-52,'土のうに阻まれた！','#e8d8a8');return;}
+      if(Math.hypot(hx-e.x,hy-e.y)>e.r+12)dmg*=.15;}}  // 手前で爆発しても土のうが受け止める（中に投げ込めば全部入る）
+  if(e.type==='tank'&&!expl)dmg*=CFG.tankBulletMul;
   if(e.V&&!expl)dmg*=e.V.armor;
   if(e.V&&expl&&e.V.rocketRes)dmg*=1-e.V.rocketRes;
   if(e.V&&e.V.frontArc&&hx!==undefined){const df=Math.abs(angDiff(e.ang,Math.atan2(hy-e.y,hx-e.x)));
@@ -1234,7 +1244,8 @@ function updateVehicle(e,dt){const V=e.V,t=e.tgt;e.bumpT-=dt;e.stateT+=dt;
 function updateEnemyFort(e,dt){const F=e.F,t=e.tgt;e.hurt-=dt;e.fireCd-=dt;
   if(!t)return;
   const d=Math.hypot(t.x-e.x,t.y-e.y),ta=Math.atan2(t.y-e.y,t.x-e.x);
-  e.tAng+=clamp(angDiff(e.tAng,ta),-1.6*dt,1.6*dt);
+  const want=F.trav?e.ang+clamp(angDiff(e.ang,ta),-F.trav,F.trav):ta;   // 砲座は旋回範囲が狭い
+  e.tAng+=clamp(angDiff(e.tAng,want),-1.6*dt,1.6*dt);
   if(F.arty){ // FH70：見通しが無くても曲射する
     if(e.fireCd>0||d>F.range||d<(F.minRange||0))return;
     const tx=clamp(t.x+rand(-F.scatter,F.scatter),20,WORLD-20),ty=clamp(t.y+rand(-F.scatter,F.scatter),20,WORLD-20);
@@ -1541,7 +1552,7 @@ function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const
   const sched=[ // [wave, type, 台数の増え方, 最大台数]
     [2,'jeep',1],[3,'lav',1],[4,'truck73',1],[4,'tank',1],[5,'apc96',1],[6,'recon87',1],
     [7,'cmd82',1],[8,'chem',1],[9,'aaa87',1],[10,'type90',1],
-    [6,'pillbox',1,3],[9,'atpit',1,2],[12,'type74',1,3],
+    [6,'pillbox',1,3],[9,'atpit',1,2],[12,'type74',1,3],[16,'sandpit',1,2],
     [20,'ifv89',1,2],[21,'aav7',1,2],[22,'aav7c',1,1],[23,'mlrs',1,2],[24,'tractor',1,2],[25,'trailer73',1,1],
     [26,'brad',1,3],[27,'himars',1,2],
     [28,'f35c',1,2],[30,'f22',1,2],[32,'su35',1,2],[34,'su57',1,2],[33,'c2',1,1],[36,'j20',1,2],[37,'b2',1,1],[38,'j31',1,2],
@@ -1557,7 +1568,7 @@ function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const
       else if(CFG.aircraft[type])q.splice(Math.floor(q.length*rand(.05,.45)),0,type); // 空襲は早めに来る
       else q.splice(Math.floor(q.length*rand(.15,.85)),0,type);}}
   const debut={2:'jeep',7:'cmd82',8:'chem',9:'aaa87',10:'type90',
-    11:'f4ej',12:'type74',13:'f2a',14:'rf4ej',16:'rf4e',17:'u125',18:'f2b',19:'spg99',
+    11:'f4ej',12:'type74',13:'f2a',14:'rf4ej',16:'sandpit',17:'u125',18:'f2b',19:'spg99',
     20:'ifv89',21:'aav7',22:'aav7c',23:'mlrs',24:'tractor',25:'trailer73',26:'brad',27:'himars',28:'f35c',29:'bmp1',30:'f22',31:'bmp2m',32:'t72b3',33:'msta',34:'su57',
     36:'j20',37:'b2',38:'j31'}[n];
   const airRaid=q.some(t=>CFG.aircraft[t]);       // 戦闘機が来るウェーブ
@@ -1571,6 +1582,7 @@ function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const
   const subs={jeep:'敵の車両が兵士を運んでくる！',lav:'軽装甲機動車が突っ込んでくる',truck73:'73式大型トラックが6人を降ろす',
     apc96:'96式装輪装甲車 出現　装甲が厚い',recon87:'87式偵察警戒車 出現　25mm砲に注意',cmd82:'82式指揮通信車 出現　周りの敵が強化される',
     pillbox:'敵トーチカ 構築　動かないが硬い',atpit:'敵の対戦車砲陣地　車両で近づくな',
+    sandpit:'土のう砲座　正面は弾が通らない。裏へ回れ！',
     chem:'化学防護車 出現　ガスの中は危険',aaa87:'87式自走高射機関砲 出現　猛烈な弾幕',type90:'90式戦車 出現　手榴弾とロケットで',
     mcv16:'16式機動戦闘車 出現　速い上に砲が重い',truck35:'3 1/2tトラックが8人を降ろす',
     sam93:'93式近SAM 出現　追尾ミサイルに注意',atm96:'96式多目的誘導弾　遠くから狙ってくる',
@@ -1930,6 +1942,37 @@ function drawEnemyFort(e){const F=e.F,fl=e.hurt>0,sd=e.seed||.5;
     ctx.restore();
     ctx.font=`bold 10px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.6)';
     ctx.strokeText(F.name,e.x,e.y-42);ctx.fillStyle='#ffb0a0';ctx.fillText(F.name,e.x,e.y-42);
+    return;}
+  if(F.ring){ // 土のうで囲った砲座（開いている裏側からしか効かない）
+    ctx.save();ctx.translate(e.x,e.y);
+    ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(5,8,40,34,0,0,TAU);ctx.fill();
+    ctx.fillStyle='#6a5f47';ctx.beginPath();ctx.arc(0,0,29,0,TAU);ctx.fill();                   // 掘り下げた陣地
+    ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.arc(0,0,24,0,TAU);ctx.fill();
+    ctx.save();ctx.rotate(e.tAng||0);                                                           // 砲
+    ctx.fillStyle=fl?'#fff':(F.col||'#6b6248');rrect(-12,-12,26,24,4);ctx.fill();
+    ctx.strokeStyle='#2a2f1e';ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle=fl?'#fff':shade(F.col||'#6b6248',18);ctx.fillRect(7,-15,6,30);                // 防盾
+    ctx.fillStyle='#20211a';ctx.fillRect(11,-3.5,30,7);ctx.fillStyle='#15140f';ctx.fillRect(39,-5,9,10);
+    ctx.restore();
+    const arc=F.ringArc,n=Math.round(arc*2/.34);                                                // 土のうの輪（正面〜側面だけ）
+    for(let row=0;row<2;row++){const rr2=33-row*8.5;
+      for(let i=0;i<=n;i++){const a=e.ang-arc+arc*2*i/n+(row?.17:0);
+        if(Math.abs(angDiff(e.ang,a))>arc)continue;
+        ctx.save();ctx.translate(Math.cos(a)*rr2,Math.sin(a)*rr2);ctx.rotate(a+Math.PI/2);
+        ctx.fillStyle=fl?'#fff':(row?'#a8916a':'#bda37a');ctx.strokeStyle='#6e5a3a';ctx.lineWidth=1.4;
+        rrect(-10,-6.5,20,13,5.5);ctx.fill();ctx.stroke();ctx.restore();}}
+    ctx.restore();
+    if(e.hp<e.maxHp){ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(e.x-26,e.y-46,52,5);
+      ctx.fillStyle='#ff8a70';ctx.fillRect(e.x-26,e.y-46,52*Math.max(0,e.hp/e.maxHp),5);}
+    ctx.font=`bold 10px ${FONT}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.6)';
+    ctx.strokeText(F.name,e.x,e.y-54);ctx.fillStyle='#ffb0a0';ctx.fillText(F.name,e.x,e.y-54);
+    if(player&&state==='play'){const dp=Math.hypot(player.x-e.x,player.y-e.y);
+      if(dp<620){const blocked=Math.abs(angDiff(e.ang,Math.atan2(player.y-e.y,player.x-e.x)))<arc;
+        const back=e.ang+Math.PI;                                                               // 開いている裏側を示す矢印
+        ctx.strokeStyle=blocked?`rgba(255,210,90,${.5+.3*Math.sin(time*5)})`:'rgba(160,255,150,.55)';
+        ctx.lineWidth=3;ctx.beginPath();
+        ctx.arc(e.x,e.y,40,back-(Math.PI-arc),back+(Math.PI-arc));ctx.stroke();
+        if(blocked){ctx.strokeText('裏へ回れ',e.x,e.y+58);ctx.fillStyle='#ffd45a';ctx.fillText('裏へ回れ',e.x,e.y+58);}}}
     return;}
   ctx.save();ctx.translate(e.x,e.y);
   ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(5,7,32,27,0,0,TAU);ctx.fill();
@@ -2363,7 +2406,7 @@ function drawHUD(){
     if(won&&!all)txt(`ステージ${sn+1}　${stageDefOf(sn+1).name} が解放された！`,W/2,H*.59,16,'#9fd8ff','center');
     if(overT>.8&&Math.floor(time*2)%2===0)txt('タップでホームへ',W/2,H*.68,20,'#fff','center');}}
 // ---------- ホーム画面 ----------
-const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間が強化。車両は進化する','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','対空ミサイル砲（03式中SAM）は狙った機を追尾する','自動対空機関砲は放っておいても敵機を撃ってくれる','RPG-7は狙った敵を追いかける（橙の照準が目印）','地雷はWAVE8から。近づくと赤い輪で見える','ステージ（5ウェーブ）をクリアするとホームに戻る'];
+const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間が強化。車両は進化する','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','対空ミサイル砲（03式中SAM）は狙った機を追尾する','自動対空機関砲は放っておいても敵機を撃ってくれる','RPG-7は狙った敵を追いかける（橙の照準が目印）','土のう砲座は正面が効かない。裏へ回るか手榴弾を投げ込め','地雷はWAVE8から。近づくと赤い輪で見える','ステージ（5ウェーブ）をクリアするとホームに戻る'];
 function rbox(x,y,w,h,r){r=Math.min(r,w/2,h/2);ctx.beginPath();
   ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
   ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
