@@ -26,6 +26,7 @@ window.onerror=function(m,src,line,col){var f=document.getElementById('fb');
 // ================= 調整用パラメータ =================
 const CFG={
   playerHp:100, playerSpeed:195, startGrenades:3, maxGrenades:9,
+  startPlayerLvl:4,  // 自分の基本武器レベル（1〜4）。4ならどのステージでも最初からミニガン
   grenadeDmg:170, grenadeRadius:105, grenadeRange:300,
   weapons:{ // tier が大きいほど強い。wave 以降のWAVEで敵が落とすようになる
     rifle:  {name:'ライフル',       rate:.13, dmg:22, spd:1000,spread:.035,pellets:1,life:.7, gun:16},
@@ -1019,7 +1020,7 @@ function upgradeAllies(){if(allyLvl>=CFG.allyUpgrades.length-1)return false;
 function upgradePlayer(){const p=player,list=CFG.baseWeapons;
   if(p.baseLvl>=list.length-1)return false;
   p.baseLvl++;p.base=list[p.baseLvl];if(p.weapon===list[p.baseLvl-1])p.weapon=p.base;
-  popText(p.x,p.y-40,'基本武器 → '+CFG.weapons[p.base].name+'！','#ffd45a');shake=Math.max(shake,4);sparks(p.x,p.y,12,'#ffd45a');
+  popText(p.x,p.y-40,`自分 Lv${p.baseLvl+1}　${CFG.weapons[p.base].name}！`,'#ffd45a');shake=Math.max(shake,4);sparks(p.x,p.y,12,'#ffd45a');
   return true;}
 function reviveAlly(a,ratio){a.down=false;a.hp=Math.max(a.hp,a.maxHp*ratio);a.revive=0;popText(a.x,a.y-26,a.name+' 復活！','#9fd8ff');sfx('pickup');}
 function allyPickTarget(a){const w=allyStats(a);let best=null,bd=1e9;
@@ -1645,7 +1646,7 @@ function startGame(sel){const s=clamp(sel||1,1,CFG.homeStages),w0=(s-1)*CFG.stag
   allyLvl=clamp(s-1,0,CFG.allyUpgrades.length-1);
   carLvl=clamp(Math.floor((s-1)/2),0,CFG.carUpgrades.length-1);
   applyStage(w0,true);player=newPlayer();
-  player.baseLvl=clamp(s-1,0,CFG.baseWeapons.length-1);
+  player.baseLvl=clamp(CFG.startPlayerLvl-1,0,CFG.baseWeapons.length-1);   // 最初から自分のレベル4
   player.base=CFG.baseWeapons[player.baseLvl];player.weapon=player.base;
   player.gren=Math.min(CFG.maxGrenades,CFG.startGrenades+(s-1)*2);
   car=makeCar(WORLD/2-60,WORLD/2+50,-Math.PI/2,CAR_NAMES[0]);
@@ -2351,7 +2352,8 @@ function drawHUD(){
     txt(`ステージ${stageNo(wave)}　${stage?stage.name:''}`,x+2,y+28,12,'#f0dfa0');
     txt(`ウェーブ${waveInStage(wave)}/${CFG.stageWaves}　SCORE ${score}`,x+2,y+46,12,'#e8e2c8');
     const w=CFG.weapons[p.weapon],tmp=p.weapon!==p.base;
-    txt(w.name+(tmp?` ${Math.ceil(p.wTime)}s`:'')+(p.baseLvl?`  基本+${p.baseLvl}`:''),x+2,y+65,12,tmp?(w.col||'#ffd45a'):'#e8e2c8');
+    txt(w.name+(tmp?` ${Math.ceil(p.wTime)}s`:''),x+2,y+65,12,tmp?(w.col||'#ffd45a'):'#e8e2c8');
+    txt(`自分 Lv${p.baseLvl+1}`,x+150,y+65,11,p.baseLvl>=CFG.baseWeapons.length-1?'#ffd45a':'rgba(232,226,200,.75)');
     const sq=Math.max(1,Math.min(3,Math.ceil(allies.length/3)));
     const ay=y+88;ctx.fillStyle='rgba(20,24,14,.55)';rrect(x-4,ay-4,190,20+sq*18,8);ctx.fill();
     txt(carLv().short,x+40,ay+4,9,carLvl?'#ffb060':'rgba(232,226,200,.7)');txt(`仲間 ${allies.filter(a=>!a.down).length}/${CFG.allies.length} ${allyLv().label}`,x+108,ay+4,9,allyLvl?'#9fd8ff':'rgba(232,226,200,.7)');
@@ -2406,7 +2408,7 @@ function drawHUD(){
     if(won&&!all)txt(`ステージ${sn+1}　${stageDefOf(sn+1).name} が解放された！`,W/2,H*.59,16,'#9fd8ff','center');
     if(overT>.8&&Math.floor(time*2)%2===0)txt('タップでホームへ',W/2,H*.68,20,'#fff','center');}}
 // ---------- ホーム画面 ----------
-const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','↑アイテムで自分・仲間が強化。車両は進化する','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','対空ミサイル砲（03式中SAM）は狙った機を追尾する','自動対空機関砲は放っておいても敵機を撃ってくれる','RPG-7は狙った敵を追いかける（橙の照準が目印）','土のう砲座は正面が効かない。裏へ回るか手榴弾を投げ込め','地雷はWAVE8から。近づくと赤い輪で見える','ステージ（5ウェーブ）をクリアするとホームに戻る'];
+const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','自分は最初からLv4（ミニガン）。↑アイテムは仲間と車両の強化に回る','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','対空ミサイル砲（03式中SAM）は狙った機を追尾する','自動対空機関砲は放っておいても敵機を撃ってくれる','RPG-7は狙った敵を追いかける（橙の照準が目印）','土のう砲座は正面が効かない。裏へ回るか手榴弾を投げ込め','地雷はWAVE8から。近づくと赤い輪で見える','ステージ（5ウェーブ）をクリアするとホームに戻る'];
 function rbox(x,y,w,h,r){r=Math.min(r,w/2,h/2);ctx.beginPath();
   ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
   ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
