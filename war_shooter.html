@@ -295,6 +295,25 @@ const CFG={
     11:{mul:.6},                        // ステージ3 W1：初めての戦闘機。かなり控えめ
     12:{mul:.7}, 13:{mul:.7}, 14:{mul:.75}, 15:{mul:.75},
   },
+  // ---- 守備ミッション（味方は最初から全戦力。敵は精鋭を大量に投入してくる）----
+  defense:{
+    terrain:0,          // 戦場（CFG.stages の番号。0＝平野）
+    baseWave:25,        // 敵の強さの基準WAVE（HP倍率・武器ドロップがこのWAVE相当になる）
+    maxEnemies:28,      // 同時に出てくる敵の上限（通常は20）
+    forts:7, aas:6,     // 味方の固定砲台と対空砲の数
+    waves:[
+      {soldiers:16,gunners:4,hint:'まずは歩兵と装甲車の波',
+       units:['type74','type74','mcv16','aaa87','btr80','btr70','f4ej']},
+      {soldiers:20,gunners:5,hint:'多連装ロケットに注意',
+       units:['type90','type74','mlrs','ifv89','bmp2m','btr80','brad','f2a','f4ej']},
+      {soldiers:24,gunners:6,hint:'長射程ロケットと戦車の波',
+       units:['type90','type90','himars','brad','t72b3','msta','trailer73','su35','f2b']},
+      {soldiers:28,gunners:7,hint:'ミサイルと自走砲の飽和攻撃',
+       units:['t90m','t72b3','spg99','mlrs','ssm12','sam81','atm96','f22','su57','b2']},
+      {soldiers:32,gunners:8,hint:'敵主力戦車が突入してくる',
+       units:['type10','m1','leopard2','t90m','msta','himars','spg99','j20','f35c','su57','c2']},
+    ],
+  },
   waterSlow:.55, waterCarSlow:.45,   // 川の中の移動速度（歩兵／車両）
   roadBoost:1.12,                    // 舗装路での車両の速度
   snowSlow:.85, snowCarSlow:.92,     // 雪原での移動速度
@@ -373,7 +392,11 @@ function sfx(type,vol=1){if(!actx||!noiseBuf)return;try{const t=actx.currentTime
 
 // ---------- マップ ----------
 let obstacles=[],patches=[],waters=[],bridges=[],roads=[],stage=null,stageIdx=-1;
-function stageFor(n){return CFG.stages[Math.floor((n-1)/CFG.stageWaves)%CFG.stages.length];}
+let mode='stage',defIdx=0;                       // 'stage'＝通常／'defense'＝守備ミッション
+function isDef(){return mode==='defense';}
+function defTotal(){return CFG.defense.waves.length;}
+function stageFor(n){return isDef()?CFG.stages[CFG.defense.terrain]
+  :CFG.stages[Math.floor((n-1)/CFG.stageWaves)%CFG.stages.length];}
 function stageNo(n){return Math.floor((n-1)/CFG.stageWaves)+1;}      // 何ステージ目か
 function waveInStage(n){return (n-1)%CFG.stageWaves+1;}              // ステージ内の何ウェーブ目か
 function inRect(r,x,y){return x>r.x&&x<r.x+r.w&&y>r.y&&y<r.y+r.h;}
@@ -431,8 +454,17 @@ function genMap(def,cx,cy){
         placeNear(gx2,gy2,240,sz,sz,'tree',140,16);}}}
   else for(let i=0;i<S.trees;i++){const sz=rand(30,42);place(sz,sz,'tree',140,40,true);}
   for(let i=0;i<40;i++)patches.push({x:rand(0,WORLD),y:rand(0,WORLD),rx:rand(40,140),ry:rand(30,90),rot:rand(0,TAU)});
+  if(isDef()){ // 守備陣地：開始地点のまわりに土のうの防壁（出入口つき）
+    const R=300,nb=30;
+    for(let i=0;i<nb;i++){const a=i*TAU/nb;
+      if(Math.abs(Math.sin(a*2))<.25)continue;          // 4か所の出入口
+      const horiz=Math.abs(Math.cos(a))<Math.abs(Math.sin(a));
+      const w2=horiz?76:22,h2=horiz?22:76;
+      const bx2=kx+Math.cos(a)*R-w2/2,by2=ky+Math.sin(a)*R-h2/2;
+      if(overlaps(bx2,by2,w2,h2,6)||rectsHit(bx2,by2,w2,h2,waters,8))continue;
+      obstacles.push({x:bx2,y:by2,w:w2,h:h2,type:'sandbag',hp:180,maxHp:180,seed:Math.random()});}}
   mines=[];
-  if(wave>=CFG.mineFromWave){ // 敵が埋めた地雷
+  if(!isDef()&&wave>=CFG.mineFromWave){ // 敵が埋めた地雷
     const n=Math.min(CFG.minesMax,Math.round(CFG.minesBase+(wave-CFG.mineFromWave)*CFG.minesPerWave));
     for(let i=0;i<n;i++)for(let t=0;t<30;t++){
       const x=rand(90,WORLD-90),y=rand(90,WORLD-90);
@@ -440,9 +472,10 @@ function genMap(def,cx,cy){
       if(Math.abs(x-kx)<260&&Math.abs(y-ky)<260)continue;      // 開始地点のそばには埋めない
       mines.push({x,y,arm:CFG.mine.arm,r:CFG.mine.r,dead:false});break;}}
   forts=[];{ // 味方の固定砲台
-    const raid=stageNo(wave)>=CFG.airFromStage;   // 空襲のあるステージにだけ自動対空砲を置く
+    const raid=isDef()||stageNo(wave)>=CFG.airFromStage;   // 空襲のあるステージにだけ自動対空砲を置く
     const fk=Object.keys(CFG.forts).filter(k=>raid||!CFG.forts[k].aa);
-    for(let i=0;i<CFG.fortsPerStage+(raid?1:0);i++)for(let t=0;t<80;t++){
+    const nf=isDef()?CFG.defense.forts:CFG.fortsPerStage+(raid?1:0);
+    for(let i=0;i<nf;i++)for(let t=0;t<80;t++){
       const x=rand(150,WORLD-150),y=rand(150,WORLD-150);
       if(circleBlocked(x,y,40)||rectsHit(x-30,y-30,60,60,waters,12)||rectsHit(x-30,y-30,60,60,roads,6))continue;
       if(Math.abs(x-kx)<190&&Math.abs(y-ky)<190)continue;
@@ -451,9 +484,9 @@ function genMap(def,cx,cy){
       forts.push({x,y,type:ft,ang:rand(0,TAU),cd:rand(0,1),burst:0,flash:0,tgt:null,checkT:0,
         hp:CFG.forts[ft].hp,maxHp:CFG.forts[ft].hp});break;}}
   aas=[];
-  if(stageNo(wave)>=CFG.airFromStage){ // 空襲のあるステージには対空砲が据えてある
+  if(isDef()||stageNo(wave)>=CFG.airFromStage){ // 空襲のあるステージには対空砲が据えてある
     const ks=Object.keys(CFG.aaGuns);
-    for(let i=0;i<CFG.aaPerStage;i++)for(let t=0;t<80;t++){
+    for(let i=0;i<(isDef()?CFG.defense.aas:CFG.aaPerStage);i++)for(let t=0;t<80;t++){
       const x=rand(150,WORLD-150),y=rand(150,WORLD-150);
       if(circleBlocked(x,y,44)||rectsHit(x-34,y-34,68,68,waters,12))continue;
       if(aas.some(g=>Math.hypot(g.x-x,g.y-y)<380))continue;
@@ -528,7 +561,7 @@ window.addEventListener('keydown',e=>{keys[e.code]=true;unlockAudio();
     if(state==='title'){ // PCは矢印キーでステージを選べる
       const d=e.code==='ArrowRight'||e.code==='KeyD'?1:e.code==='ArrowLeft'||e.code==='KeyA'?-1:0;
       if(d){homeSel=clamp(homeSel+d,1,maxStage);saveGame();e.preventDefault();}
-      if(e.code==='Tab'){homeTab=homeTab==='stage'?'help':'stage';e.preventDefault();}}
+      if(e.code==='Tab'){homeTab=homeTab==='stage'?'def':(homeTab==='def'?'help':'stage');e.preventDefault();}}
     if(e.code==='Enter'||e.code==='Space')handleTap();return;}
   if(e.code==='KeyG'||e.code==='Space'){throwGrenade();e.preventDefault();}
   if(e.code==='KeyE'||e.code==='KeyF')toggleCar();
@@ -1546,7 +1579,20 @@ function cutQueue(q,frac,keepAir,keep){
   const cut=new Set(),need=Math.min(tgt.length,Math.round(tgt.length*(1-frac)));
   while(cut.size<need)cut.add(tgt[Math.floor(Math.random()*tgt.length)]);
   return q.filter((t,i)=>!cut.has(i));}
-function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const newStage=applyStage(n);let q=[];
+// 守備ミッションのウェーブ編成（精鋭を大量に投入）
+function startDefWave(){const D=CFG.defense,w=D.waves[clamp(defIdx,0,defTotal()-1)],q=[];
+  for(let i=0;i<w.soldiers;i++)q.push('soldier');
+  for(let i=0;i<w.gunners;i++)q.splice(Math.floor(Math.random()*(q.length+1)),0,'gunner');
+  for(const t of w.units)q.splice(Math.floor(q.length*rand(.05,.8)),0,t);
+  spawnQueue=q;spawnT=1.2;
+  const no=defIdx+1,lastW=no>=defTotal();
+  const bs=w.units.filter(t=>CFG.vehicles[t]&&CFG.vehicles[t].boss).map(t=>CFG.vehicles[t].name);
+  banner={text:lastW?'守備ミッション　最終波':`守備ミッション　ウェーブ${no}/${defTotal()}`,
+    sub:bs.length?`敵主力戦車 突入！　${bs.join('・')}`:`敵 ${q.length}　${w.hint||'陣地を支えろ'}`,
+    t:lastW?3.8:3};}
+function startWave(n){wave=n;
+  if(isDef()){startDefWave();return;}
+  if(waveInStage(n)===1)unlockStage(stageNo(n));const newStage=applyStage(n);let q=[];
   for(let i=0;i<CFG.soldiersBase+(n-1)*CFG.soldiersPerWave;i++)q.push('soldier');
   for(let i=0;i<Math.floor(n/2);i++)q.splice(Math.floor(Math.random()*(q.length+1)),0,'gunner');
   const setup=CFG.waveSetup[n]||null;   // ウェーブごとの編成の上書き
@@ -1620,27 +1666,35 @@ function startWave(n){wave=n;if(waveInStage(n)===1)unlockStage(stageNo(n));const
   const text=bv?`ステージ${sn}　ボス戦`:(newStage?`ステージ${sn}`:`ステージ${sn}　ウェーブ${wn}/${CFG.stageWaves}`);
   banner={text,sub,t:bv||newStage?3.6:2.6};}
 function updateWaves(dt){
-  if(spawnQueue.length){spawnT-=dt;if(spawnT<=0&&enemies.length<CFG.maxEnemies){
+  if(spawnQueue.length){spawnT-=dt;if(spawnT<=0&&enemies.length<(isDef()?CFG.defense.maxEnemies:CFG.maxEnemies)){
       const type=spawnQueue.shift();if(!spawnEnemy(type))spawnQueue.unshift(type);spawnT=rand(.4,1);}}
   else if(!waveClearing&&enemies.length===0){waveClearing=true;clearT=3.5;const bonus=wave*300;score+=bonus;
     player.hp=Math.min(player.maxHp,player.hp+25);for(const a of allies){if(a.down)reviveAlly(a,.5);else a.hp=Math.min(a.maxHp,a.hp+25);}
     for(let k=0;k<3;k++){const c=cars[k];if(!c&&!allies.some(a=>a.squad===k))continue;
       if(!c||c.dead)spawnCarNear(k,player.x,player.y);else c.hp=Math.min(c.maxHp,c.hp+c.maxHp*.3);}
     const names=[];for(let i=0;i<CFG.recruitPerWave;i++){const n=allies.length;if(recruitAlly(true))names.push(CFG.allies[n].name);}
-    const sn=stageNo(wave),last=waveInStage(wave)===CFG.stageWaves;
+    const sn=stageNo(wave),last=isDef()?defIdx+1>=defTotal():waveInStage(wave)===CFG.stageWaves;
     const rew=names.length?'援軍 '+names.join('・')+' 合流！':'ボーナス +'+bonus+'　HP回復・味方復活';
-    banner={text:last?`ステージ${sn} クリア！`:`ウェーブ${waveInStage(wave)}/${CFG.stageWaves} クリア`,
-      sub:last?`ボーナス +${bonus}`:rew,t:last?3:3};
+    banner=isDef()
+      ?{text:last?'守備ミッション 完遂！':`第${defIdx+1}波 撃退！`,
+        sub:last?`ボーナス +${bonus}`:`ボーナス +${bonus}　陣地を立て直せ`,t:3}
+      :{text:last?`ステージ${sn} クリア！`:`ウェーブ${waveInStage(wave)}/${CFG.stageWaves} クリア`,
+        sub:last?`ボーナス +${bonus}`:rew,t:last?3:3};
     if(names.length)popText(player.x,player.y-40,'+'+bonus,'#dfe8a0');}
   if(waveClearing){clearT-=dt;if(clearT<=0){waveClearing=false;
-    if(waveInStage(wave)===CFG.stageWaves)stageClear();else startWave(wave+1);}}}
+    if(isDef()){
+      if(defIdx+1>=defTotal())stageClear();
+      else{defIdx++;startWave(CFG.defense.baseWave+defIdx+1);}}
+    else if(waveInStage(wave)===CFG.stageWaves)stageClear();
+    else startWave(wave+1);}}}
 // ステージの最終ウェーブをクリアしたらリザルトを出してホーム画面へ
 function stageClear(){const sn=stageNo(wave);
   state='over';won=true;overT=0;recordBest();
-  unlockStage(sn+1);homeSel=clamp(sn+1,1,maxStage);saveGame();
-  sticks.move=sticks.aim=null;banner=null;}
+  if(!isDef()){unlockStage(sn+1);homeSel=clamp(sn+1,1,maxStage);}
+  saveGame();sticks.move=sticks.aim=null;banner=null;}
 // 途中のステージから始めるときは、そこまで育った分の装備・仲間を最初から持たせる
 function startGame(sel){const s=clamp(sel||1,1,CFG.homeStages),w0=(s-1)*CFG.stageWaves+1;
+  mode='stage';defIdx=0;
   homeSel=s;runStage=s;newRecord=false;unlockStage(s);saveGame();
   wave=w0;stageIdx=-1;
   allyLvl=clamp(s-1,0,CFG.allyUpgrades.length-1);
@@ -1655,13 +1709,27 @@ function startGame(sel){const s=clamp(sel||1,1,CFG.homeStages),w0=(s-1)*CFG.stag
   const na=Math.min(CFG.allies.length,CFG.startAllies+(w0-1)*CFG.recruitPerWave);
   for(let i=0;i<na;i++)recruitAlly(true);
   startWave(w0);}
-function goHome(){state='title';homeTab='stage';homeSel=clamp(homeSel,1,maxStage);sticks.move=sticks.aim=null;saveGame();}
+// 守備ミッション：味方は全員そろっていて、敵は精鋭が大量に来る
+function startDefense(){const D=CFG.defense;
+  mode='defense';defIdx=0;runStage='def';newRecord=false;saveGame();
+  wave=D.baseWave+1;stageIdx=-1;
+  allyLvl=CFG.allyUpgrades.length-1;carLvl=CFG.carUpgrades.length-1;
+  applyStage(wave,true);player=newPlayer();
+  player.baseLvl=clamp(CFG.startPlayerLvl-1,0,CFG.baseWeapons.length-1);
+  player.base=CFG.baseWeapons[player.baseLvl];player.weapon=player.base;
+  player.gren=CFG.maxGrenades;
+  car=makeCar(WORLD/2-60,WORLD/2+50,-Math.PI/2,CAR_NAMES[0]);
+  cars=[car,null,null];allies=[];enemies=[];bullets=[];grenades=[];particles=[];pickups=[];decals=[];
+  hazards=[];score=0;waveClearing=false;sticks.move=sticks.aim=null;camX=player.x;camY=player.y;state='play';
+  for(let i=0;i<CFG.allies.length;i++)recruitAlly(true);
+  startWave(wave);}
+function goHome(){state='title';homeTab=isDef()?'def':'stage';homeSel=clamp(homeSel,1,maxStage);sticks.move=sticks.aim=null;saveGame();}
 function inBox(x,y,b){return x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h;}
 function homeHit(x,y){
-  if(x===undefined){startGame(homeSel);return;}
+  if(x===undefined){if(homeTab==='def')startDefense();else startGame(homeSel);return;}
   const L=homeLayout();
   for(const t of L.tabs)if(inBox(x,y,t)){homeTab=t.key;sfx('pickup',.5);return;}
-  if(inBox(x,y,L.btn)){startGame(homeSel);return;}
+  if(inBox(x,y,L.btn)){if(homeTab==='def')startDefense();else startGame(homeSel);return;}
   if(homeTab==='stage')for(const c of L.cards){if(!inBox(x,y,c))continue;
     if(c.locked){homeMsg=`ステージ${c.s-1}をクリアすると解放`;homeMsgT=time+1.6;sfx('eshot',.5);}
     else if(homeSel===c.s)startGame(c.s);
@@ -2349,8 +2417,8 @@ function drawHUD(){
     ctx.fillStyle='rgba(20,24,14,.55)';rrect(x-4,y-4,190,84,8);ctx.fill();
     txt('HP',x+2,y+8,12,'#e8e2c8');ctx.fillStyle='#2a2a24';ctx.fillRect(x+28,y+2,150,12);
     const r=p.hp/p.maxHp;ctx.fillStyle=r>.5?'#7cc444':r>.25?'#e8c030':'#e04030';ctx.fillRect(x+28,y+2,150*r,12);
-    txt(`ステージ${stageNo(wave)}　${stage?stage.name:''}`,x+2,y+28,12,'#f0dfa0');
-    txt(`ウェーブ${waveInStage(wave)}/${CFG.stageWaves}　SCORE ${score}`,x+2,y+46,12,'#e8e2c8');
+    txt(isDef()?`守備ミッション　${stage?stage.name:''}`:`ステージ${stageNo(wave)}　${stage?stage.name:''}`,x+2,y+28,12,isDef()?'#ffb050':'#f0dfa0');
+    txt(`ウェーブ${isDef()?defIdx+1:waveInStage(wave)}/${isDef()?defTotal():CFG.stageWaves}　SCORE ${score}`,x+2,y+46,12,'#e8e2c8');
     const w=CFG.weapons[p.weapon],tmp=p.weapon!==p.base;
     txt(w.name+(tmp?` ${Math.ceil(p.wTime)}s`:''),x+2,y+65,12,tmp?(w.col||'#ffd45a'):'#e8e2c8');
     txt(`自分 Lv${p.baseLvl+1}`,x+150,y+65,11,p.baseLvl>=CFG.baseWeapons.length-1?'#ffd45a':'rgba(232,226,200,.75)');
@@ -2399,23 +2467,28 @@ function drawHUD(){
     txt(banner.text,W/2,H*.3,Math.min(46,W/9),'#f0dfa0','center');
     if(banner.sub)txt(banner.sub,W/2,H*.3+Math.min(40,W/10),15,'#e8e2c8','center');ctx.globalAlpha=1;}
   if(state==='title')drawHome();
-  if(state==='over'){const sn=stageNo(wave),all=won&&sn>=CFG.homeStages;
+  if(state==='over'){const sn=stageNo(wave),all=won&&!isDef()&&sn>=CFG.homeStages,dm=isDef();
+    const lbl=dm?'守備ミッション':`ステージ${runStage}`;
     ctx.fillStyle=won?`rgba(14,30,12,${Math.min(.7,overT)})`:`rgba(40,8,6,${Math.min(.6,overT)})`;ctx.fillRect(0,0,W,H);
-    txt(won?(all?'全ステージ クリア！':`ステージ${sn} クリア！`):'作戦失敗',W/2,H*.33,Math.min(50,W/8),won?'#f0dfa0':'#ff8a70','center');
-    txt(won?`SCORE ${score}`:`ステージ${sn} ウェーブ${waveInStage(wave)}　SCORE ${score}`,W/2,H*.45,20,'#f0dfa0','center');
-    txt(newRecord?`ステージ${runStage} ベスト ${bestOf(runStage)}　★更新！`:`ステージ${runStage} ベスト ${bestOf(runStage)}`,
+    txt(won?(dm?'守備ミッション 完遂！':(all?'全ステージ クリア！':`ステージ${sn} クリア！`)):(dm?'陣地 陥落…':'作戦失敗'),
+      W/2,H*.33,Math.min(50,W/8),won?'#f0dfa0':'#ff8a70','center');
+    txt(won?`SCORE ${score}`:(dm?`第${defIdx+1}波/${defTotal()}　SCORE ${score}`:`ステージ${sn} ウェーブ${waveInStage(wave)}　SCORE ${score}`),
+      W/2,H*.45,20,'#f0dfa0','center');
+    txt(newRecord?`${lbl} ベスト ${bestOf(runStage)}　★更新！`:`${lbl} ベスト ${bestOf(runStage)}`,
       W/2,H*.52,16,newRecord?'#ffd45a':'#e8e2c8','center');
-    if(won&&!all)txt(`ステージ${sn+1}　${stageDefOf(sn+1).name} が解放された！`,W/2,H*.59,16,'#9fd8ff','center');
+    if(won&&!all&&!dm)txt(`ステージ${sn+1}　${stageDefOf(sn+1).name} が解放された！`,W/2,H*.59,16,'#9fd8ff','center');
     if(overT>.8&&Math.floor(time*2)%2===0)txt('タップでホームへ',W/2,H*.68,20,'#fff','center');}}
 // ---------- ホーム画面 ----------
-const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','自分は最初からLv4（ミニガン）。↑アイテムは仲間と車両の強化に回る','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','対空ミサイル砲（03式中SAM）は狙った機を追尾する','自動対空機関砲は放っておいても敵機を撃ってくれる','RPG-7は狙った敵を追いかける（橙の照準が目印）','土のう砲座は正面が効かない。裏へ回るか手榴弾を投げ込め','地雷はWAVE8から。近づくと赤い輪で見える','ステージ（5ウェーブ）をクリアするとホームに戻る'];
+const HELP_LINES=['左側をドラッグ：移動','右側をドラッグ：狙って撃つ（照準補助あり）','手榴弾ボタン：土のうを越えて投げられる','敵が落とす武器は進むほど強くなる','自分は最初からLv4（ミニガン）。↑アイテムは仲間と車両の強化に回る','1ステージ＝5ウェーブ。最後のウェーブはボス戦','ウェーブをクリアするたびに仲間が1人合流する','高機動車に近づいて「乗る」。味方も荷台から撃つ','荷台の仲間が機関銃座に付く（車両に有効）','ステージごとに戦場が変わる（河川・市街地ほか）','戦闘機は対空砲に付かないと落とせない（Rキー）','対空ミサイル砲（03式中SAM）は狙った機を追尾する','自動対空機関砲は放っておいても敵機を撃ってくれる','RPG-7は狙った敵を追いかける（橙の照準が目印）','土のう砲座は正面が効かない。裏へ回るか手榴弾を投げ込め','地雷はWAVE8から。近づくと赤い輪で見える','ステージ（5ウェーブ）をクリアするとホームに戻る','守備ミッション：味方フル装備で精鋭の大軍を5波しのぐ'];
 function rbox(x,y,w,h,r){r=Math.min(r,w/2,h/2);ctx.beginPath();
   ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
   ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
 function homeLayout(){
-  const pad=Math.max(10,W*.025),tabY=Math.max(72,H*.17),th=Math.min(36,H*.07),tw=Math.min(160,W*.3);
-  const tabs=[{key:'stage',label:'ステージ選択'},{key:'help',label:'遊び方'}]
-    .map((t,i)=>({key:t.key,label:t.label,x:W/2-tw-6+i*(tw+12),y:tabY,w:tw,h:th}));
+  const pad=Math.max(10,W*.025),tabY=Math.max(72,H*.17),th=Math.min(36,H*.07);
+  const td=[{key:'stage',label:'ステージ'},{key:'def',label:'守備ミッション'},{key:'help',label:'遊び方'}];
+  const tgap=8,tw=Math.min(150,(W-24-tgap*(td.length-1))/td.length);
+  const tx0=W/2-(tw*td.length+tgap*(td.length-1))/2;
+  const tabs=td.map((t,i)=>({key:t.key,label:t.label,x:tx0+i*(tw+tgap),y:tabY,w:tw,h:th}));
   const bw=Math.min(320,W*.66),bh=Math.min(54,H*.1),btn={x:W/2-bw/2,y:H-bh-Math.max(12,H*.035),w:bw,h:bh};
   const cols=W<520?2:(W<880?3:4),n=CFG.homeStages,rows=Math.ceil(n/cols);
   const top=tabY+th+pad,bottom=btn.y-pad-Math.max(14,H*.028),gap=Math.max(6,W*.012);
@@ -2460,6 +2533,20 @@ function drawStageCard(c){
   if(bs)txtFit(`ベスト ${bs}`,c.x+c.w-8,c.y+c.h*.27,Math.min(11,c.h*.15),'#dfe8a0',aw*.5-4,'right');
   txtFit(`${def.name}　W${(c.s-1)*CFG.stageWaves+1}-${c.s*CFG.stageWaves}`,tx,c.y+c.h*.53,Math.min(12,c.h*.16),'#e8e2c8',aw);
   txtFit(`BOSS ${boss?boss.name:'？'}`,tx,c.y+c.h*.78,Math.min(11,c.h*.15),'#ff9a80',aw);}
+const DEF_LINES=['味方9人＋車両3台が最初からフル装備でそろう','仲間Lv4・16式機動戦闘車・自分もLv4でスタート',
+  '陣地には固定砲台7基と対空砲6基、土のうの防壁つき','代わりに敵は精鋭ぞろい。戦車・自走ロケット・ステルス機',
+  '同時に出てくる敵は28体（通常の1.4倍）、HPも約2.5倍','全5波。最終波は主力戦車3両が突入してくる'];
+function drawDefPanel(L){
+  const bw=Math.min(600,W-28),bx=W/2-bw/2,by=L.tabs[0].y+L.tabs[0].h+Math.max(12,H*.035);
+  const bh=Math.max(140,L.btn.y-by-Math.max(24,H*.05));
+  rbox(bx,by,bw,bh,12);ctx.fillStyle='rgba(44,34,22,.92)';ctx.fill();
+  ctx.strokeStyle='#ff9a4a';ctx.lineWidth=2;ctx.stroke();
+  const ts=Math.min(24,bw/16);
+  txt('守備ミッション',W/2,by+ts*.9,ts,'#ffd45a','center');
+  const y0=by+ts*1.9,step=Math.min(24,(bh-ts*2.6-24)/DEF_LINES.length);
+  DEF_LINES.forEach((l,i)=>txtFit(l,W/2,y0+i*step,Math.min(14,W/30),'#e8e2c8',bw-26,'center'));
+  const bs=bestOf('def');
+  txt(bs?`ベスト ${bs}`:'記録なし',W/2,by+bh-16,14,bs?'#dfe8a0':'rgba(232,226,200,.6)','center');}
 function drawHome(){
   ctx.fillStyle='rgba(16,20,10,.74)';ctx.fillRect(0,0,W,H);
   const L=homeLayout(),ts=Math.min(46,W/9);
@@ -2470,14 +2557,15 @@ function drawHome(){
     ctx.strokeStyle=on?'#f0dfa0':'rgba(232,226,200,.4)';ctx.lineWidth=2;ctx.stroke();
     txt(t.label,t.x+t.w/2,t.y+t.h/2,Math.min(15,t.w/7),on?'#fff':'#c8ccb4','center');}
   if(homeTab==='stage'){for(const c of L.cards)drawStageCard(c);}
+  else if(homeTab==='def')drawDefPanel(L);
   else{const lines=HELP_LINES.concat('ontouchstart' in window?[]:['PC：WASD 移動／マウスで狙ってクリック射撃／G 手榴弾／E 乗り降り','PC：ホームは←→でステージ選択、Enterで出撃']);
     const y0=L.tabs[0].y+L.tabs[0].h+Math.max(14,H*.04),step=Math.min(26,(L.btn.y-y0-10)/lines.length);
     lines.forEach((l,i)=>txtFit(l,W/2,y0+i*step,Math.min(16,W/28),'#e8e2c8',W-28,'center'));}
-  const b=L.btn,def=stageDefOf(homeSel);
-  rbox(b.x,b.y,b.w,b.h,12);ctx.fillStyle='rgba(150,120,40,.95)';ctx.fill();
-  ctx.strokeStyle='#ffd45a';ctx.lineWidth=2.5;ctx.stroke();
-  txtFit(`ステージ${homeSel}　${def.name}　出撃`,b.x+b.w/2,b.y+b.h/2,Math.min(21,b.h*.42),'#fff',b.w-24,'center');
-  if(homeSel>1)txt('途中ステージは装備・仲間が強化された状態で始まります',W/2,b.y-Math.max(8,H*.022),Math.min(12,W/34),'rgba(232,226,200,.75)','center');
+  const b=L.btn,def=stageDefOf(homeSel),dm=homeTab==='def';
+  rbox(b.x,b.y,b.w,b.h,12);ctx.fillStyle=dm?'rgba(150,80,40,.95)':'rgba(150,120,40,.95)';ctx.fill();
+  ctx.strokeStyle=dm?'#ff9a4a':'#ffd45a';ctx.lineWidth=2.5;ctx.stroke();
+  txtFit(dm?'守備ミッション　出撃':`ステージ${homeSel}　${def.name}　出撃`,b.x+b.w/2,b.y+b.h/2,Math.min(21,b.h*.42),'#fff',b.w-24,'center');
+  if(!dm&&homeSel>1)txt('途中ステージは装備・仲間が強化された状態で始まります',W/2,b.y-Math.max(8,H*.022),Math.min(12,W/34),'rgba(232,226,200,.75)','center');
   if(homeMsg&&time<homeMsgT)txt(homeMsg,W/2,b.y-Math.max(26,H*.06),Math.min(15,W/26),'#ff9a80','center');}
 function draw(){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.fillStyle='#20251a';ctx.fillRect(0,0,W,H);
   ctx.save();ctx.translate(W/2+(Math.random()-.5)*shake,H/2+(Math.random()-.5)*shake);ctx.scale(S,S);ctx.translate(-camX,-camY);
