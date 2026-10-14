@@ -297,6 +297,7 @@ const CFG={
   },
   // ---- 守備ミッション（味方は最初から全戦力。敵は精鋭を大量に投入してくる）----
   defense:{
+    allies:30,          // 味方歩兵の人数（通常ステージは最大9人）
     terrain:0,          // 戦場（CFG.stages の番号。0＝平野）
     baseWave:25,        // 敵の強さの基準WAVE（HP倍率・武器ドロップがこのWAVE相当になる）
     maxEnemies:28,      // 同時に出てくる敵の上限（通常は20）
@@ -1022,14 +1023,26 @@ function carSeparation(){for(let i=0;i<cars.length;i++)for(let j=i+1;j<cars.leng
 
 // ---------- 味方 ----------
 const ALLY_SLOTS=[{a:-2.3,d:62},{a:2.3,d:62},{a:Math.PI,d:95},{a:-1.9,d:120},{a:1.9,d:120},{a:-2.6,d:140},{a:2.6,d:140},{a:Math.PI,d:165},{a:-2.95,d:205}];
-function slotPos(i){const s=ALLY_SLOTS[i%ALLY_SLOTS.length],a=player.moveAng+s.a;return{x:player.x+Math.cos(a)*s.d,y:player.y+Math.sin(a)*s.d};}
+// 10人目以降の呼び名（NATOフォネティックの続き）
+const EXTRA_NAMES=['ジュリエット','キロ','リマ','マイク','ノベンバー','オスカー','パパ','ケベック','ロメオ',
+  'シエラ','タンゴ','ユニフォーム','ビクター','ウイスキー','エクスレイ','ヤンキー','ズールー'];
+function allyCap(){return isDef()?CFG.defense.allies:CFG.allies.length;}
+function allySpec(i){if(i<CFG.allies.length)return CFG.allies[i];
+  const k=i-CFG.allies.length,w=['rifle','mg','rifle','rocket'][k%4];
+  const nm=k<EXTRA_NAMES.length?EXTRA_NAMES[k]:CFG.allies[k%CFG.allies.length].name+'2';
+  return{name:nm,weapon:w,hp:w==='mg'?100:80,squad:0};}
+function slotPos(i){
+  if(i<ALLY_SLOTS.length){const s=ALLY_SLOTS[i],a=player.moveAng+s.a;return{x:player.x+Math.cos(a)*s.d,y:player.y+Math.sin(a)*s.d};}
+  const k=i-ALLY_SLOTS.length,ring=Math.floor(k/8),idx=k%8;   // 10人目からは後方に輪を広げて並ぶ
+  const a=player.moveAng+Math.PI+(idx-3.5)*.42,d=225+ring*58;
+  return{x:player.x+Math.cos(a)*d,y:player.y+Math.sin(a)*d};}
 function makeAlly(c,i){const s=slotPos(i);
   const a={name:c.name,weapon:c.weapon,x:s.x,y:s.y,r:13,hp:c.hp,maxHp:c.hp,baseHp:c.hp,ang:player.ang,walk:0,hurt:0,fireCd:rand(.3,1),burst:0,
     tgt:null,checkT:0,down:false,revive:0,avoid:0,avoidT:0,stuckT:.45,lx:s.x,ly:s.y,lostT:0,squad:c.squad||0,seat:0,riding:false,vehicle:null};
   applyAllyLevel(a);pushOut(a);return a;}
 function seatFor(sq){const n=allies.filter(a=>a.squad===sq).length;return n%3;}
-function recruitAlly(quiet){const i=allies.length;if(i>=CFG.allies.length)return false;
-  const c=CFG.allies[i],sq=c.squad;
+function recruitAlly(quiet){const i=allies.length;if(i>=allyCap())return false;
+  const c=allySpec(i),sq=c.squad;
   if(sq>0&&(!cars[sq]||cars[sq].dead))spawnCarNear(sq,player.x,player.y,true);
   const a=makeAlly(c,i);a.seat=seatFor(sq);
   const vc=sq===0?null:cars[sq];
@@ -1672,7 +1685,7 @@ function updateWaves(dt){
     player.hp=Math.min(player.maxHp,player.hp+25);for(const a of allies){if(a.down)reviveAlly(a,.5);else a.hp=Math.min(a.maxHp,a.hp+25);}
     for(let k=0;k<3;k++){const c=cars[k];if(!c&&!allies.some(a=>a.squad===k))continue;
       if(!c||c.dead)spawnCarNear(k,player.x,player.y);else c.hp=Math.min(c.maxHp,c.hp+c.maxHp*.3);}
-    const names=[];for(let i=0;i<CFG.recruitPerWave;i++){const n=allies.length;if(recruitAlly(true))names.push(CFG.allies[n].name);}
+    const names=[];for(let i=0;i<CFG.recruitPerWave;i++){const n=allies.length;if(recruitAlly(true))names.push(allySpec(n).name);}
     const sn=stageNo(wave),last=isDef()?defIdx+1>=defTotal():waveInStage(wave)===CFG.stageWaves;
     const rew=names.length?'援軍 '+names.join('・')+' 合流！':'ボーナス +'+bonus+'　HP回復・味方復活';
     banner=isDef()
@@ -1721,7 +1734,7 @@ function startDefense(){const D=CFG.defense;
   car=makeCar(WORLD/2-60,WORLD/2+50,-Math.PI/2,CAR_NAMES[0]);
   cars=[car,null,null];allies=[];enemies=[];bullets=[];grenades=[];particles=[];pickups=[];decals=[];
   hazards=[];score=0;waveClearing=false;sticks.move=sticks.aim=null;camX=player.x;camY=player.y;state='play';
-  for(let i=0;i<CFG.allies.length;i++)recruitAlly(true);
+  for(let i=0;i<CFG.defense.allies;i++)recruitAlly(true);
   startWave(wave);}
 function goHome(){state='title';homeTab=isDef()?'def':'stage';homeSel=clamp(homeSel,1,maxStage);sticks.move=sticks.aim=null;saveGame();}
 function inBox(x,y,b){return x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h;}
@@ -2424,13 +2437,15 @@ function drawHUD(){
     txt(`自分 Lv${p.baseLvl+1}`,x+150,y+65,11,p.baseLvl>=CFG.baseWeapons.length-1?'#ffd45a':'rgba(232,226,200,.75)');
     const sq=Math.max(1,Math.min(3,Math.ceil(allies.length/3)));
     const ay=y+88;ctx.fillStyle='rgba(20,24,14,.55)';rrect(x-4,ay-4,190,20+sq*18,8);ctx.fill();
-    txt(carLv().short,x+40,ay+4,9,carLvl?'#ffb060':'rgba(232,226,200,.7)');txt(`仲間 ${allies.filter(a=>!a.down).length}/${CFG.allies.length} ${allyLv().label}`,x+108,ay+4,9,allyLvl?'#9fd8ff':'rgba(232,226,200,.7)');
+    txt(carLv().short,x+40,ay+4,9,carLvl?'#ffb060':'rgba(232,226,200,.7)');txt(`仲間 ${allies.filter(a=>!a.down).length}/${allyCap()} ${allyLv().label}`,x+108,ay+4,9,allyLvl?'#9fd8ff':'rgba(232,226,200,.7)');
     for(let k=0;k<sq;k++){const yy=ay+20+k*18,c=cars[k];txt(CAR_NAMES[k],x+2,yy,11,'#dfe8a0');
       if(!c||c.dead)txt('大破',x+40,yy,11,'#ff8a70');
       else{ctx.fillStyle='#2a2a24';ctx.fillRect(x+40,yy-4,60,8);ctx.fillStyle='#c8c070';ctx.fillRect(x+40,yy-4,60*c.hp/c.maxHp,8);}
-      allies.filter(a=>a.squad===k).forEach((a,j)=>{const bx=x+108+j*24;
+      const sl=allies.filter(a=>a.squad===k);
+      sl.slice(0,3).forEach((a,j)=>{const bx=x+108+j*24;
         if(a.down){if(Math.floor(time*3)%2){ctx.fillStyle='#ff5a4a';ctx.fillRect(bx,yy-4,20,8);}}
-        else{ctx.fillStyle='#2a2a24';ctx.fillRect(bx,yy-4,20,8);ctx.fillStyle=['#4fb4ff','#7ce0a0','#ffd45a','#ff9a5a'][clamp(allyLvl,0,3)];ctx.fillRect(bx,yy-4,20*a.hp/a.maxHp,8);}});}
+        else{ctx.fillStyle='#2a2a24';ctx.fillRect(bx,yy-4,20,8);ctx.fillStyle=['#4fb4ff','#7ce0a0','#ffd45a','#ff9a5a'][clamp(allyLvl,0,3)];ctx.fillRect(bx,yy-4,20*a.hp/a.maxHp,8);}});
+      if(sl.length>3)txt(`+${sl.filter((a,j)=>j>=3&&!a.down).length}`,x+180,yy,10,'#9fd8ff');}
     const m=Math.min(110,W*.26),mx=W-m-12,my=12,k=m/WORLD;
     ctx.fillStyle='rgba(20,24,14,.6)';ctx.fillRect(mx,my,m,m);ctx.strokeStyle='rgba(232,226,200,.4)';ctx.lineWidth=1;ctx.strokeRect(mx,my,m,m);
     const mrect=(r,col)=>{const ax=clamp(r.x,0,WORLD),ay=clamp(r.y,0,WORLD),bx=clamp(r.x+r.w,0,WORLD),by=clamp(r.y+r.h,0,WORLD);
@@ -2533,7 +2548,7 @@ function drawStageCard(c){
   if(bs)txtFit(`ベスト ${bs}`,c.x+c.w-8,c.y+c.h*.27,Math.min(11,c.h*.15),'#dfe8a0',aw*.5-4,'right');
   txtFit(`${def.name}　W${(c.s-1)*CFG.stageWaves+1}-${c.s*CFG.stageWaves}`,tx,c.y+c.h*.53,Math.min(12,c.h*.16),'#e8e2c8',aw);
   txtFit(`BOSS ${boss?boss.name:'？'}`,tx,c.y+c.h*.78,Math.min(11,c.h*.15),'#ff9a80',aw);}
-const DEF_LINES=['味方9人＋車両3台が最初からフル装備でそろう','仲間Lv4・16式機動戦闘車・自分もLv4でスタート',
+const DEF_LINES=['味方30人＋車両3台が最初からフル装備でそろう','仲間Lv4・16式機動戦闘車・自分もLv4でスタート',
   '陣地には固定砲台7基と対空砲6基、土のうの防壁つき','代わりに敵は精鋭ぞろい。戦車・自走ロケット・ステルス機',
   '同時に出てくる敵は28体（通常の1.4倍）、HPも約2.5倍','全5波。最終波は主力戦車3両が突入してくる'];
 function drawDefPanel(L){
