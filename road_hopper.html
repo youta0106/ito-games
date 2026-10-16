@@ -1400,7 +1400,7 @@ function updAIs(dt){
     if(a.inv>0)a.inv-=dt;if(a.atk>0)a.atk-=dt;
     if(a.t<1){a.t=Math.min(1,a.t+dt/HOP);if(a.t>=1)aiLand(a);}
     else if(a.log){
-      const L=lanes.get(a.r);a.x+=L.dir*L.speed*dt*worldRate();
+      const L=lanes.get(a.r);a.x+=L.dir*L.speed*dt*worldRate();a.fx=a.tx=a.x;
       if(a.x<-.45||a.x>COLS-.55){aiDie(a,'water');continue;}
       const it=a.item;
       if(it&&it.turtle&&turtleState(it)==='under'){aiDie(a,'water');continue;}
@@ -1478,9 +1478,15 @@ function update(dt){
     if(started)playTime+=dt;
     if(P.inv>0)P.inv-=dt;
     if(P.down){P.downT+=dt;if(P.downT>1.4)tryRespawnPlayer();}
-    else if(P.t<1){P.t=Math.min(1,P.t+dt/hopDur());if(P.t>=1)land();}
+    else if(P.t<1){
+      // 川へ跳ぶ途中も流れに合わせて着地点・出発点を動かす（丸太の上でずれないように）
+      const Lt=lanes.get(P.tr),Lf=lanes.get(P.fr);
+      if(Lt&&Lt.type==='river')P.tx+=Lt.dir*Lt.speed*wdt;
+      if(Lf&&Lf.type==='river')P.fx+=Lf.dir*Lf.speed*wdt;
+      P.t=Math.min(1,P.t+dt/hopDur());if(P.t>=1)land();
+    }
     else if(P.log){
-      const L=lanes.get(P.r);P.x+=L.dir*L.speed*wdt;
+      const L=lanes.get(P.r);P.x+=L.dir*L.speed*wdt;P.fx=P.tx=P.x;
       if(P.x<-.45||P.x>COLS-.55)die('water');
       const it=P.item;
       if(it&&it.turtle&&turtleState(it)==='under')die('water',ENEMIES.turtle.death);
