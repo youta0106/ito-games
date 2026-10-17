@@ -32,6 +32,9 @@
 /* バレンタイン（2月4日〜14日）だけの配色 */
 :root.vd{--night:#2a1420;--sun:#ff8fc0;--grass:#ff5a8a;--panel:rgba(52,18,36,.92);--line:#6a2a4a}
 .vdonly{display:none}:root.vd .vdonly{display:block}
+/* 夏休み（8月）だけの配色 */
+:root.su{--night:#0e2a3a;--sun:#ffd23f;--grass:#2ec4d6;--panel:rgba(10,40,56,.92);--line:#2a5a6a}
+.suonly{display:none}:root.su .suonly{display:block}
 html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;font-family:var(--body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #app{position:relative;height:100%}
 #cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
@@ -145,7 +148,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
 
   <div class="ov" id="selectOv">
     <div class="card">
-      <h1>ロードホッパー<small class="hwonly" style="font-size:.55em;color:#c99bff">🎃 ハロウィン 🦇</small><small class="xmonly" style="font-size:.55em;color:#ff8a8a">🎄 クリスマス 🎅</small><small class="nyonly" style="font-size:.55em;color:#ffffff">🎍 お正月 🎍</small><small class="sbonly" style="font-size:.55em;color:#ff8a6a">👹 節分 🫘</small><small class="vdonly" style="font-size:.55em;color:#ffc0dc">💝 バレンタイン 🍫</small></h1>
+      <h1>ロードホッパー<small class="hwonly" style="font-size:.55em;color:#c99bff">🎃 ハロウィン 🦇</small><small class="xmonly" style="font-size:.55em;color:#ff8a8a">🎄 クリスマス 🎅</small><small class="nyonly" style="font-size:.55em;color:#ffffff">🎍 お正月 🎍</small><small class="sbonly" style="font-size:.55em;color:#ff8a6a">👹 節分 🫘</small><small class="vdonly" style="font-size:.55em;color:#ffc0dc">💝 バレンタイン 🍫</small><small class="suonly" style="font-size:.55em;color:#8ae8ff">🌻 夏休み 🍉</small></h1>
       <p class="sub">ゴールの旗までたどり着くとクリア。次のステージが解放されます。</p>
       <div class="tabs" role="tablist">
         <button class="tab on" id="tabNormal" type="button" role="tab">ステージ</button>
@@ -245,16 +248,16 @@ const STAGES=[
 ];
 
 // 季節イベント（URLに ?halloween=1 などを付けると確認用に切り替え、=0 で止める）
-//  10月: ハロウィン / 12月: クリスマス / 1月1日〜15日: お正月 / 2月1日〜3日: 節分 / 2月4日〜14日: バレンタイン
-const SEASONS={hw:{q:'halloween',name:'ハロウィン',txt:'10月'},xm:{q:'christmas',name:'クリスマス',txt:'12月'},ny:{q:'newyear',name:'お正月',txt:'1月1日〜15日'},sb:{q:'setsubun',name:'節分',txt:'2月1日〜3日'},vd:{q:'valentine',name:'バレンタイン',txt:'2月4日〜14日'}};
+//  10月: ハロウィン / 12月: クリスマス / 1月1日〜15日: お正月 / 2月1日〜3日: 節分 / 2月4日〜14日: バレンタイン / 8月: 夏休み
+const SEASONS={hw:{q:'halloween',name:'ハロウィン',txt:'10月'},xm:{q:'christmas',name:'クリスマス',txt:'12月'},ny:{q:'newyear',name:'お正月',txt:'1月1日〜15日'},sb:{q:'setsubun',name:'節分',txt:'2月1日〜3日'},vd:{q:'valentine',name:'バレンタイン',txt:'2月4日〜14日'},su:{q:'summer',name:'夏休み',txt:'8月'}};
 const SEASON=(()=>{
   const qs=new URLSearchParams(location.search);
   for(const k in SEASONS)if(qs.get(SEASONS[k].q)==='1')return k;
   const d=new Date(),m=d.getMonth(),dd=d.getDate();
-  const auto=m===9?'hw':m===11?'xm':m===0&&dd<=15?'ny':m===1&&dd<=3?'sb':m===1&&dd<=14?'vd':null;
+  const auto=m===9?'hw':m===11?'xm':m===0&&dd<=15?'ny':m===1&&dd<=3?'sb':m===1&&dd<=14?'vd':m===7?'su':null;
   return auto&&qs.get(SEASONS[auto].q)!=='0'?auto:null;
 })();
-const HW=SEASON==='hw',XM=SEASON==='xm',NY=SEASON==='ny',SB=SEASON==='sb',VD=SEASON==='vd';
+const HW=SEASON==='hw',XM=SEASON==='xm',NY=SEASON==='ny',SB=SEASON==='sb',VD=SEASON==='vd',SU=SEASON==='su';
 if(SEASON){document.documentElement.classList.add(SEASON);document.title='ロードホッパー '+SEASONS[SEASON].name;}
 
 // ---------- storage ----------
@@ -367,7 +370,7 @@ const pSize=()=>hasB('small')?.55:1;
 const coinGain=()=>hasB('double')?2:1;
 
 // ---------- skins ----------
-const RAR={f:{name:'はじめから',price:0,col:'#b8c0cf'},c:{name:'ノーマル',price:10,col:'#cfd6e2'},r:{name:'レア',price:25,col:'#6cc0f0'},e:{name:'エピック',price:50,col:'#b892f0'},l:{name:'レジェンド',price:100,col:'#ffc35a'},m:{name:'ミシック',price:200,col:'#ff7a70'},h:{name:'ハロウィン限定',price:80,col:'#ff9a2e'},n:{name:'お正月限定',price:80,col:'#e8463c'},s:{name:'節分限定',price:80,col:'#c9a464'},v:{name:'バレンタイン限定',price:80,col:'#ff5a8a'}};
+const RAR={f:{name:'はじめから',price:0,col:'#b8c0cf'},c:{name:'ノーマル',price:10,col:'#cfd6e2'},r:{name:'レア',price:25,col:'#6cc0f0'},e:{name:'エピック',price:50,col:'#b892f0'},l:{name:'レジェンド',price:100,col:'#ffc35a'},m:{name:'ミシック',price:200,col:'#ff7a70'},h:{name:'ハロウィン限定',price:80,col:'#ff9a2e'},n:{name:'お正月限定',price:80,col:'#e8463c'},s:{name:'節分限定',price:80,col:'#c9a464'},v:{name:'バレンタイン限定',price:80,col:'#ff5a8a'},u:{name:'夏休み限定',price:80,col:'#2ec4d6'}};
 const SKINS=[
 {id:'hiyoko',name:'ひよこ',rar:'f',body:'#ffe066',shade:'#eab421',acc:'#ef4b3f',parts:['comb'],mouth:'beak'},
 {id:'ahiru',name:'アヒル',rar:'c',body:'#f7f7f2',shade:'#d4d4ca',parts:[],mouth:'beak',mcol:'#ff9a3d'},
@@ -463,6 +466,20 @@ SKINS.push(
 {id:'vd_lovehiyoko',name:'ラブリーひよこ',rar:'v',body:'#ffb8d0',shade:'#e890b0',acc:'#ff4a7a',parts:['comb','heartmark'],mouth:'beak',mcol:'#ff9a3d'}
 );
 for(const k of SKINS){if(k.rar==='s')k.season='sb';if(k.rar==='v')k.season='vd';}
+// 夏休み限定（8月）
+SKINS.push(
+{id:'su_suika',name:'スイカ',rar:'u',body:'#ff4a5a',shade:'#2f8c3a',parts:['seeds'],mouth:'smile',mcol:'#a01a2a'},
+{id:'su_kakigori',name:'かき氷',rar:'u',body:'#f4f8ff',shade:'#5aa6dc',parts:['syrup'],mouth:'smile',mcol:'#5a6a8a'},
+{id:'su_kingyo',name:'金魚',rar:'u',body:'#ff6a3a',shade:'#d6481e',eyes:'big',parts:['tail','fin'],mouth:'none'},
+{id:'su_kabuto',name:'カブトムシ',rar:'u',body:'#5a321c',shade:'#3a1e10',eye:'#ffffff',parts:['kabuto'],mouth:'none'},
+{id:'su_himawari',name:'ひまわり',rar:'u',body:'#8a5a2a',shade:'#6b4220',eye:'#ffe27a',parts:['petals'],mouth:'smile',mcol:'#ffe27a'},
+{id:'su_mugiwara',name:'麦わらひよこ',rar:'u',body:'#ffe066',shade:'#eab421',acc:'#ef4b3f',parts:['comb','strawhat'],mouth:'beak'},
+{id:'su_grasan',name:'サングラスひよこ',rar:'u',body:'#ffe066',shade:'#eab421',acc:'#ef4b3f',visor:'#1d1f26',eye:'#3a4a6a',parts:['comb','visor'],mouth:'beak'},
+{id:'su_ice',name:'ソーダアイス',rar:'u',body:'#6ad0ff',shade:'#3aa6dc',parts:['stick'],mouth:'smile',mcol:'#1d5a80'},
+{id:'su_yukata',name:'ゆかたネコ',rar:'u',body:'#a8adb8',shade:'#3a5aa8',acc:'#a8adb8',inner:'#f7a8b8',parts:['ears','obi'],mouth:'nose',mcol:'#ff8fa8'},
+{id:'su_hanabi',name:'花火',rar:'u',body:'#1d2a5a',shade:'#121a3a',eye:'#ffe27a',eyes:'glow',parts:['fireworks','sparkle'],mouth:'smile',mcol:'#ffe27a'}
+);
+for(const k of SKINS)if(k.rar==='u')k.season='su';
 const priceOf=sk=>sk.base?RAR[sk.base].price+15:RAR[sk.rar].price;
 // 期間外は、持っていない限定スキンはショップに出さない
 const shopSkins=()=>{const v=SKINS.filter(k=>!k.season||k.season===SEASON||prog.owned.includes(k.id));return SEASON?v.filter(k=>k.season===SEASON).concat(v.filter(k=>k.season!==SEASON)):v;};
@@ -485,6 +502,10 @@ function drawHopper(c,px,py,t,face,squash,lift,sk){
   if(has('cape'))RR(x-s*.08,y+s*.25,s*1.16,s*.78,s*.08,'#c0392b');
   if(has('wings')){const f=Math.sin(time*14)*s*.05,wc=sk.wing||'#ffffff';RR(x-s*.3,y+s*.18-f,s*.34,s*.42,s*.12,wc);RR(x+s*.96,y+s*.18-f,s*.34,s*.42,s*.12,wc);}
   const HEART=(hx,hy,hr,col)=>{E(hx-hr*.5,hy-hr*.2,hr*.55,hr*.55,col);E(hx+hr*.5,hy-hr*.2,hr*.55,hr*.55,col);TRI(hx-hr*1.04,hy-hr*.05,hx,hy+hr*1.1,hx+hr*1.04,hy-hr*.05,col);};
+  if(has('petals'))for(let i=0;i<12;i++){const a=i/12*Math.PI*2;E(cx+Math.cos(a)*s*.56,y+s*.42+Math.sin(a)*s*.5,s*.14,s*.14,'#ffd23f');}
+  if(has('fin'))TRI(cx-s*.1,y+s*.04,cx+s*.1,y-s*.22,cx+s*.24,y+s*.04,shade);
+  if(has('stick'))R(cx-s*.06,y+s*.86,s*.12,s*.26,'#d9b07a');
+  if(has('fireworks')){const k=(time*.8)%1,cs=['#ff5a7a','#ffd23f','#5ad6ff','#9bff6a'];c.globalAlpha=1-k;for(let j=0;j<10;j++){const a=j/10*Math.PI*2;E(cx+Math.cos(a)*s*(.2+k*.5),y-s*.3+Math.sin(a)*s*(.2+k*.4),s*.05,s*.05,cs[j%4]);}c.globalAlpha=sk.alpha||1;}
   if(has('shishicloth')){RR(x-s*.22,y+s*.3,s*1.44,s*.72,s*.12,pat);c.strokeStyle='#ffffff';c.lineWidth=s*.04;for(const ox of [-.08,1.08]){c.beginPath();c.arc(x+s*ox,y+s*.66,s*.08,0,Math.PI*1.5);c.stroke();}}
   if(has('batwings')){const f=Math.sin(time*12)*s*.08;TRI(x+s*.06,y+s*.3,x-s*.42,y+s*.04-f,x-s*.3,y+s*.56,shade);TRI(x+s*.06,y+s*.4,x-s*.36,y+s*.5-f*.5,x-s*.1,y+s*.66,shade);TRI(x+s*.94,y+s*.3,x+s*1.42,y+s*.04-f,x+s*1.3,y+s*.56,shade);TRI(x+s*.94,y+s*.4,x+s*1.36,y+s*.5-f*.5,x+s*1.1,y+s*.66,shade);}
   if(has('wrapper')){TRI(x+s*.02,y+s*.45,x-s*.3,y+s*.22,x-s*.3,y+s*.68,pat);TRI(x+s*.98,y+s*.45,x+s*1.3,y+s*.22,x+s*1.3,y+s*.68,pat);}
@@ -508,6 +529,8 @@ function drawHopper(c,px,py,t,face,squash,lift,sk){
   if(sk.belly)RR(x+s*.2,y+s*.52,s*.6,s*.42,s*.1,sk.belly);
   R(x+s*.15,y+s*.08,s*.25,s*.12,'rgba(255,255,255,.35)');
   if(has('comb')){R(cx-s*.12,y-s*.12,s*.24,s*.16,acc);if(sk.bigcomb)R(cx-s*.2,y-s*.06,s*.4,s*.1,acc);}
+  if(has('seeds'))for(const[ox,oy]of[[.2,.3],[.45,.22],[.72,.32],[.32,.5],[.62,.52]])E(x+s*ox,y+s*oy,s*.035,s*.05,'#1d1f26');
+  if(has('obi')){R(x,y+s*.54,s,s*.12,'#ff7a9a');TRI(x+s*.3,y+s*.3,cx,y+s*.54,x+s*.7,y+s*.3,'#ffffff');}
   if(has('tigerbelt')){R(x,y+s*.7,s,s*.26,'#ffd23f');for(let i=0;i<4;i++)R(x+s*(.08+i*.25),y+s*.7,s*.08,s*.26,'#1d1f26');}
   if(has('chocogrid')){R(x+s*.33,y,s*.04,s*.96,shade);R(x+s*.63,y,s*.04,s*.96,shade);R(x,y+s*.3,s,s*.04,shade);R(x,y+s*.6,s,s*.04,shade);}
   if(has('envelope')){c.strokeStyle='#c9c9d6';c.lineWidth=s*.05;c.beginPath();c.moveTo(x,y+s*.06);c.lineTo(cx,y+s*.46);c.lineTo(x+s,y+s*.06);c.stroke();HEART(cx,y+s*.46,s*.12,'#ff2a5a');}
@@ -560,6 +583,9 @@ function drawHopper(c,px,py,t,face,squash,lift,sk){
   if(has('stem')){R(cx-s*.05,y-s*.18,s*.1,s*.2,'#6b4a2e');E(cx+s*.15,y-s*.12,s*.12,s*.06,'#4caf50');}
   if(has('hat')){TRI(x-s*.08,y+s*.1,cx+s*.06,y-s*.62,x+s*1.08,y+s*.1,sk.hat);R(cx-s*.03,y-s*.3,s*.07,s*.07,'#ffd23f');}
   if(has('tophat')){R(x+s*.1,y-s*.02,s*.8,s*.1,'#1d1f26');R(x+s*.24,y-s*.4,s*.52,s*.4,'#1d1f26');R(x+s*.24,y-s*.12,s*.52,s*.06,'#c0392b');}
+  if(has('syrup')){E(cx,y+s*.02,s*.52,s*.2,'#ff4a6a');R(x,y,s,s*.12,'#ff4a6a');for(let i=0;i<3;i++)E(x+s*(.2+i*.3),y+s*.14,s*.06,s*.08,'#ff4a6a');}
+  if(has('kabuto')){R(cx-s*.06,y-s*.36,s*.12,s*.4,'#3a1e10');TRI(cx-s*.2,y-s*.42,cx,y-s*.3,cx-s*.04,y-s*.5,'#3a1e10');TRI(cx+s*.2,y-s*.42,cx,y-s*.3,cx+s*.04,y-s*.5,'#3a1e10');R(cx-s*.03,y+s*.04,s*.06,s*.9,'#2a140a');}
+  if(has('strawhat')){E(cx,y+s*.02,s*.68,s*.14,'#e8c870');RR(x+s*.18,y-s*.26,s*.64,s*.3,s*.12,'#e8c870');R(x+s*.18,y-s*.06,s*.64,s*.08,'#d63a3a');}
   if(has('onihair')){for(let i=0;i<5;i++)E(x+s*(.1+i*.2),y-s*.02,s*.13,s*.11,'#1d1f26');}
   if(has('berries')){E(cx-s*.08,y-s*.1,s*.07,s*.07,'#e53935');E(cx+s*.08,y-s*.08,s*.07,s*.07,'#e53935');E(cx,y-s*.18,s*.07,s*.07,'#e53935');}
   if(has('ribbon')){const rc='#ff2a5a';TRI(cx,y-s*.04,cx-s*.3,y-s*.2,cx-s*.3,y+s*.1,rc);TRI(cx,y-s*.04,cx+s*.3,y-s*.2,cx+s*.3,y+s*.1,rc);E(cx,y-s*.04,s*.07,s*.07,'#ff5a8a');}
@@ -1664,17 +1690,17 @@ function shadow(cx,cy,w,h){ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.e
 function drawGround(L,r){
   const y=sy(r);
   if(L.type==='grass'){
-    rect(0,y,W,T+1,ST.war?(r%2?'#9a9468':'#918b5f'):(HW?(r%2?'#4d5a3a':'#465334'):XM?(r%2?'#eef3f8':'#e3eaf2'):NY?(r%2?'#e9dcc0':'#e2d4b6'):SB?(r%2?'#d6d08e':'#cdc785'):VD?(r%2?'#ffd9e6':'#ffcfdf'):(r%2?'#8fd062':'#86c75a')));
-    ctx.fillStyle=ST.war?(r%2?'#857f55':'#7d774e'):(HW?(r%2?'#3c4a2c':'#384428'):XM?(r%2?'#cfdbe8':'#c8d4e2'):NY?(r%2?'#cbbb98':'#c4b490'):SB?(r%2?'#b8b06a':'#b0a862'):VD?(r%2?'#ffb8cf':'#ffb0c8'):(r%2?'#7fbe53':'#78b74e'));
+    rect(0,y,W,T+1,ST.war?(r%2?'#9a9468':'#918b5f'):(HW?(r%2?'#4d5a3a':'#465334'):XM?(r%2?'#eef3f8':'#e3eaf2'):NY?(r%2?'#e9dcc0':'#e2d4b6'):SB?(r%2?'#d6d08e':'#cdc785'):VD?(r%2?'#ffd9e6':'#ffcfdf'):SU?(r%2?'#f7e3a8':'#f0da9c'):(r%2?'#8fd062':'#86c75a')));
+    ctx.fillStyle=ST.war?(r%2?'#857f55':'#7d774e'):(HW?(r%2?'#3c4a2c':'#384428'):XM?(r%2?'#cfdbe8':'#c8d4e2'):NY?(r%2?'#cbbb98':'#c4b490'):SB?(r%2?'#b8b06a':'#b0a862'):VD?(r%2?'#ffb8cf':'#ffb0c8'):SU?(r%2?'#e0c47e':'#d8bc76'):(r%2?'#7fbe53':'#78b74e'));
     if(SB&&!ST.war)for(let c=-8;c<COLS+8;c++)rect(sx(c)+T*.98,y,T*.04,T+1,'rgba(120,100,40,.35)'); // たたみの目
     for(let c=-8;c<COLS+8;c++){const h=((r*73856093)^(c*19349663))>>>0;if(h%5===0)ctx.fillRect(sx(c)+(h%7)/7*T*.7,y+((h>>3)%5)/5*T*.7,T*.12,T*.06);}
     if(L.pits){for(const c of L.pits)pit(c,y);for(const c of L.open)pit(c,y,true);for(const c of L.doors)door(L,c,y,r);}
     if(L.peels)for(const c of L.peels){const x=sx(c);ctx.fillStyle='#ffe066';ctx.beginPath();ctx.ellipse(x+T*.5,y+T*.56,T*.24,T*.1,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e0b020';ctx.fillRect(x+T*.28,y+T*.5,T*.1,T*.18);ctx.fillRect(x+T*.62,y+T*.5,T*.1,T*.18);rect(x+T*.47,y+T*.44,T*.06,T*.08,'#6b4a2e');}
   }else if(L.type==='goal'){
-    rect(0,y,W,T+1,HW?'#4d5a3a':XM?'#eef3f8':NY?'#e9dcc0':SB?'#d6d08e':VD?'#ffd9e6':'#8fd062');
+    rect(0,y,W,T+1,HW?'#4d5a3a':XM?'#eef3f8':NY?'#e9dcc0':SB?'#d6d08e':VD?'#ffd9e6':SU?'#f7e3a8':'#8fd062');
     const s=T/3;
-    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2===0)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#ff9a2e':XM?'#ffffff':NY?'#ffffff':SB?'#ffd23f':VD?'#ffffff':'#f4f1e8');
-    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#1e1428':XM?'#d63a3a':NY?'#d63a3a':SB?'#1d1f26':VD?'#ff5a8a':'#2a2f3b');
+    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2===0)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#ff9a2e':XM?'#ffffff':NY?'#ffffff':SB?'#ffd23f':VD?'#ffffff':SU?'#ffffff':'#f4f1e8');
+    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#1e1428':XM?'#d63a3a':NY?'#d63a3a':SB?'#1d1f26':VD?'#ff5a8a':SU?'#2ec4d6':'#2a2f3b');
   }else if(L.type==='road'){
     rect(0,y,W,T+1,ST.war?'#6a5d4d':HW?'#3e3a4c':'#4b4f5c');
     const up=lanes.get(r+1);
@@ -1682,8 +1708,8 @@ function drawGround(L,r){
     else rect(0,y,W,T*.07,'#6d7280');
     const dn=lanes.get(r-1);if(!dn||dn.type!=='road')rect(0,y+T*.93,W,T*.07,'#3a3d48');
   }else if(L.type==='river'){
-    rect(0,y,W,T+1,HW?'#5a3a8c':XM?'#5aa6dc':VD?'#7a4a2e':'#3d97df');
-    ctx.fillStyle=HW?'rgba(170,255,140,.2)':XM?'rgba(255,255,255,.35)':VD?'rgba(255,230,200,.3)':'rgba(255,255,255,.18)';
+    rect(0,y,W,T+1,HW?'#5a3a8c':XM?'#5aa6dc':VD?'#7a4a2e':SU?'#2ec4d6':'#3d97df');
+    ctx.fillStyle=HW?'rgba(170,255,140,.2)':XM?'rgba(255,255,255,.35)':VD?'rgba(255,230,200,.3)':SU?'rgba(255,255,255,.4)':'rgba(255,255,255,.18)';
     for(let i=0;i<6;i++){const ph=((time*L.dir*L.speed*.5+i*2.3+r*1.7)%(COLS+10)+(COLS+10))%(COLS+10)-5;ctx.fillRect(sx(ph),y+T*(.2+(i%3)*.27),T*.6,T*.05);}
     const up=lanes.get(r+1);if(up&&up.type!=='river')rect(0,y,W,T*.08,HW?'rgba(30,10,60,.4)':VD?'rgba(60,30,10,.4)':'rgba(20,60,110,.35)');
   }else{
@@ -1753,6 +1779,30 @@ function tree(c,y,r){
     rect(x+T*.44,y+T*.4,T*.12,T*.48,'#6b4a2e');
     for(const[ox,oy,rot]of[[.3,.2,-.5],[.7,.2,.5],[.5,0,0],[.36,.42,-.3],[.64,.42,.3]]){ctx.save();ctx.translate(x+T*ox,y+T*oy);ctx.rotate(rot);ctx.fillStyle='#2a6a34';ctx.beginPath();ctx.moveTo(0,-T*.2);for(let i=0;i<6;i++){const yy=-T*.2+i*T*.08;ctx.lineTo(i%2?T*.14:T*.08,yy);}ctx.lineTo(0,T*.22);for(let i=5;i>=0;i--){const yy=-T*.2+i*T*.08;ctx.lineTo(i%2?-T*.14:-T*.08,yy);}ctx.closePath();ctx.fill();ctx.restore();}
     ctx.fillStyle='#d63a3a';for(const[ox,oy]of[[.46,.22],[.54,.26],[.5,.18]]){ctx.beginPath();ctx.arc(x+T*ox,y+T*oy,T*.05,0,Math.PI*2);ctx.fill();}
+    return;
+  }
+  if(SU){
+    const k=h%3;
+    if(k===0){ // ヤシの木
+      shadow(x+T*.55,y+T*.86,T*.38,T*.1);
+      for(let i=0;i<5;i++)rrect(x+T*(.42+i*.012),y+T*(.82-i*.16),T*.16,T*.18,T*.05,i%2?'#a8763f':'#8a5a2e');
+      ctx.fillStyle='#2f9e4a';for(const a of [-2.6,-2,-1.1,-.5,.1]){ctx.save();ctx.translate(x+T*.52,y+T*.06);ctx.rotate(a);ctx.beginPath();ctx.ellipse(T*.26,0,T*.28,T*.08,0,0,Math.PI*2);ctx.fill();ctx.restore();}
+      ctx.fillStyle='#6b4a2e';ctx.beginPath();ctx.arc(x+T*.46,y+T*.14,T*.06,0,Math.PI*2);ctx.arc(x+T*.58,y+T*.14,T*.06,0,Math.PI*2);ctx.fill();
+      return;
+    }
+    if(k===1){ // ビーチパラソル
+      shadow(x+T*.5,y+T*.86,T*.4,T*.1);
+      rect(x+T*.14,y+T*.6,T*.72,T*.24,(h>>5)%2?'#3a9bff':'#ff5a7a');rect(x+T*.14,y+T*.66,T*.72,T*.05,'#ffffff');
+      rect(x+T*.47,y+T*.06,T*.06,T*.8,'#f4f4f4');
+      const col=(h>>3)%2?'#ff4a4a':'#3a7bd6';
+      for(let i=0;i<6;i++){ctx.fillStyle=i%2?'#ffffff':col;ctx.beginPath();ctx.moveTo(x+T*.5,y-T*.16);ctx.arc(x+T*.5,y+T*.14,T*.44,Math.PI+i*Math.PI/6,Math.PI+(i+1)*Math.PI/6);ctx.closePath();ctx.fill();}
+      return;
+    }
+    // スイカ
+    shadow(x+T*.5,y+T*.86,T*.38,T*.1);
+    ctx.fillStyle='#2f8c3a';ctx.beginPath();ctx.ellipse(x+T*.5,y+T*.5,T*.38,T*.34,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#1d5a24';ctx.lineWidth=T*.05;for(const ox of [-.2,0,.2]){ctx.beginPath();ctx.moveTo(x+T*(.5+ox),y+T*.18);ctx.quadraticCurveTo(x+T*(.5+ox*1.6),y+T*.5,x+T*(.5+ox),y+T*.82);ctx.stroke();}
+    rect(x+T*.47,y+T*.1,T*.06,T*.1,'#6b4a2e');
     return;
   }
   if(VD){
@@ -1866,7 +1916,7 @@ function flag(c,y){
   const x=sx(c)+T*.45;
   rect(x,y-T*.9,T*.08,T*1.6,'#e9e4d8');
   const wv=Math.sin(time*6)*T*.06;
-  ctx.fillStyle=HW?'#ff9a2e':XM?'#2f9e5a':NY?'#d63a3a':SB?'#3a6ad6':VD?'#ff5a8a':'#ef4b3f';ctx.beginPath();ctx.moveTo(x+T*.08,y-T*.9);ctx.lineTo(x+T*.7,y-T*.7+wv);ctx.lineTo(x+T*.08,y-T*.45);ctx.closePath();ctx.fill();
+  ctx.fillStyle=HW?'#ff9a2e':XM?'#2f9e5a':NY?'#d63a3a':SB?'#3a6ad6':VD?'#ff5a8a':SU?'#ff7a1a':'#ef4b3f';ctx.beginPath();ctx.moveTo(x+T*.08,y-T*.9);ctx.lineTo(x+T*.7,y-T*.7+wv);ctx.lineTo(x+T*.08,y-T*.45);ctx.closePath();ctx.fill();
 }
 function car(it,y,dir){
   const x=sx(it.x),w=it.len*T,[top,front]=it.col;
@@ -2180,6 +2230,7 @@ function draw(){
   if(NY)newYearFx();
   if(SB)setsubunFx();
   if(VD)valentineFx();
+  if(SU)summerFx();
   if(ST.night&&!hasB('sun')){
     const cx=sx(p.x)+T/2,cy=sy(p.r)+T/2;
     const g=ctx.createRadialGradient(cx,cy,T*1.2,cx,cy,T*5);
@@ -2200,6 +2251,20 @@ function draw(){
   }
 }
 
+function summerFx(){
+  // 夏の日ざし
+  const g=ctx.createRadialGradient(GX+GW,0,T*.5,GX+GW,0,T*5);g.addColorStop(0,'rgba(255,240,170,.45)');g.addColorStop(1,'rgba(255,240,170,0)');
+  ctx.fillStyle=g;ctx.fillRect(GX,0,GW,T*5);
+  // 打ち上げ花火
+  const cols=['#ff5a7a','#ffd23f','#5ad6ff','#9bff6a','#c38aff'];
+  for(let i=0;i<3;i++){
+    const ph=(time*.45+i/3)%1,n=Math.floor(time*.45+i/3),cx=GX+GW*(.2+((n*0.37+i*0.29)%1)*.6),cy=T*(2.4+((n*0.53+i*.41)%1)*1.4);
+    if(ph<.25){rect(cx-T*.03,cy+T*2*(1-ph/.25),T*.06,T*.2,'rgba(255,240,200,.8)');continue;}
+    const k=(ph-.25)/.75,rr=T*(.3+k*1.3);ctx.globalAlpha=1-k;ctx.fillStyle=cols[(n+i)%5];
+    for(let j=0;j<14;j++){const a=j/14*Math.PI*2;ctx.beginPath();ctx.arc(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr+k*k*T*.4,T*.06,0,Math.PI*2);ctx.fill();}
+  }
+  ctx.globalAlpha=1;
+}
 function setsubunFx(){
   // 豆が飛んでくる
   ctx.fillStyle='#f0d9a0';
