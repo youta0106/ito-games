@@ -246,8 +246,11 @@ function saveBest(){try{localStorage.setItem('slime-revenge-best',JSON.stringify
 /* ---------- 音 ---------- */
 let ac=null,muted=false;
 try{muted=localStorage.getItem('slime-revenge-mute')==='1'}catch(e){}
+const lastSfx={};
 function sfx(kind){
   if(muted)return;
+  const now=performance.now();if(now-(lastSfx[kind]||0)<45)return; // 同じ音の鳴らしすぎをふせぐ
+  lastSfx[kind]=now;
   try{
     if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();
     if(ac.state==='suspended')ac.resume();
@@ -490,8 +493,9 @@ function newGame(){
   startWave(1);
 }
 
+const SPAWN_MUL=3; // 冒険者のわく数（3倍）
 function waveList(w){
-  const L=[],pool=enemyPool(w),n=Math.min(70,7+w*3);
+  const L=[],pool=enemyPool(w),n=SPAWN_MUL*Math.min(70,7+w*3);
   for(let i=0;i<n;i++)L.push(pool[Math.floor(Math.pow(Math.random(),.8)*pool.length)]);
   if(w%5===0)L.splice(4,0,'hero');
   return L;
@@ -841,7 +845,8 @@ function update(dt){
   for(const a of allies){
     a.atkT-=dt;a.hit-=dt;
     let tgt=null,bd=1e9;
-    for(const e of enemies){const d=dist(a,e);if(d<bd){bd=d;tgt=e}}
+    for(const e of enemies){const ex=e.x-a.x,ey=e.y-a.y,d2=ex*ex+ey*ey;if(d2<bd){bd=d2;tgt=e}}
+    bd=Math.sqrt(bd);
     let vx=0,vy=0;
     if(tgt){
       const dx=tgt.x-a.x,dy=tgt.y-a.y,d=bd||1;a.face=dx<0?-1:1;
@@ -890,7 +895,7 @@ function update(dt){
   if(waveState==='banner'){waveT-=dt;if(waveT<=0)waveState='fight'}
   else if(waveState==='fight'){
     spawnT-=dt;
-    if(queue.length&&spawnT<=0){spawn(queue.shift());spawnT=Math.max(.18,.95-wave*.04)}
+    if(queue.length&&spawnT<=0){spawn(queue.shift());spawnT=Math.max(.18,.95-wave*.04)/SPAWN_MUL}
     if(!queue.length&&!enemies.length){
       {waveState='rest';waveT=4.5;healPlayer(Math.round(P.maxHp*.2));B.hp=Math.min(B.maxHp,B.hp+B.maxHp*.2);showBanner('WAVE CLEAR','拠点で強化しよう！',false);sfx('lv')}
     }
@@ -914,7 +919,7 @@ function update(dt){
     let tg=P.dead?B:P,td=Math.hypot(tg.x-e.x,tg.y-e.y);
     if(e.D.siege){tg=B;td=0}
     else if(!e.D.range&&!P.dead){const bd=Math.hypot(B.x-e.x,B.y-e.y)-B.r;if(bd<td){tg=B;td=bd}}
-    if(!e.D.siege)for(const a of allies){const ad=Math.hypot(a.x-e.x,a.y-e.y);if(ad<td){tg=a;td=ad}}
+    if(!e.D.siege){let td2=td*td;for(const a of allies){const ax=a.x-e.x,ay=a.y-e.y,ad2=ax*ax+ay*ay;if(ad2<td2){tg=a;td2=ad2}}td=Math.sqrt(td2)}
     const dx=tg.x-e.x,dy=tg.y-e.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d;
     e.face=dx<0?-1:1;
     let vx=0,vy=0;
@@ -922,7 +927,7 @@ function update(dt){
     if(D.boss&&!e.summoned&&e.hp<e.maxHp*.5){
       e.summoned=true;
       const pool=enemyPool(wave);
-      for(let i=0;i<4+Math.min(8,Math.floor(wave/5));i++)queue.unshift(pool[Math.floor(Math.pow(Math.random(),.6)*pool.length)]);
+      for(let i=0;i<SPAWN_MUL*(4+Math.min(8,Math.floor(wave/5)));i++)queue.unshift(pool[Math.floor(Math.pow(Math.random(),.6)*pool.length)]);
       spawnT=0;showBanner(`${e.name}が仲間を呼んだ！`,'',true);
     }
     if(e.bd&&e.bd.pat==='barrage'){
@@ -981,7 +986,9 @@ function update(dt){
     // 押し合い
     for(const o of enemies){
       if(o===e||o.dead)continue;
-      const ox=e.x-o.x,oy=e.y-o.y,od=Math.hypot(ox,oy),min=e.r+o.r;
+      const ox=e.x-o.x,oy=e.y-o.y,min=e.r+o.r;
+      if(ox>min||ox<-min||oy>min||oy<-min)continue;
+      const od=Math.hypot(ox,oy);
       if(od<min&&od>0){const push=(min-od)/min*120;vx+=ox/od*push;vy+=oy/od*push}
     }
     let slow=traps.some(tp=>tp.type==='swamp'&&Math.hypot(tp.x-e.x,tp.y-e.y)<tp.r)?(D.boss?.6:.4):1;
@@ -998,7 +1005,8 @@ function update(dt){
     }
     // 仲間の魔物への攻撃
     if(e.atkT<=0)for(const a of allies){
-      if(Math.hypot(a.x-e.x,a.y-e.y)<a.r+e.r+2){
+      const rr=a.r+e.r+2,ax=a.x-e.x,ay=a.y-e.y;
+      if(ax<rr&&ax>-rr&&ay<rr&&ay>-rr&&ax*ax+ay*ay<rr*rr){
         e.atkT=.8;a.hp-=e.dmg;a.hit=.12;
         if(a.hp<=0){a.dead=true;for(let i=0;i<8;i++)parts.push({x:a.x,y:a.y,vx:rnd(-140,140),vy:rnd(-140,140),t:.4,c:'#8a4fd6',r:3})}
         break;
@@ -1052,7 +1060,7 @@ function update(dt){
   // スライム弾
   for(const s of pshots){
     s.x+=s.vx*dt;s.y+=s.vy*dt;s.t-=dt;
-    for(const e of enemies){if(!e.dead&&Math.hypot(s.x-e.x,s.y-e.y)<e.r+6){hurtEnemy(e,s.dmg,s.vx*.15,s.vy*.15);s.t=0;break}}
+    for(const e of enemies){const rr=e.r+6,ex=s.x-e.x,ey=s.y-e.y;if(!e.dead&&ex<rr&&ex>-rr&&ey<rr&&ey>-rr&&ex*ex+ey*ey<rr*rr){hurtEnemy(e,s.dmg,s.vx*.15,s.vy*.15);s.t=0;break}}
   }
   pshots=pshots.filter(s=>s.t>0);
   enemies=enemies.filter(e=>!e.dead);
@@ -1083,7 +1091,9 @@ function update(dt){
 }
 
 /* ---------- HUD ---------- */
-function updateHud(){
+let hudDirty=false;
+function updateHud(){hudDirty=true} // 表示は1フレームに1回だけ書きかえる
+function renderHud(){
   if(!P)return;
   $('lv').textContent=P.lv;$('formName').textContent=formName();$('formName').style.color=curForm().col;
   const hpP=P.hp/P.maxHp*100;
@@ -1689,9 +1699,10 @@ function draw(){
     ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.x+e.cvx*(e.legend?300:260),e.y+e.cvy*(e.legend?300:260));ctx.stroke();
   }
   // キャラ（y順）
-  const list=enemies.map(e=>({y:e.y,f:()=>drawEnemy(e)}));
+  const inView=o=>o.x>cx-80&&o.x<cx+vw+80&&o.y>cy-120&&o.y<cy+vh+80; // 画面外は描かない
+  const list=enemies.filter(inView).map(e=>({y:e.y,f:()=>drawEnemy(e)}));
   list.push({y:-1e9,f:drawBase}); // 大きな城でキャラがかくれないよう、いつも先に描く
-  for(const a of allies)list.push({y:a.y,f:()=>drawAlly(a)});
+  for(const a of allies)if(inView(a))list.push({y:a.y,f:()=>drawAlly(a)});
   list.push({y:P.y,f:()=>{
     if(P.dead){ctx.globalAlpha=.5}
     else if(P.inv>0&&Math.floor(T*16)%2)ctx.globalAlpha=.4;
@@ -1797,6 +1808,7 @@ let last=performance.now();
 function frame(now){
   const dt=Math.min(.033,(now-last)/1000);last=now;
   if(state==='play')update(dt);
+  if(hudDirty&&P){hudDirty=false;renderHud()}
   else if(state==='title'){T+=dt;drawTitle()}
   else if(state==='over'&&P)T+=dt*.3;
   draw();
