@@ -26,6 +26,12 @@
 /* お正月（1月1日〜15日）だけの配色 */
 :root.ny{--night:#2a1214;--sun:#ffd23f;--grass:#d63a3a;--panel:rgba(56,16,18,.92);--line:#6a2a2a}
 .nyonly{display:none}:root.ny .nyonly{display:block}
+/* 節分（2月1日〜3日）だけの配色 */
+:root.sb{--night:#24180e;--sun:#ffd23f;--grass:#c9a464;--panel:rgba(46,30,16,.92);--line:#6a4a2a}
+.sbonly{display:none}:root.sb .sbonly{display:block}
+/* バレンタイン（2月4日〜14日）だけの配色 */
+:root.vd{--night:#2a1420;--sun:#ff8fc0;--grass:#ff5a8a;--panel:rgba(52,18,36,.92);--line:#6a2a4a}
+.vdonly{display:none}:root.vd .vdonly{display:block}
 html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;font-family:var(--body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #app{position:relative;height:100%}
 #cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
@@ -139,7 +145,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
 
   <div class="ov" id="selectOv">
     <div class="card">
-      <h1>ロードホッパー<small class="hwonly" style="font-size:.55em;color:#c99bff">🎃 ハロウィン 🦇</small><small class="xmonly" style="font-size:.55em;color:#ff8a8a">🎄 クリスマス 🎅</small><small class="nyonly" style="font-size:.55em;color:#ffffff">🎍 お正月 🎍</small></h1>
+      <h1>ロードホッパー<small class="hwonly" style="font-size:.55em;color:#c99bff">🎃 ハロウィン 🦇</small><small class="xmonly" style="font-size:.55em;color:#ff8a8a">🎄 クリスマス 🎅</small><small class="nyonly" style="font-size:.55em;color:#ffffff">🎍 お正月 🎍</small><small class="sbonly" style="font-size:.55em;color:#ff8a6a">👹 節分 🫘</small><small class="vdonly" style="font-size:.55em;color:#ffc0dc">💝 バレンタイン 🍫</small></h1>
       <p class="sub">ゴールの旗までたどり着くとクリア。次のステージが解放されます。</p>
       <div class="tabs" role="tablist">
         <button class="tab on" id="tabNormal" type="button" role="tab">ステージ</button>
@@ -238,15 +244,18 @@ const STAGES=[
   {name:'ラストラン',  len:80,w:[.2,.38,.25,.17],max:[5,4,2],diff:1,  speed:1.45,creep:.42,trap:[.32,.3]},
 ];
 
-// ハロウィンは10月だけ（?halloween=1 / ?halloween=0 で確認用に切り替え）
-// クリスマスは12月だけ（?christmas=1 / ?christmas=0 で確認用に切り替え）
-const XM=(()=>{const q=new URLSearchParams(location.search).get('christmas');if(q==='1')return true;if(q==='0')return false;return new Date().getMonth()===11;})();
-// お正月は1月1日〜15日（?newyear=1 / ?newyear=0 で確認用に切り替え）
-const NY=!XM&&(()=>{const q=new URLSearchParams(location.search).get('newyear');if(q==='1')return true;if(q==='0')return false;const d=new Date();return d.getMonth()===0&&d.getDate()<=15;})();
-const HW=!XM&&!NY&&(()=>{const q=new URLSearchParams(location.search).get('halloween');if(q==='1')return true;if(q==='0')return false;return new Date().getMonth()===9;})();
-if(HW){document.documentElement.classList.add('hw');document.title='ロードホッパー ハロウィン';}
-if(XM){document.documentElement.classList.add('xm');document.title='ロードホッパー クリスマス';}
-if(NY){document.documentElement.classList.add('ny');document.title='ロードホッパー お正月';}
+// 季節イベント（URLに ?halloween=1 などを付けると確認用に切り替え、=0 で止める）
+//  10月: ハロウィン / 12月: クリスマス / 1月1日〜15日: お正月 / 2月1日〜3日: 節分 / 2月4日〜14日: バレンタイン
+const SEASONS={hw:{q:'halloween',name:'ハロウィン',txt:'10月'},xm:{q:'christmas',name:'クリスマス',txt:'12月'},ny:{q:'newyear',name:'お正月',txt:'1月1日〜15日'},sb:{q:'setsubun',name:'節分',txt:'2月1日〜3日'},vd:{q:'valentine',name:'バレンタイン',txt:'2月4日〜14日'}};
+const SEASON=(()=>{
+  const qs=new URLSearchParams(location.search);
+  for(const k in SEASONS)if(qs.get(SEASONS[k].q)==='1')return k;
+  const d=new Date(),m=d.getMonth(),dd=d.getDate();
+  const auto=m===9?'hw':m===11?'xm':m===0&&dd<=15?'ny':m===1&&dd<=3?'sb':m===1&&dd<=14?'vd':null;
+  return auto&&qs.get(SEASONS[auto].q)!=='0'?auto:null;
+})();
+const HW=SEASON==='hw',XM=SEASON==='xm',NY=SEASON==='ny',SB=SEASON==='sb',VD=SEASON==='vd';
+if(SEASON){document.documentElement.classList.add(SEASON);document.title='ロードホッパー '+SEASONS[SEASON].name;}
 
 // ---------- storage ----------
 let prog={unlocked:1,best:{}};
@@ -358,7 +367,7 @@ const pSize=()=>hasB('small')?.55:1;
 const coinGain=()=>hasB('double')?2:1;
 
 // ---------- skins ----------
-const RAR={f:{name:'はじめから',price:0,col:'#b8c0cf'},c:{name:'ノーマル',price:10,col:'#cfd6e2'},r:{name:'レア',price:25,col:'#6cc0f0'},e:{name:'エピック',price:50,col:'#b892f0'},l:{name:'レジェンド',price:100,col:'#ffc35a'},m:{name:'ミシック',price:200,col:'#ff7a70'},h:{name:'ハロウィン限定',price:80,col:'#ff9a2e'},n:{name:'お正月限定',price:80,col:'#e8463c'}};
+const RAR={f:{name:'はじめから',price:0,col:'#b8c0cf'},c:{name:'ノーマル',price:10,col:'#cfd6e2'},r:{name:'レア',price:25,col:'#6cc0f0'},e:{name:'エピック',price:50,col:'#b892f0'},l:{name:'レジェンド',price:100,col:'#ffc35a'},m:{name:'ミシック',price:200,col:'#ff7a70'},h:{name:'ハロウィン限定',price:80,col:'#ff9a2e'},n:{name:'お正月限定',price:80,col:'#e8463c'},s:{name:'節分限定',price:80,col:'#c9a464'},v:{name:'バレンタイン限定',price:80,col:'#ff5a8a'}};
 const SKINS=[
 {id:'hiyoko',name:'ひよこ',rar:'f',body:'#ffe066',shade:'#eab421',acc:'#ef4b3f',parts:['comb'],mouth:'beak'},
 {id:'ahiru',name:'アヒル',rar:'c',body:'#f7f7f2',shade:'#d4d4ca',parts:[],mouth:'beak',mcol:'#ff9a3d'},
@@ -430,8 +439,30 @@ SKINS.push(
 {id:'ny_koma',name:'こま',rar:'n',body:'#e0b878',shade:'#b8904c',pat:'#d63a3a',parts:['stripes','topspin'],mouth:'smile',mcol:'#6b4a2e'}
 );
 for(const k of SKINS)if(k.rar==='n')k.season='ny';
-const SEASON=HW?'hw':NY?'ny':XM?'xm':null;
-const SEASON_TXT={hw:'10月',ny:'1月1日〜15日'};
+// 節分限定（2月1日〜3日）
+const oni=(id,name,body,shade)=>({id,name,rar:'s',body,shade,horn:'#f5e6b8',eye:'#ffd23f',eyes:'glow',parts:['onihair','horns','tigerbelt'],mouth:'fangs'});
+SKINS.push(
+oni('sb_aka','赤鬼','#e04a3a','#b02a20'),oni('sb_ao','青鬼','#3a7bd6','#2a5aa8'),oni('sb_ki','黄鬼','#f0c830','#c9a010'),oni('sb_midori','緑鬼','#4caf50','#2f7d3a'),oni('sb_kuro','黒鬼','#3a3a48','#24242e'),
+Object.assign(oni('sb_kin','金の鬼','#ffc928','#d99a0c'),{parts:['onihair','horns','tigerbelt','sparkle'],horn:'#ffffff'}),
+{id:'sb_ehou',name:'恵方巻',rar:'s',body:'#1d2a1f',shade:'#121a14',eye:'#1d1f26',parts:['ehoumaki'],mouth:'none'},
+{id:'sb_mame',name:'福豆',rar:'s',body:'#e8c98a',shade:'#c9a464',parts:['cheeks'],mouth:'smile',mcol:'#8a6a3a'},
+{id:'sb_masu',name:'枡',rar:'s',body:'#e8c890',shade:'#c9a464',parts:['masu'],mouth:'smile',mcol:'#6b4a2e'},
+{id:'sb_hiiragi',name:'ヒイラギ',rar:'s',body:'#2f7d3a',shade:'#1f5a28',pat2:'#2a6a34',eye:'#ffffff',parts:['spikes','berries'],mouth:'smile',mcol:'#ffffff'}
+);
+// バレンタイン限定（2月4日〜14日）
+SKINS.push(
+{id:'vd_heart',name:'ハートちゃん',rar:'v',body:'#ff5a7a',shade:'#d63a5a',hc:'#ffffff',parts:['heartmark','ribbon'],mouth:'smile',mcol:'#a01a3a'},
+{id:'vd_choco',name:'チョコレート',rar:'v',body:'#6b3e26',shade:'#4a2a18',eye:'#ffffff',parts:['chocogrid'],mouth:'smile',mcol:'#ffffff'},
+{id:'vd_white',name:'ホワイトチョコ',rar:'v',body:'#fbf3e4',shade:'#e0d4bc',parts:['chocogrid'],mouth:'smile',mcol:'#8a6a4a'},
+{id:'vd_ichigo',name:'いちごチョコ',rar:'v',body:'#ff9ec0',shade:'#e07a9e',parts:['chocogrid'],mouth:'smile',mcol:'#a03a60'},
+{id:'vd_cupid',name:'キューピッド',rar:'v',body:'#ffe0cc',shade:'#f0c0a8',parts:['wings','halo','heartmark'],mouth:'smile',mcol:'#d63a5a'},
+{id:'vd_letter',name:'ラブレター',rar:'v',body:'#ffffff',shade:'#e6e6ee',parts:['envelope'],mouth:'none'},
+{id:'vd_teddy',name:'テディベア',rar:'v',body:'#b07a4a',shade:'#8a5a32',acc:'#b07a4a',belly:'#e8c9a0',parts:['roundears','heartmark','ribbon'],mouth:'nose',mcol:'#2a2420'},
+{id:'vd_macaron',name:'マカロン',rar:'v',body:'#b8e6d0',shade:'#8cc8ae',parts:['macaron'],mouth:'smile',mcol:'#2e6a50'},
+{id:'vd_rose',name:'バラ',rar:'v',body:'#d6284a',shade:'#a81a36',eye:'#ffffff',parts:['rosepetals','stem'],mouth:'smile',mcol:'#ffffff'},
+{id:'vd_lovehiyoko',name:'ラブリーひよこ',rar:'v',body:'#ffb8d0',shade:'#e890b0',acc:'#ff4a7a',parts:['comb','heartmark'],mouth:'beak',mcol:'#ff9a3d'}
+);
+for(const k of SKINS){if(k.rar==='s')k.season='sb';if(k.rar==='v')k.season='vd';}
 const priceOf=sk=>sk.base?RAR[sk.base].price+15:RAR[sk.rar].price;
 // 期間外は、持っていない限定スキンはショップに出さない
 const shopSkins=()=>{const v=SKINS.filter(k=>!k.season||k.season===SEASON||prog.owned.includes(k.id));return SEASON?v.filter(k=>k.season===SEASON).concat(v.filter(k=>k.season!==SEASON)):v;};
@@ -453,6 +484,7 @@ function drawHopper(c,px,py,t,face,squash,lift,sk){
   // behind the body
   if(has('cape'))RR(x-s*.08,y+s*.25,s*1.16,s*.78,s*.08,'#c0392b');
   if(has('wings')){const f=Math.sin(time*14)*s*.05,wc=sk.wing||'#ffffff';RR(x-s*.3,y+s*.18-f,s*.34,s*.42,s*.12,wc);RR(x+s*.96,y+s*.18-f,s*.34,s*.42,s*.12,wc);}
+  const HEART=(hx,hy,hr,col)=>{E(hx-hr*.5,hy-hr*.2,hr*.55,hr*.55,col);E(hx+hr*.5,hy-hr*.2,hr*.55,hr*.55,col);TRI(hx-hr*1.04,hy-hr*.05,hx,hy+hr*1.1,hx+hr*1.04,hy-hr*.05,col);};
   if(has('shishicloth')){RR(x-s*.22,y+s*.3,s*1.44,s*.72,s*.12,pat);c.strokeStyle='#ffffff';c.lineWidth=s*.04;for(const ox of [-.08,1.08]){c.beginPath();c.arc(x+s*ox,y+s*.66,s*.08,0,Math.PI*1.5);c.stroke();}}
   if(has('batwings')){const f=Math.sin(time*12)*s*.08;TRI(x+s*.06,y+s*.3,x-s*.42,y+s*.04-f,x-s*.3,y+s*.56,shade);TRI(x+s*.06,y+s*.4,x-s*.36,y+s*.5-f*.5,x-s*.1,y+s*.66,shade);TRI(x+s*.94,y+s*.3,x+s*1.42,y+s*.04-f,x+s*1.3,y+s*.56,shade);TRI(x+s*.94,y+s*.4,x+s*1.36,y+s*.5-f*.5,x+s*1.1,y+s*.66,shade);}
   if(has('wrapper')){TRI(x+s*.02,y+s*.45,x-s*.3,y+s*.22,x-s*.3,y+s*.68,pat);TRI(x+s*.98,y+s*.45,x+s*1.3,y+s*.22,x+s*1.3,y+s*.68,pat);}
@@ -476,6 +508,14 @@ function drawHopper(c,px,py,t,face,squash,lift,sk){
   if(sk.belly)RR(x+s*.2,y+s*.52,s*.6,s*.42,s*.1,sk.belly);
   R(x+s*.15,y+s*.08,s*.25,s*.12,'rgba(255,255,255,.35)');
   if(has('comb')){R(cx-s*.12,y-s*.12,s*.24,s*.16,acc);if(sk.bigcomb)R(cx-s*.2,y-s*.06,s*.4,s*.1,acc);}
+  if(has('tigerbelt')){R(x,y+s*.7,s,s*.26,'#ffd23f');for(let i=0;i<4;i++)R(x+s*(.08+i*.25),y+s*.7,s*.08,s*.26,'#1d1f26');}
+  if(has('chocogrid')){R(x+s*.33,y,s*.04,s*.96,shade);R(x+s*.63,y,s*.04,s*.96,shade);R(x,y+s*.3,s,s*.04,shade);R(x,y+s*.6,s,s*.04,shade);}
+  if(has('envelope')){c.strokeStyle='#c9c9d6';c.lineWidth=s*.05;c.beginPath();c.moveTo(x,y+s*.06);c.lineTo(cx,y+s*.46);c.lineTo(x+s,y+s*.06);c.stroke();HEART(cx,y+s*.46,s*.12,'#ff2a5a');}
+  if(has('macaron')){R(x,y+s*.38,s,s*.14,'#fffaf0');R(x,y+s*.36,s,s*.03,shade);R(x,y+s*.52,s,s*.03,shade);}
+  if(has('rosepetals')){c.strokeStyle=shade;c.lineWidth=s*.05;c.beginPath();c.arc(cx,y+s*.18,s*.14,0,Math.PI*1.6);c.stroke();c.beginPath();c.arc(cx,y+s*.18,s*.28,Math.PI*.9,Math.PI*2.1);c.stroke();}
+  if(has('ehoumaki')){E(cx,y+s*.4,s*.38,s*.32,'#fbf8f0');E(cx-s*.1,y+s*.34,s*.07,s*.07,'#ff9a1a');E(cx+s*.1,y+s*.36,s*.07,s*.07,'#4caf50');E(cx,y+s*.48,s*.07,s*.07,'#e85a7a');E(cx+s*.02,y+s*.28,s*.06,s*.06,'#ffd23f');}
+  if(has('masu')){R(x,y+s*.08,s*.08,s*.86,shade);R(x+s*.92,y+s*.08,s*.08,s*.86,shade);R(x,y+s*.08,s,s*.08,shade);for(const[ox,oy]of[[.3,0],[.5,-.04],[.7,0]])E(x+s*ox,y+s*oy,s*.1,s*.09,'#f0d9a0');}
+  if(has('heartmark'))HEART(cx,y+s*.62,s*.13,sk.hc||'#ff2a5a');
   if(has('darumaface')){E(cx,y+s*.36,s*.36,s*.28,'#fbf6ee');R(x+s*.16,y+s*.12,s*.22,s*.06,'#1d1f26');R(x+s*.62,y+s*.12,s*.22,s*.06,'#1d1f26');R(x+s*.3,y+s*.58,s*.4,s*.04,'#1d1f26');}
   if(has('mochitier')){R(x,y+s*.36,s,s*.05,shade);}
   if(has('snowcap')){c.fillStyle='#ffffff';c.beginPath();c.moveTo(x,y+s*.3);c.lineTo(x+s*.18,y+s*.18);c.lineTo(x+s*.34,y+s*.32);c.lineTo(cx,y+s*.16);c.lineTo(x+s*.66,y+s*.32);c.lineTo(x+s*.82,y+s*.18);c.lineTo(x+s,y+s*.3);c.lineTo(x+s,y);c.lineTo(x,y);c.closePath();c.fill();}
@@ -520,6 +560,9 @@ function drawHopper(c,px,py,t,face,squash,lift,sk){
   if(has('stem')){R(cx-s*.05,y-s*.18,s*.1,s*.2,'#6b4a2e');E(cx+s*.15,y-s*.12,s*.12,s*.06,'#4caf50');}
   if(has('hat')){TRI(x-s*.08,y+s*.1,cx+s*.06,y-s*.62,x+s*1.08,y+s*.1,sk.hat);R(cx-s*.03,y-s*.3,s*.07,s*.07,'#ffd23f');}
   if(has('tophat')){R(x+s*.1,y-s*.02,s*.8,s*.1,'#1d1f26');R(x+s*.24,y-s*.4,s*.52,s*.4,'#1d1f26');R(x+s*.24,y-s*.12,s*.52,s*.06,'#c0392b');}
+  if(has('onihair')){for(let i=0;i<5;i++)E(x+s*(.1+i*.2),y-s*.02,s*.13,s*.11,'#1d1f26');}
+  if(has('berries')){E(cx-s*.08,y-s*.1,s*.07,s*.07,'#e53935');E(cx+s*.08,y-s*.08,s*.07,s*.07,'#e53935');E(cx,y-s*.18,s*.07,s*.07,'#e53935');}
+  if(has('ribbon')){const rc='#ff2a5a';TRI(cx,y-s*.04,cx-s*.3,y-s*.2,cx-s*.3,y+s*.1,rc);TRI(cx,y-s*.04,cx+s*.3,y-s*.2,cx+s*.3,y+s*.1,rc);E(cx,y-s*.04,s*.07,s*.07,'#ff5a8a');}
   if(has('mikan')){E(cx,y-s*.08,s*.2,s*.15,'#ff9a1a');R(cx,y-s*.26,s*.16,s*.07,'#4caf50');}
   if(has('hairbun')){R(x,y-s*.02,s,s*.14,'#1d1f26');E(cx,y-s*.16,s*.2,s*.14,'#1d1f26');R(x,y+s*.1,s*.08,s*.3,'#1d1f26');R(x+s*.92,y+s*.1,s*.08,s*.3,'#1d1f26');}
   if(has('topspin')){R(cx-s*.04,y-s*.3,s*.08,s*.32,'#6b4a2e');E(cx,y-s*.3,s*.06,s*.04,'#d63a3a');}
@@ -1621,16 +1664,17 @@ function shadow(cx,cy,w,h){ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.e
 function drawGround(L,r){
   const y=sy(r);
   if(L.type==='grass'){
-    rect(0,y,W,T+1,ST.war?(r%2?'#9a9468':'#918b5f'):(HW?(r%2?'#4d5a3a':'#465334'):XM?(r%2?'#eef3f8':'#e3eaf2'):NY?(r%2?'#e9dcc0':'#e2d4b6'):(r%2?'#8fd062':'#86c75a')));
-    ctx.fillStyle=ST.war?(r%2?'#857f55':'#7d774e'):(HW?(r%2?'#3c4a2c':'#384428'):XM?(r%2?'#cfdbe8':'#c8d4e2'):NY?(r%2?'#cbbb98':'#c4b490'):(r%2?'#7fbe53':'#78b74e'));
+    rect(0,y,W,T+1,ST.war?(r%2?'#9a9468':'#918b5f'):(HW?(r%2?'#4d5a3a':'#465334'):XM?(r%2?'#eef3f8':'#e3eaf2'):NY?(r%2?'#e9dcc0':'#e2d4b6'):SB?(r%2?'#d6d08e':'#cdc785'):VD?(r%2?'#ffd9e6':'#ffcfdf'):(r%2?'#8fd062':'#86c75a')));
+    ctx.fillStyle=ST.war?(r%2?'#857f55':'#7d774e'):(HW?(r%2?'#3c4a2c':'#384428'):XM?(r%2?'#cfdbe8':'#c8d4e2'):NY?(r%2?'#cbbb98':'#c4b490'):SB?(r%2?'#b8b06a':'#b0a862'):VD?(r%2?'#ffb8cf':'#ffb0c8'):(r%2?'#7fbe53':'#78b74e'));
+    if(SB&&!ST.war)for(let c=-8;c<COLS+8;c++)rect(sx(c)+T*.98,y,T*.04,T+1,'rgba(120,100,40,.35)'); // たたみの目
     for(let c=-8;c<COLS+8;c++){const h=((r*73856093)^(c*19349663))>>>0;if(h%5===0)ctx.fillRect(sx(c)+(h%7)/7*T*.7,y+((h>>3)%5)/5*T*.7,T*.12,T*.06);}
     if(L.pits){for(const c of L.pits)pit(c,y);for(const c of L.open)pit(c,y,true);for(const c of L.doors)door(L,c,y,r);}
     if(L.peels)for(const c of L.peels){const x=sx(c);ctx.fillStyle='#ffe066';ctx.beginPath();ctx.ellipse(x+T*.5,y+T*.56,T*.24,T*.1,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e0b020';ctx.fillRect(x+T*.28,y+T*.5,T*.1,T*.18);ctx.fillRect(x+T*.62,y+T*.5,T*.1,T*.18);rect(x+T*.47,y+T*.44,T*.06,T*.08,'#6b4a2e');}
   }else if(L.type==='goal'){
-    rect(0,y,W,T+1,HW?'#4d5a3a':XM?'#eef3f8':NY?'#e9dcc0':'#8fd062');
+    rect(0,y,W,T+1,HW?'#4d5a3a':XM?'#eef3f8':NY?'#e9dcc0':SB?'#d6d08e':VD?'#ffd9e6':'#8fd062');
     const s=T/3;
-    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2===0)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#ff9a2e':XM?'#ffffff':NY?'#ffffff':'#f4f1e8');
-    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#1e1428':XM?'#d63a3a':NY?'#d63a3a':'#2a2f3b');
+    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2===0)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#ff9a2e':XM?'#ffffff':NY?'#ffffff':SB?'#ffd23f':VD?'#ffffff':'#f4f1e8');
+    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#1e1428':XM?'#d63a3a':NY?'#d63a3a':SB?'#1d1f26':VD?'#ff5a8a':'#2a2f3b');
   }else if(L.type==='road'){
     rect(0,y,W,T+1,ST.war?'#6a5d4d':HW?'#3e3a4c':'#4b4f5c');
     const up=lanes.get(r+1);
@@ -1638,10 +1682,10 @@ function drawGround(L,r){
     else rect(0,y,W,T*.07,'#6d7280');
     const dn=lanes.get(r-1);if(!dn||dn.type!=='road')rect(0,y+T*.93,W,T*.07,'#3a3d48');
   }else if(L.type==='river'){
-    rect(0,y,W,T+1,HW?'#5a3a8c':XM?'#5aa6dc':'#3d97df');
-    ctx.fillStyle=HW?'rgba(170,255,140,.2)':XM?'rgba(255,255,255,.35)':'rgba(255,255,255,.18)';
+    rect(0,y,W,T+1,HW?'#5a3a8c':XM?'#5aa6dc':VD?'#7a4a2e':'#3d97df');
+    ctx.fillStyle=HW?'rgba(170,255,140,.2)':XM?'rgba(255,255,255,.35)':VD?'rgba(255,230,200,.3)':'rgba(255,255,255,.18)';
     for(let i=0;i<6;i++){const ph=((time*L.dir*L.speed*.5+i*2.3+r*1.7)%(COLS+10)+(COLS+10))%(COLS+10)-5;ctx.fillRect(sx(ph),y+T*(.2+(i%3)*.27),T*.6,T*.05);}
-    const up=lanes.get(r+1);if(up&&up.type!=='river')rect(0,y,W,T*.08,HW?'rgba(30,10,60,.4)':'rgba(20,60,110,.35)');
+    const up=lanes.get(r+1);if(up&&up.type!=='river')rect(0,y,W,T*.08,HW?'rgba(30,10,60,.4)':VD?'rgba(60,30,10,.4)':'rgba(20,60,110,.35)');
   }else{
     rect(0,y,W,T+1,'#9a8a78');
     ctx.fillStyle='#6b5240';for(let c=-8;c<COLS+8;c++)ctx.fillRect(sx(c)+T*.2,y+T*.12,T*.2,T*.76);
@@ -1682,7 +1726,58 @@ function sandbag(x,y){
 }
 function tree(c,y,r){
   if(ST.war){sandbag(sx(c),y);return;}
-  const x=sx(c),h=(Math.imul(c+97,73856093)^Math.imul((r|0)+31,19349663))>>>0;
+  const x=sx(c);let h=(Math.imul(c+97,73856093)^Math.imul((r|0)+31,19349663))>>>0;h=Math.imul(h^(h>>>13),0x5bd1e995);h=(h^(h>>>15))>>>0;
+  if(SB){
+    const k=h%3;
+    if(k===0){ // 鬼のお面
+      shadow(x+T*.5,y+T*.86,T*.34,T*.1);
+      rect(x+T*.46,y+T*.5,T*.08,T*.38,'#6b4a2e');
+      rrect(x+T*.16,y+T*.02,T*.68,T*.6,T*.2,'#d63a3a');
+      ctx.fillStyle='#f5e6b8';ctx.beginPath();ctx.moveTo(x+T*.22,y+T*.1);ctx.lineTo(x+T*.28,y-T*.2);ctx.lineTo(x+T*.38,y+T*.06);ctx.closePath();ctx.fill();
+      ctx.beginPath();ctx.moveTo(x+T*.62,y+T*.06);ctx.lineTo(x+T*.72,y-T*.2);ctx.lineTo(x+T*.78,y+T*.1);ctx.closePath();ctx.fill();
+      rect(x+T*.16,y+T*.02,T*.68,T*.1,'#1d1f26');
+      rect(x+T*.3,y+T*.24,T*.12,T*.1,'#ffd23f');rect(x+T*.58,y+T*.24,T*.12,T*.1,'#ffd23f');
+      rect(x+T*.3,y+T*.44,T*.4,T*.08,'#1d1f26');rect(x+T*.34,y+T*.44,T*.06,T*.06,'#ffffff');rect(x+T*.6,y+T*.44,T*.06,T*.06,'#ffffff');
+      return;
+    }
+    if(k===1){ // 豆の入った枡
+      shadow(x+T*.5,y+T*.86,T*.36,T*.1);
+      rect(x+T*.16,y+T*.36,T*.68,T*.5,'#e0c084');rect(x+T*.16,y+T*.36,T*.68,T*.08,'#c9a464');
+      rect(x+T*.16,y+T*.36,T*.06,T*.5,'#c9a464');rect(x+T*.78,y+T*.36,T*.06,T*.5,'#c9a464');
+      ctx.fillStyle='#f0d9a0';for(const[ox,oy]of[[.32,.3],[.46,.26],[.6,.3],[.4,.36],[.54,.36],[.68,.34]]){ctx.beginPath();ctx.arc(x+T*ox,y+T*oy,T*.07,0,Math.PI*2);ctx.fill();}
+      rect(x+T*.3,y+T*.56,T*.4,T*.16,'#fbf8f0');ctx.fillStyle='#1d1f26';ctx.font='bold '+Math.round(T*.14)+'px sans-serif';ctx.textAlign='center';ctx.fillText('福',x+T*.5,y+T*.69);
+      return;
+    }
+    // ヒイラギ
+    shadow(x+T*.5,y+T*.86,T*.36,T*.1);
+    rect(x+T*.44,y+T*.4,T*.12,T*.48,'#6b4a2e');
+    for(const[ox,oy,rot]of[[.3,.2,-.5],[.7,.2,.5],[.5,0,0],[.36,.42,-.3],[.64,.42,.3]]){ctx.save();ctx.translate(x+T*ox,y+T*oy);ctx.rotate(rot);ctx.fillStyle='#2a6a34';ctx.beginPath();ctx.moveTo(0,-T*.2);for(let i=0;i<6;i++){const yy=-T*.2+i*T*.08;ctx.lineTo(i%2?T*.14:T*.08,yy);}ctx.lineTo(0,T*.22);for(let i=5;i>=0;i--){const yy=-T*.2+i*T*.08;ctx.lineTo(i%2?-T*.14:-T*.08,yy);}ctx.closePath();ctx.fill();ctx.restore();}
+    ctx.fillStyle='#d63a3a';for(const[ox,oy]of[[.46,.22],[.54,.26],[.5,.18]]){ctx.beginPath();ctx.arc(x+T*ox,y+T*oy,T*.05,0,Math.PI*2);ctx.fill();}
+    return;
+  }
+  if(VD){
+    const k=h%3;
+    const heart=(hx,hy,hr,col)=>{ctx.fillStyle=col;ctx.beginPath();ctx.arc(hx-hr*.5,hy-hr*.2,hr*.55,0,Math.PI*2);ctx.arc(hx+hr*.5,hy-hr*.2,hr*.55,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.moveTo(hx-hr*1.04,hy-hr*.05);ctx.lineTo(hx,hy+hr*1.1);ctx.lineTo(hx+hr*1.04,hy-hr*.05);ctx.closePath();ctx.fill();};
+    if(k===0){ // ハートの木
+      shadow(x+T*.55,y+T*.86,T*.36,T*.1);
+      rect(x+T*.44,y+T*.46,T*.12,T*.42,'#8a5a3a');
+      heart(x+T*.5,y+T*.12,T*.34,'#ff5a8a');heart(x+T*.42,y+T*.04,T*.1,'rgba(255,255,255,.35)');
+      return;
+    }
+    if(k===1){ // チョコの箱
+      shadow(x+T*.5,y+T*.86,T*.38,T*.1);
+      heart(x+T*.5,y+T*.42,T*.36,'#6b3e26');heart(x+T*.5,y+T*.4,T*.3,'#8a5233');
+      rect(x+T*.47,y+T*.06,T*.06,T*.76,'#ff5a8a');
+      ctx.fillStyle='#ff5a8a';ctx.beginPath();ctx.ellipse(x+T*.38,y+T*.08,T*.12,T*.07,-.4,0,Math.PI*2);ctx.ellipse(x+T*.62,y+T*.08,T*.12,T*.07,.4,0,Math.PI*2);ctx.fill();
+      return;
+    }
+    // ハートの風船
+    const bob=Math.sin(time*2+c)*T*.05;
+    shadow(x+T*.5,y+T*.86,T*.2,T*.06);
+    ctx.strokeStyle='#ffffff';ctx.lineWidth=T*.025;ctx.beginPath();ctx.moveTo(x+T*.5,y+T*.84);ctx.quadraticCurveTo(x+T*.6,y+T*.6,x+T*.5,y+T*.42+bob);ctx.stroke();
+    heart(x+T*.5,y+T*.12+bob,T*.26,(h>>4)%2?'#ff2a5a':'#ff8fc0');heart(x+T*.44,y+T*.06+bob,T*.07,'rgba(255,255,255,.5)');
+    return;
+  }
   if(NY){
     const k=h%3;
     if(k===0){ // 門松
@@ -1771,7 +1866,7 @@ function flag(c,y){
   const x=sx(c)+T*.45;
   rect(x,y-T*.9,T*.08,T*1.6,'#e9e4d8');
   const wv=Math.sin(time*6)*T*.06;
-  ctx.fillStyle=HW?'#ff9a2e':XM?'#2f9e5a':NY?'#d63a3a':'#ef4b3f';ctx.beginPath();ctx.moveTo(x+T*.08,y-T*.9);ctx.lineTo(x+T*.7,y-T*.7+wv);ctx.lineTo(x+T*.08,y-T*.45);ctx.closePath();ctx.fill();
+  ctx.fillStyle=HW?'#ff9a2e':XM?'#2f9e5a':NY?'#d63a3a':SB?'#3a6ad6':VD?'#ff5a8a':'#ef4b3f';ctx.beginPath();ctx.moveTo(x+T*.08,y-T*.9);ctx.lineTo(x+T*.7,y-T*.7+wv);ctx.lineTo(x+T*.08,y-T*.45);ctx.closePath();ctx.fill();
 }
 function car(it,y,dir){
   const x=sx(it.x),w=it.len*T,[top,front]=it.col;
@@ -2083,6 +2178,8 @@ function draw(){
   if(HW)halloweenFx(p);
   if(XM)christmasFx();
   if(NY)newYearFx();
+  if(SB)setsubunFx();
+  if(VD)valentineFx();
   if(ST.night&&!hasB('sun')){
     const cx=sx(p.x)+T/2,cy=sy(p.r)+T/2;
     const g=ctx.createRadialGradient(cx,cy,T*1.2,cx,cy,T*5);
@@ -2103,6 +2200,24 @@ function draw(){
   }
 }
 
+function setsubunFx(){
+  // 豆が飛んでくる
+  ctx.fillStyle='#f0d9a0';
+  for(let i=0;i<18;i++){
+    const ph=(time*.7+i*.137)%1,x0=GX+((i*0.618)%1)*GW,xx=x0+ph*T*2*(i%2?1:-1),yy=H*(.15+((i*0.37)%1)*.7)-Math.sin(ph*Math.PI)*T*1.5;
+    ctx.globalAlpha=Math.sin(ph*Math.PI);ctx.beginPath();ctx.ellipse(xx,yy,T*.07,T*.06,0,0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+function valentineFx(){
+  // ハートがふわふわ上がる
+  for(let i=0;i<16;i++){
+    const sp=.3+(i%4)*.1,xx=GX+((i*0.618)%1)*GW+Math.sin(time*1.5+i)*T*.4,yy=H+10-((time*T*sp*1.5+i*113)%(H+30)),hr=T*(.08+(i%3)*.04);
+    ctx.fillStyle=i%3?'rgba(255,90,138,.7)':'rgba(255,255,255,.7)';
+    ctx.beginPath();ctx.arc(xx-hr*.5,yy-hr*.2,hr*.55,0,Math.PI*2);ctx.arc(xx+hr*.5,yy-hr*.2,hr*.55,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.moveTo(xx-hr*1.04,yy-hr*.05);ctx.lineTo(xx,yy+hr*1.1);ctx.lineTo(xx+hr*1.04,yy-hr*.05);ctx.closePath();ctx.fill();
+  }
+}
 function newYearFx(){
   // 初日の出の光
   const g=ctx.createLinearGradient(0,0,0,T*2.4);g.addColorStop(0,'rgba(255,170,90,.32)');g.addColorStop(1,'rgba(255,170,90,0)');
@@ -2194,7 +2309,7 @@ function updateDetail(){
   const b=$('dBtn');b.disabled=false;
   if(prog.skin===sk.id){$('dInfo').textContent='いま使っているスキン';b.textContent='装備中';b.disabled=true;}
   else if(own){$('dInfo').textContent='持っているスキン';b.textContent='装備する';}
-  else if(sk.season&&sk.season!==SEASON){$('dInfo').textContent=SEASON_TXT[sk.season]+'だけ買えるスキン';b.textContent=SEASON_TXT[sk.season]+'に買えるよ';b.disabled=true;}
+  else if(sk.season&&sk.season!==SEASON){$('dInfo').textContent=SEASONS[sk.season].txt+'だけ買えるスキン';b.textContent=SEASONS[sk.season].txt+'に買えるよ';b.disabled=true;}
   else if(prog.wallet>=price){$('dInfo').textContent='値段 '+price+'コイン';b.textContent=price+'コインで買う';}
   else{$('dInfo').textContent='値段 '+price+'コイン';b.textContent='あと'+(price-prog.wallet)+'コイン';b.disabled=true;}
   b.onclick=()=>{
