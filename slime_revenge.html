@@ -87,7 +87,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
 .base-card{width:min(460px,100%);gap:12px}
 .base-card h2 small{font-size:16px;color:var(--demon-l)}
 .tabs{display:flex;gap:6px;width:100%}
-.tab{flex:1;font-family:var(--body);font-weight:800;font-size:14px;padding:8px 4px;border-radius:8px;border:2px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+.tab{flex:1;min-width:0;white-space:nowrap;font-family:var(--body);font-weight:800;font-size:12px;padding:8px 2px;border-radius:8px;border:2px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
 .tab.on{background:var(--line);color:var(--ink)}
 .shop{display:flex;flex-direction:column;gap:8px;width:100%;max-height:46vh;overflow-y:auto;touch-action:pan-y}
 .item{display:flex;align-items:center;gap:10px;text-align:left;padding:10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
@@ -98,6 +98,13 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
 .item .cost{display:block;font-family:var(--display);font-size:12px;color:var(--sun);margin-top:2px}
 .buy{flex:none;font-family:var(--body);font-weight:800;font-size:13px;padding:9px 12px;border-radius:8px;border:none;background:var(--slime);color:#10240b;cursor:pointer}
 .buy:disabled{background:#3a3248;color:var(--muted);cursor:not-allowed}
+.sec{font-family:var(--display);font-size:14px;color:var(--demon-l);align-self:flex-start;margin-top:4px}
+.opts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:100%}
+.opts.shapes{grid-template-columns:repeat(5,1fr)}
+.opt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 2px;border-radius:10px;border:2px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink);font-family:var(--body);font-size:11px;cursor:pointer;min-width:0}
+.opt.on{border-color:var(--slime);background:rgba(123,227,106,.12)}
+.opt:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+.opt canvas{width:36px;height:36px}
 .best{font-family:var(--display);font-size:13px;color:var(--muted)}
 .title-slime{width:120px;height:90px}
 </style>
@@ -141,6 +148,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
         <li>まん中の<b>魔物の拠点</b>を守れ。壊されたらおしまい</li>
         <li>冒険者が落とす<b>素材</b>（🪵木材・🔩鉄・💎魔石）で、拠点の強化・罠・魔物の仲間を手に入れよう</li>
         <li>買った罠は<b>🪤ボタン / T</b>でスライムの足もとに置ける</li>
+        <li>拠点メニューの<b>ダンジョン</b>で、広さ・色・形を変えられる</li>
         <li>WAVE 5 と WAVE 10 には<b>勇者</b>がやってくる</li>
       </ul>
       <div class="best" id="bestLbl"></div>
@@ -162,6 +170,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
       <div class="mats big" id="baseMats"></div>
       <div class="tabs" role="tablist">
         <button class="tab on" id="tabBase" type="button" role="tab" data-tab="base">拠点強化</button>
+        <button class="tab" id="tabDun" type="button" role="tab" data-tab="dun">ダンジョン</button>
         <button class="tab" id="tabTrap" type="button" role="tab" data-tab="trap">罠</button>
         <button class="tab" id="tabMon" type="button" role="tab" data-tab="mon">魔物</button>
       </div>
@@ -211,7 +220,9 @@ function resize(){
 }
 addEventListener('resize',resize);resize();
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const WORLD=1500,TILE=60,LAST_WAVE=10;
+const C=1100,TILE=60,LAST_WAVE=10; // ダンジョンの中心（拠点の位置）
+const SIZES=[600,720,840,960,1100]; // 広さ（中心からのはば）
+let HALF=SIZES[0];
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -258,6 +269,71 @@ const TYPES={
   hero:{name:'勇者',hp:1100,spd:88,r:24,dmg:22,xp:40,col:'#3a7bd5',boss:true},
 };
 
+/* ---------- ダンジョンの色と形 ---------- */
+const THEMES={
+  stone:{name:'紫の石',a:'#2a2236',b:'#2f273c',wall:'#5a4a72',void:'#0d0a12',torch:'255,170,60'},
+  moss:{name:'苔の洞窟',a:'#1f2e22',b:'#243628',wall:'#4a7a42',void:'#070d08',torch:'180,255,120'},
+  lava:{name:'溶岩',a:'#3a1c16',b:'#43221a',wall:'#b84a2a',void:'#1a0603',torch:'255,110,40'},
+  ice:{name:'氷',a:'#1e3346',b:'#243b52',wall:'#7ab8e0',void:'#050c14',torch:'140,220,255'},
+  sand:{name:'砂岩',a:'#4a3c26',b:'#53442c',wall:'#b08a4f',void:'#120d06',torch:'255,200,90'},
+  bone:{name:'骨の墓所',a:'#34323a',b:'#3b3941',wall:'#d8d2c0',void:'#0a0a0c',torch:'200,255,220'},
+};
+const SHAPES={square:'四角',circle:'まる',octa:'八角',diamond:'ひし形',cross:'十字'};
+const EXPAND_COST=[{wood:8,iron:4},{wood:12,iron:8,gem:2},{wood:16,iron:12,gem:5},{wood:22,iron:16,gem:8}];
+let look={theme:'stone',shape:'square'};
+try{const v=JSON.parse(localStorage.getItem('slime-revenge-dungeon')||'null');if(v&&THEMES[v.theme]&&SHAPES[v.shape])look=v;}catch(e){}
+function saveLook(){try{localStorage.setItem('slime-revenge-dungeon',JSON.stringify(look))}catch(e){}}
+let dunSize=0;
+// 形のりんかくをパスにする（cx,cy:中心 h:はば）
+function shapePath(c,shape,cx,cy,h){
+  c.beginPath();
+  const poly=pts=>{pts.forEach(([x,y],i)=>i?c.lineTo(cx+x,cy+y):c.moveTo(cx+x,cy+y));c.closePath()};
+  if(shape==='circle')c.arc(cx,cy,h,0,Math.PI*2);
+  else if(shape==='diamond')poly([[0,-h],[h,0],[0,h],[-h,0]]);
+  else if(shape==='octa'){const e=h*.45;poly([[-e,-h],[e,-h],[h,-e],[h,e],[e,h],[-e,h],[-h,e],[-h,-e]])}
+  else if(shape==='cross'){const w=h*.45;poly([[-w,-h],[w,-h],[w,-w],[h,-w],[h,w],[w,w],[w,h],[-w,h],[-w,w],[-h,w],[-h,-w],[-w,-w]])}
+  else c.rect(cx-h,cy-h,h*2,h*2);
+}
+// ダンジョンの中に押しもどす
+function keepIn(o,r){
+  let dx=o.x-C,dy=o.y-C;const h=HALF-r;
+  const sq=()=>{dx=clamp(dx,-h,h);dy=clamp(dy,-h,h)};
+  const dia=k=>{const s=Math.abs(dx)+Math.abs(dy);if(s>k){const sx=Math.sign(dx)||1,sy=Math.sign(dy)||1,ax=clamp(Math.abs(dx)-(s-k)/2,0,k);dx=ax*sx;dy=(k-ax)*sy}};
+  switch(look.shape){
+    case 'circle':{const d=Math.hypot(dx,dy);if(d>h){dx*=h/d;dy*=h/d}break}
+    case 'diamond':dia(HALF-r*1.42);break;
+    case 'octa':sq();dia(HALF*1.45-r*1.42);sq();break;
+    case 'cross':{
+      const w=HALF*.45-r,ax=clamp(dx,-h,h),ay=clamp(dy,-w,w),bx=clamp(dx,-w,w),by=clamp(dy,-h,h);
+      if(Math.hypot(ax-dx,ay-dy)<=Math.hypot(bx-dx,by-dy)){dx=ax;dy=ay}else{dx=bx;dy=by}
+      break;
+    }
+    default:sq();
+  }
+  o.x=C+dx;o.y=C+dy;
+}
+function inside(x,y,m){const o={x,y};keepIn(o,m);return Math.abs(o.x-x)<.5&&Math.abs(o.y-y)<.5}
+// 中心から角度aの方向へ進んだ、かべぎわの点
+function edgePoint(a,m){
+  let lo=0,hi=HALF*1.5;
+  for(let i=0;i<18;i++){const t=(lo+hi)/2;if(inside(C+Math.cos(a)*t,C+Math.sin(a)*t,m))lo=t;else hi=t}
+  return {x:C+Math.cos(a)*lo,y:C+Math.sin(a)*lo};
+}
+let torchKey='',torches=[];
+function getTorches(){
+  const key=look.shape+HALF;
+  if(key!==torchKey){torchKey=key;torches=[];const n=16+dunSize*4;for(let i=0;i<n;i++)torches.push(edgePoint(i/n*Math.PI*2+.2,0))}
+  return torches;
+}
+function applyLook(){
+  // 形が変わったら、外に出たものを中へもどす
+  if(!P)return;
+  keepIn(P,P.r);
+  for(const e of enemies)keepIn(e,e.r);
+  for(const a of allies)keepIn(a,a.r);
+  for(const l of [traps,mats,gems])for(const o of l)keepIn(o,10);
+}
+
 /* ---------- 素材・拠点 ---------- */
 const MATS={wood:{name:'木材',ic:'🪵',col:'#b07a45'},iron:{name:'鉄',ic:'🔩',col:'#b8c2d0'},gem:{name:'魔石',ic:'💎',col:'#c77dff'}};
 const DROPS={villager:[['wood',1,.75]],archer:[['wood',1,.5],['iron',1,.35]],warrior:[['iron',1,.6]],knight:[['iron',2,1]],
@@ -274,8 +350,8 @@ const MONS={
   golem:{name:'ゴーレム',ic:'🗿',desc:'かたくて強い。前に立って敵を止める',cost:{iron:6,gem:2},hp:340,dmg:24,spd:55,r:18},
 };
 const BASE_MAX=5;
-const trapCap=()=>3+2*(B.lv-1);
-const monCap=()=>2+2*B.lv;
+const trapCap=()=>3+2*(B.lv-1)+dunSize;
+const monCap=()=>2+2*B.lv+dunSize;
 const canPay=c=>!!c&&Object.keys(c).every(k=>inv[k]>=c[k]);
 const pay=c=>{for(const k in c)inv[k]-=c[k]};
 const costText=c=>Object.keys(c).filter(k=>c[k]>0).map(k=>MATS[k].ic+c[k]).join(' ')||'無料';
@@ -299,9 +375,10 @@ let P,B,inv,traps,trapStock,allies,mats,enemies,shots,pshots,gems,puddles,parts,
 let wave,queue,spawnT,waveState,waveT,kills,pending,skills;
 
 function newGame(){
-  B={x:WORLD/2,y:WORLD/2,r:46,hp:600,maxHp:600,lv:1,tower:1,towerT:0,fount:0,hit:0};
+  dunSize=0;HALF=SIZES[0];
+  B={x:C,y:C,r:46,hp:600,maxHp:600,lv:1,tower:1,towerT:0,fount:0,hit:0};
   inv={wood:0,iron:0,gem:0};traps=[];trapStock=[];allies=[];mats=[];
-  P={x:WORLD/2,y:WORLD/2+110,r:18,hp:100,maxHp:100,spd:175,dmg:26,dashCd:.85,cd:0,dashT:0,dvx:0,dvy:0,
+  P={x:C,y:C+110,r:18,hp:100,maxHp:100,spd:175,dmg:26,dashCd:.85,cd:0,dashT:0,dvx:0,dvy:0,
      inv:0,lv:1,xp:0,next:5,magnet:80,fx:1,fy:0,sq:0,hitSet:null,trailT:0,shotT:0,moving:false,dead:false};
   enemies=[];shots=[];pshots=[];gems=[];puddles=[];parts=[];nums=[];orbs=[];
   kills=0;pending=0;skills={};T=0;gid++;
@@ -357,9 +434,10 @@ function showBanner(t,s,boss){
 function spawn(type){
   const D=TYPES[type],scale=1+.13*(wave-1);
   // ダンジョンの外周から入ってくる
-  const side=Math.floor(Math.random()*4),u=rnd(40,WORLD-40);
-  let x=side===0?u:side===1?u:side===2?30:WORLD-30,y=side===0?30:side===1?WORLD-30:u;
-  if(Math.hypot(x-P.x,y-P.y)<300){x=WORLD-x;y=WORLD-y}
+  const ang=Math.random()*Math.PI*2;
+  let sp=edgePoint(ang,D.r+6);
+  if(Math.hypot(sp.x-P.x,sp.y-P.y)<300)sp=edgePoint(ang+Math.PI,D.r+6);
+  const x=sp.x,y=sp.y;
   const legend=D.boss&&wave===10;
   const hp=D.boss?D.hp*(legend?2.2:1):D.hp*scale;
   const e={type,D,x,y,r:D.r,hp,maxHp:hp,spd:D.spd*(1+.02*(wave-1)),dmg:D.dmg*(1+.06*(wave-1))*(legend?1.3:1),
@@ -529,7 +607,7 @@ function update(dt){
     else{P.x+=mx*P.spd*dt;P.y+=my*P.spd*dt}
   }
   const tr=16+Math.min(18,(P.lv-1)*.9);P.r+=(tr-P.r)*Math.min(1,dt*3);
-  P.x=clamp(P.x,P.r,WORLD-P.r);P.y=clamp(P.y,P.r,WORLD-P.r);
+  keepIn(P,P.r);
 
   // 酸の足あと
   if(skills.acid&&P.moving){
@@ -595,7 +673,7 @@ function update(dt){
       if(d>6){vx=dx/d*a.spd*.6;vy=dy/d*a.spd*.6;a.face=dx<0?-1:1}
     }
     for(const o of allies){if(o===a)continue;const ox=a.x-o.x,oy=a.y-o.y,od=Math.hypot(ox,oy),min=a.r+o.r;if(od<min&&od>0){vx+=ox/od*80;vy+=oy/od*80}}
-    a.x=clamp(a.x+vx*dt,a.r,WORLD-a.r);a.y=clamp(a.y+vy*dt,a.r,WORLD-a.r);
+    a.x+=vx*dt;a.y+=vy*dt;keepIn(a,a.r);
   }
 
   // 罠
@@ -697,7 +775,7 @@ function update(dt){
     const slow=traps.some(tp=>tp.type==='swamp'&&Math.hypot(tp.x-e.x,tp.y-e.y)<tp.r)?(D.boss?.6:.4):1;
     e.x+=(vx*slow+e.kx)*dt;e.y+=(vy*slow+e.ky)*dt;
     const damp=Math.exp(-7*dt);e.kx*=damp;e.ky*=damp;
-    e.x=clamp(e.x,e.r,WORLD-e.r);e.y=clamp(e.y,e.r,WORLD-e.r);
+    keepIn(e,e.r);
 
     // 拠点への攻撃
     const bdx=e.x-B.x,bdy=e.y-B.y,bd=Math.hypot(bdx,bdy)||1;
@@ -747,7 +825,7 @@ function update(dt){
   // 敵の弾
   for(const s of shots){
     s.x+=s.vx*dt;s.y+=s.vy*dt;s.t-=dt;
-    if(s.x<-20||s.y<-20||s.x>WORLD+20||s.y>WORLD+20)s.t=0;
+    if(Math.abs(s.x-C)>HALF+30||Math.abs(s.y-C)>HALF+30)s.t=0;
     if(s.t>0&&Math.hypot(s.x-P.x,s.y-P.y)<P.r+s.r){
       if(P.dashT>0){s.t=0;parts.push({x:s.x,y:s.y,vx:0,vy:0,t:.2,c:'#fff',r:6})} // 突進で弾をかき消す
       else if(P.inv<=0){hitPlayer(s.dmg,s.x,s.y);s.t=0}
@@ -835,6 +913,13 @@ function openBase(){
 }
 function closeBase(){$('baseOv').hidden=true;state='play';updateHud()}
 function baseItems(){
+  if(baseTab==='dun'){
+    const max=dunSize>=SIZES.length-1;
+    return [{ic:'⛏️',name:max?`ダンジョンの広さ ${dunSize+1}（最大）`:`ダンジョンを広げる ${dunSize+1} → ${dunSize+2}`,
+      desc:'敵が拠点にたどり着くまで時間がかかるようになる。罠と仲間の上限も1ずつ増える',
+      cost:max?null:EXPAND_COST[dunSize],
+      buy:()=>{dunSize++;HALF=SIZES[dunSize];showBanner('ダンジョンが広がった！','',false)}}];
+  }
   if(baseTab==='base')return [
     {ic:'🏰',name:B.lv<BASE_MAX?`拠点レベル ${B.lv} → ${B.lv+1}`:`拠点レベル ${B.lv}（最大）`,desc:'拠点HP+150・全回復。罠と魔物の上限が増え、毎ウェーブ集まる魔物も増える',
       cost:B.lv<BASE_MAX?{wood:5*B.lv,iron:3*B.lv,gem:B.lv-1}:null,
@@ -860,6 +945,7 @@ function renderBase(){
   $('baseMats').textContent=Object.keys(MATS).map(k=>MATS[k].ic+inv[k]).join('  ');
   document.querySelectorAll('#baseOv .tab').forEach(t=>{const on=t.dataset.tab===baseTab;t.classList.toggle('on',on);t.setAttribute('aria-selected',on)});
   $('tabNote').textContent=baseTab==='base'?'素材を使って拠点を強くしよう。'
+    :baseTab==='dun'?`広さ ${dunSize+1} / ${SIZES.length}。色と形は素材なしでいつでも変えられる（次のゲームでもそのまま）。`
     :baseTab==='trap'?`罠 ${traps.length+trapStock.length} / ${trapCap()}（置いた罠＋手持ち）。🪤ボタンかTキーでスライムの足もとに置ける。`
     :`仲間 ${allies.length} / ${monCap()}体。毎ウェーブ、拠点レベルの数だけ魔物が自動で集まってくる。`;
   const box=$('shop');box.innerHTML='';
@@ -878,6 +964,35 @@ function renderBase(){
     b.onclick=()=>{if(!canPay(it.cost)||it.off)return;pay(it.cost);it.buy();sfx('lv');renderBase();updateHud()};
     row.append(ic,tx,b);box.append(row);
   });
+  if(baseTab==='dun')renderLook(box);
+}
+function renderLook(box){
+  const sec=t=>{const h=document.createElement('div');h.className='sec';h.textContent=t;box.append(h)};
+  const opt=(on,label,paint,pick)=>{
+    const b=document.createElement('button');b.type='button';b.className='opt'+(on?' on':'');b.setAttribute('aria-pressed',on);
+    const c=document.createElement('canvas');c.width=72;c.height=72;paint(c.getContext('2d'));
+    const sp=document.createElement('span');sp.textContent=label;
+    b.append(c,sp);b.onclick=()=>{pick();saveLook();applyLook();renderBase()};
+    return b;
+  };
+  sec('色');
+  const g1=document.createElement('div');g1.className='opts';
+  Object.keys(THEMES).forEach(k=>{const th=THEMES[k];
+    g1.append(opt(look.theme===k,th.name,c=>{
+      c.fillStyle=th.void;c.fillRect(0,0,72,72);
+      for(let y=0;y<3;y++)for(let x=0;x<3;x++){c.fillStyle=(x+y)%2?th.a:th.b;c.fillRect(8+x*19,8+y*19,19,19)}
+      c.strokeStyle=th.wall;c.lineWidth=6;c.strokeRect(6,6,60,60);
+      c.fillStyle=`rgb(${th.torch})`;c.beginPath();c.arc(36,6,5,0,Math.PI*2);c.fill();
+    },()=>{look.theme=k}))});
+  box.append(g1);
+  sec('形');
+  const g2=document.createElement('div');g2.className='opts shapes';
+  const th=THEMES[look.theme];
+  Object.keys(SHAPES).forEach(k=>{
+    g2.append(opt(look.shape===k,SHAPES[k],c=>{
+      shapePath(c,k,36,36,28);c.fillStyle=th.b;c.fill();c.strokeStyle=th.wall;c.lineWidth=5;c.lineJoin='round';c.stroke();
+    },()=>{look.shape=k}))});
+  box.append(g2);
 }
 document.querySelectorAll('#baseOv .tab').forEach(t=>t.onclick=()=>{baseTab=t.dataset.tab;renderBase()});
 $('baseClose').onclick=closeBase;
@@ -1079,38 +1194,42 @@ function drawMat(m){
 }
 
 function drawFloor(cx,cy,vw,vh){
-  ctx.fillStyle='#0d0a12';ctx.fillRect(cx-10,cy-10,vw+20,vh+20);
-  const x0=Math.max(0,Math.floor(cx/TILE)),y0=Math.max(0,Math.floor(cy/TILE));
-  const x1=Math.min(WORLD/TILE-1,Math.floor((cx+vw)/TILE)),y1=Math.min(WORLD/TILE-1,Math.floor((cy+vh)/TILE));
+  const th=THEMES[look.theme];
+  ctx.fillStyle=th.void;ctx.fillRect(cx-10,cy-10,vw+20,vh+20);
+  ctx.save();shapePath(ctx,look.shape,C,C,HALF);ctx.clip();
+  const x0=Math.max(0,Math.floor(Math.max(cx,C-HALF)/TILE)),y0=Math.max(0,Math.floor(Math.max(cy,C-HALF)/TILE));
+  const x1=Math.floor(Math.min(cx+vw,C+HALF)/TILE),y1=Math.floor(Math.min(cy+vh,C+HALF)/TILE);
   for(let ty=y0;ty<=y1;ty++)for(let tx=x0;tx<=x1;tx++){
     const h=(tx*73856093^ty*19349663)>>>0;
-    ctx.fillStyle=(tx+ty)%2?'#2a2236':'#2f273c';
+    ctx.fillStyle=(tx+ty)%2?th.a:th.b;
     ctx.fillRect(tx*TILE,ty*TILE,TILE,TILE);
     ctx.strokeStyle='rgba(0,0,0,.25)';ctx.lineWidth=2;ctx.strokeRect(tx*TILE+1,ty*TILE+1,TILE-2,TILE-2);
     if(h%11===0){ctx.fillStyle='rgba(255,255,255,.05)';ctx.beginPath();ctx.arc(tx*TILE+(h%40)+10,ty*TILE+(h>>8)%40+10,4,0,Math.PI*2);ctx.fill()}
     if(h%37===0){ctx.strokeStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.moveTo(tx*TILE+10,ty*TILE+20);ctx.lineTo(tx*TILE+28,ty*TILE+34);ctx.lineTo(tx*TILE+24,ty*TILE+50);ctx.stroke()}
   }
+  ctx.restore();
   // 壁
-  ctx.strokeStyle='#5a4a72';ctx.lineWidth=10;ctx.strokeRect(-5,-5,WORLD+10,WORLD+10);
+  shapePath(ctx,look.shape,C,C,HALF+6);
+  ctx.strokeStyle=th.wall;ctx.lineWidth=12;ctx.lineJoin='round';ctx.stroke();
+  ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=3;ctx.stroke();
   // たいまつ
-  for(let i=1;i<6;i++){
-    for(const [x,y] of [[i*WORLD/6,-2],[i*WORLD/6,WORLD+2],[-2,i*WORLD/6],[WORLD+2,i*WORLD/6]]){
-      if(x<cx-60||x>cx+vw+60||y<cy-60||y>cy+vh+60)continue;
-      const fl=1+Math.sin(T*9+i*3+x)*.15;
-      const g=ctx.createRadialGradient(x,y,0,x,y,110*fl);g.addColorStop(0,'rgba(255,170,60,.28)');g.addColorStop(1,'rgba(255,170,60,0)');
-      ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,110*fl,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#ffb347';ctx.beginPath();ctx.arc(x,y,6*fl,0,Math.PI*2);ctx.fill();
-    }
-  }
+  getTorches().forEach(({x,y},i)=>{
+    if(x<cx-120||x>cx+vw+120||y<cy-120||y>cy+vh+120)return;
+    const fl=1+Math.sin(T*9+i*3)*.15;
+    const g=ctx.createRadialGradient(x,y,0,x,y,110*fl);g.addColorStop(0,`rgba(${th.torch},.28)`);g.addColorStop(1,`rgba(${th.torch},0)`);
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,110*fl,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=`rgb(${th.torch})`;ctx.beginPath();ctx.arc(x,y,6*fl,0,Math.PI*2);ctx.fill();
+  });
 }
 
 function draw(){
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  ctx.fillStyle='#0d0a12';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=THEMES[look.theme].void;ctx.fillRect(0,0,W,H);
   if(!P)return;
   const vw=W/Z,vh=H/Z;
-  let cx=vw>WORLD+80?(WORLD-vw)/2:clamp(P.x-vw/2,-40,WORLD-vw+40);
-  let cy=vh>WORLD+80?(WORLD-vh)/2:clamp(P.y-vh/2,-40,WORLD-vh+40);
+  const lo=C-HALF-40,hi=C+HALF+40;
+  let cx=vw>hi-lo?C-vw/2:clamp(P.x-vw/2,lo,hi-vw);
+  let cy=vh>hi-lo?C-vh/2:clamp(P.y-vh/2,lo,hi-vh);
   if(shake>0){cx+=rnd(-shake,shake);cy+=rnd(-shake,shake)}
   ctx.save();ctx.scale(Z,Z);ctx.translate(-cx,-cy);
   drawFloor(cx,cy,vw,vh);
