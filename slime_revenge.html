@@ -27,6 +27,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
 .left{display:flex;flex-direction:column;gap:6px;min-width:0}
 .lv{font-family:var(--display);font-size:16px;text-shadow:0 2px 0 rgba(0,0,0,.5);white-space:nowrap}
 .lv b{font-weight:400;color:var(--slime);font-size:22px}
+.lv span{font-size:13px;color:var(--ink);margin-left:6px}
 .bar{width:170px;max-width:42vw;height:12px;border-radius:6px;background:rgba(0,0,0,.45);overflow:hidden;border:1px solid rgba(255,255,255,.15)}
 .bar i{display:block;height:100%;width:100%;background:var(--slime);transition:width .12s}
 .bar.xp{height:6px}.bar.xp i{background:#5cc8ff}
@@ -50,7 +51,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
 .card{box-sizing:border-box;width:min(400px,100%);background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:22px 18px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;box-shadow:0 8px 0 rgba(0,0,0,.35);margin-block:16px}
 .card h1{font-family:var(--display);font-weight:400;font-size:40px;line-height:1.1;margin:0;color:var(--slime);text-shadow:0 4px 0 #2f6b24;text-wrap:balance}
 .card h2{font-family:var(--display);font-weight:400;font-size:30px;margin:0;color:var(--ink)}
-.sub{font-size:13px;color:var(--muted);margin:0;line-height:1.6;text-wrap:pretty}
+.sub{font-size:13px;color:var(--muted);margin:0;line-height:1.6;text-wrap:pretty;white-space:pre-line}
 .how{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);line-height:1.5;text-align:left}
 .how b{color:var(--ink)}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%}
@@ -69,6 +70,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
 .up .ic{flex:none;width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:22px;background:rgba(123,227,106,.15)}
 .up b{display:block;font-size:15px}
 .up span{display:block;font-size:12px;color:var(--muted)}
+.up .pv{flex:none;width:56px;height:56px}
 .up em{font-style:normal;font-family:var(--display);font-size:11px;color:var(--sun);margin-left:auto;flex:none}
 .banner{position:absolute;left:0;right:0;top:34%;text-align:center;pointer-events:none;font-family:var(--display);font-size:38px;color:var(--ink);text-shadow:0 4px 0 rgba(0,0,0,.6);padding-inline:16px}
 .banner small{display:block;font-size:16px;color:var(--sun);margin-top:6px}
@@ -113,7 +115,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
   <canvas id="cv" aria-label="スライムの逆襲のゲーム画面"></canvas>
   <div class="hud" id="hud" hidden>
     <div class="left">
-      <div class="lv">LV <b id="lv">1</b></div>
+      <div class="lv">LV <b id="lv">1</b><span id="formName">スライム</span></div>
       <div class="bar hp"><i id="hpFill"></i></div>
       <div class="hpnum" id="hpNum">100 / 100</div>
       <div class="bar xp"><i id="xpFill"></i></div>
@@ -149,6 +151,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
         <li>冒険者が落とす<b>素材</b>（🪵木材・🔩鉄・💎魔石）で、拠点の強化・罠・魔物の仲間を手に入れよう</li>
         <li>買った罠は<b>🪤ボタン / T</b>でスライムの足もとに置ける</li>
         <li>拠点メニューの<b>ダンジョン</b>で、広さ・色・形を変えられる</li>
+        <li><b>LV5ごとに進化</b>。進化先は枝分かれしていて、毎回いくつかの中から選べる</li>
         <li>WAVE 5 と WAVE 10 には<b>勇者</b>がやってくる</li>
       </ul>
       <div class="best" id="bestLbl"></div>
@@ -158,7 +161,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
 
   <div class="ov" id="levelOv" hidden>
     <div class="card">
-      <h2>レベルアップ！</h2>
+      <h2 id="levelTitle">レベルアップ！</h2>
       <p class="sub" id="levelSub">スキルをひとつ選ぼう</p>
       <div class="ups" id="ups"></div>
     </div>
@@ -200,6 +203,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
         <div class="stat"><span>たおした数</span><strong id="sKill">0</strong></div>
         <div class="stat"><span>レベル</span><strong id="sLv">1</strong></div>
       </div>
+      <p class="sub" id="endForm"></p>
       <div class="tag" id="endTag" hidden>ベスト記録更新！</div>
       <div class="row">
         <button class="btn ghost" id="toTitle" type="button">タイトルへ</button>
@@ -356,6 +360,54 @@ const canPay=c=>!!c&&Object.keys(c).every(k=>inv[k]>=c[k]);
 const pay=c=>{for(const k in c)inv[k]-=c[k]};
 const costText=c=>Object.keys(c).filter(k=>c[k]>0).map(k=>MATS[k].ic+c[k]).join(' ')||'無料';
 
+/* ---------- 進化（LV5ごと・枝分かれ） ---------- */
+// fx: dmgMul hpAdd spdMul cdMul magnet armor burn slow chain wave aura regen orbs xpMul shotMul shotRate shot size
+const FORMS={
+  // LV5
+  fire:{from:null,name:'ファイアスライム',col:'#ff7a3a',light:'#ffd8a8',dark:'#b8401a',deco:['flame'],desc:'体当たりで敵を燃やす',fx:{burn:1,dmgMul:1.15}},
+  ice:{from:null,name:'アイススライム',col:'#6fd0ff',light:'#e0f8ff',dark:'#2a7fb0',deco:['spikes'],desc:'体当たりで敵をこおらせて遅くする',fx:{slow:1,hpAdd:20}},
+  metal:{from:null,name:'メタルスライム',col:'#b8c2d0',light:'#ffffff',dark:'#5a6474',deco:['shell'],desc:'かたい体で受けるダメージが減る。すばやい',fx:{armor:.2,spdMul:1.1}},
+  // LV10
+  drake:{from:'fire',name:'フレイムドラゴン',col:'#ff5a2a',light:'#ffc890',dark:'#a02a10',deco:['wings','horns'],desc:'翼と角が生えた。燃やす力と体当たりが強い',fx:{burn:1,dmgMul:1.2,spdMul:1.05}},
+  magma:{from:'fire',name:'マグマスライム',col:'#e8452a',light:'#ffb070',dark:'#6a1a0a',deco:['drip','flame'],desc:'突進のあと、まわりで溶岩が爆発する',fx:{wave:1,hpAdd:30}},
+  phoenix:{from:'fire',name:'フェニックススライム',col:'#ffb02a',light:'#fff0a0',dark:'#c0501a',deco:['wings','flame'],desc:'炎の翼。HPが自然に回復する',fx:{regen:2,burn:1}},
+  blizzard:{from:'ice',name:'ブリザードスライム',col:'#9ae0ff',light:'#ffffff',dark:'#3a90c0',deco:['spikes','snow'],desc:'冷気をまとい、近くの敵をこおらせ続ける',fx:{aura:1,slow:1}},
+  crystal:{from:'ice',name:'クリスタルスライム',col:'#a8f0ff',light:'#ffffff',dark:'#3a9ac0',deco:['spikes','eye'],desc:'結晶の体。かたくて、スライム弾が強くなる',fx:{armor:.15,shotMul:1.5,shot:1}},
+  bigsnow:{from:'ice',name:'ビッグスノースライム',col:'#d8f0ff',light:'#ffffff',dark:'#7aa8c8',deco:['snow'],desc:'大きくてとてもタフ',fx:{hpAdd:70,size:4,dmgMul:1.1}},
+  knight:{from:'metal',name:'はがねの騎士スライム',col:'#8a96a8',light:'#e8eef8',dark:'#3a4454',deco:['helm'],desc:'鉄のかぶと。守りと体当たりがさらに強い',fx:{armor:.15,dmgMul:1.2}},
+  thunder:{from:'metal',name:'サンダースライム',col:'#ffe14a',light:'#fffbd0',dark:'#b08a10',deco:['bolt'],desc:'体当たりすると雷が近くの敵へ飛ぶ',fx:{chain:2,spdMul:1.1}},
+  gold:{from:'metal',name:'ゴールデンスライム',col:'#ffd23f',light:'#fff6c0',dark:'#a87a10',deco:['crown'],desc:'ゼリーを多くもらえて、遠くから吸い寄せる',fx:{xpMul:1.35,magnet:80,armor:.05}},
+  // LV15
+  inferno:{from:'drake',name:'インフェルノドラゴン',col:'#ff3a1a',light:'#ffd080',dark:'#8a1008',deco:['wings','horns','flame'],desc:'地獄の業火。燃やす力が最大級',fx:{burn:2,dmgMul:1.25}},
+  darkdrake:{from:'drake',name:'ダークドラゴン',col:'#6a3aa8',light:'#d0b0ff',dark:'#24103a',deco:['wings','horns','eye'],desc:'闇の竜。闇のいかずちが敵をつらぬく',fx:{chain:2,dmgMul:1.2}},
+  volcano:{from:'magma',name:'ボルケーノスライム',col:'#c8301a',light:'#ffa060',dark:'#4a0a04',deco:['drip','flame','spikes'],desc:'突進のたびに大噴火',fx:{wave:2,hpAdd:40}},
+  lavagolem:{from:'magma',name:'ラーヴァゴーレム',col:'#8a3a1a',light:'#ff9a50',dark:'#3a1406',deco:['shell','drip'],desc:'溶岩のよろい。かたくて爆発もする',fx:{armor:.2,wave:1,hpAdd:50}},
+  sunbird:{from:'phoenix',name:'サンフェニックス',col:'#ffcc3a',light:'#fffbe0',dark:'#d0701a',deco:['wings','halo','flame'],desc:'太陽の炎。回復力がとても高い',fx:{regen:4,burn:1,hpAdd:30}},
+  blaze:{from:'phoenix',name:'ブレイズウィング',col:'#ff7a1a',light:'#ffd0a0',dark:'#a0300a',deco:['wings','flame'],desc:'とても速く飛びまわり、炎で焼く',fx:{spdMul:1.2,burn:1,cdMul:.8}},
+  zero:{from:'blizzard',name:'アブソリュートゼロ',col:'#d0f4ff',light:'#ffffff',dark:'#5ab0e0',deco:['spikes','snow','halo'],desc:'絶対零度。近くの敵がほとんど動けない',fx:{aura:2,slow:2}},
+  frostdrake:{from:'blizzard',name:'フロストドラゴン',col:'#6ab8ff',light:'#e0f4ff',dark:'#1a5aa8',deco:['wings','horns','spikes'],desc:'氷の竜。こおらせる体当たりが強い',fx:{slow:1,dmgMul:1.3}},
+  diamond:{from:'crystal',name:'ダイヤモンドスライム',col:'#e8fbff',light:'#ffffff',dark:'#88c8e0',deco:['spikes','eye','crown'],desc:'最強のかたさ',fx:{armor:.25,hpAdd:40}},
+  prism:{from:'crystal',name:'プリズムスライム',col:'#ff9ae8',light:'#ffffff',dark:'#8a4ab0',deco:['eye','halo'],desc:'光の弾を連射する',fx:{shotMul:1.8,shotRate:.6,shot:1}},
+  mammoth:{from:'bigsnow',name:'マンモススライム',col:'#c8e0f0',light:'#ffffff',dark:'#6a8aa8',deco:['horns','snow'],desc:'さらに巨大に。体当たりで吹き飛ばす',fx:{size:6,hpAdd:80,dmgMul:1.15}},
+  snowqueen:{from:'bigsnow',name:'スノークイーン',col:'#b8d8ff',light:'#ffffff',dark:'#5a7ac8',deco:['crown','snow'],desc:'雪の女王。ちびスライムが増え、冷気をまとう',fx:{orbs:2,aura:1}},
+  paladin:{from:'knight',name:'パラディンスライム',col:'#d8e0ec',light:'#ffffff',dark:'#7a8aa0',deco:['helm','halo'],desc:'聖なる騎士。かたく、HPが回復する',fx:{armor:.15,regen:2}},
+  berserker:{from:'knight',name:'バーサーカースライム',col:'#c84a4a',light:'#ffb0a0',dark:'#5a1010',deco:['helm','horns'],desc:'守りをすてて攻撃力が大はばアップ',fx:{dmgMul:1.6,armor:-.1,cdMul:.8}},
+  raijin:{from:'thunder',name:'ライジンスライム',col:'#ffe14a',light:'#ffffff',dark:'#a07a00',deco:['bolt','horns'],desc:'雷神。雷がたくさんの敵へ連鎖する',fx:{chain:3,dmgMul:1.15}},
+  plasma:{from:'thunder',name:'プラズマスライム',col:'#8af0ff',light:'#ffffff',dark:'#2a8ab0',deco:['bolt','eye'],desc:'電気の体。近くの敵をしびれさせ続ける',fx:{aura:2,spdMul:1.1}},
+  slimeking:{from:'gold',name:'スライムキング',col:'#4fa8ff',light:'#c8e8ff',dark:'#1a5aa8',deco:['crown'],desc:'王様。体が大きく、子分のちびスライムが増える',fx:{size:5,orbs:2,hpAdd:50}},
+  platinum:{from:'gold',name:'プラチナスライム',col:'#e8eef8',light:'#ffffff',dark:'#8a96a8',deco:['crown','shell'],desc:'ゼリーをさらに多くもらえて、かたい',fx:{xpMul:1.4,armor:.15}},
+};
+// LV20からは覚醒（名前の前につく）
+const AWAKE_PRE=['真・','超・','神・','極・','天・'];
+const AWAKES=[
+  {id:'king',ic:'👑',name:'王の覚醒',desc:'体が大きくなり、体当たりがとても強くなる',fx:{size:3,dmgMul:1.3}},
+  {id:'undying',ic:'💗',name:'不死の覚醒',desc:'最大HPが大きく増え、自然に回復する',fx:{hpAdd:80,regen:2}},
+  {id:'mystic',ic:'🔮',name:'魔の覚醒',desc:'燃やす・こおらす・雷などの力がひとつずつ強くなる',fx:{mystic:1}},
+];
+const PLAIN={col:'#7be36a',light:'#c8ffb8',dark:'#3f9a32',deco:[]};
+const curForm=()=>P&&P.form?FORMS[P.form]:PLAIN;
+const formName=()=>(P.awaken?AWAKE_PRE[Math.min(P.awaken,AWAKE_PRE.length)-1]:'')+(P.form?FORMS[P.form].name:'スライム');
+
 /* ---------- スキル ---------- */
 const UPS=[
   {id:'dmg',ic:'💥',name:'のしかかり強化',desc:'体当たりダメージ +30%',max:6},
@@ -379,7 +431,8 @@ function newGame(){
   B={x:C,y:C,r:46,hp:600,maxHp:600,lv:1,tower:1,towerT:0,fount:0,hit:0};
   inv={wood:0,iron:0,gem:0};traps=[];trapStock=[];allies=[];mats=[];
   P={x:C,y:C+110,r:18,hp:100,maxHp:100,spd:175,dmg:26,dashCd:.85,cd:0,dashT:0,dvx:0,dvy:0,
-     inv:0,lv:1,xp:0,next:5,magnet:80,fx:1,fy:0,sq:0,hitSet:null,trailT:0,shotT:0,moving:false,dead:false};
+     inv:0,lv:1,xp:0,next:5,magnet:80,form:null,awaken:0,path:[],
+     ev:{armor:0,burn:0,slow:0,chain:0,wave:0,aura:0,regen:0,orbs:0,xpMul:1,shotMul:1,shotRate:1,size:0},fx:1,fy:0,sq:0,hitSet:null,trailT:0,shotT:0,moving:false,dead:false};
   enemies=[];shots=[];pshots=[];gems=[];puddles=[];parts=[];nums=[];orbs=[];
   kills=0;pending=0;skills={};T=0;gid++;
   UPS.forEach(u=>skills[u.id]=0);
@@ -514,6 +567,7 @@ function healPlayer(v){
 }
 function hitPlayer(d,fx,fy){
   if(P.inv>0||P.dashT>0||P.dead)return;
+  d*=1-clamp(P.ev.armor,0,.6);
   P.hp-=d;P.inv=.75;shake=reduceMotion?0:9;sfx('hurt');
   const a=Math.atan2(P.y-fy,P.x-fx);P.x+=Math.cos(a)*16;P.y+=Math.sin(a)*16;
   nums.push({x:P.x,y:P.y-P.r-10,v:Math.round(d),t:.8,c:'#ff6a6a'});
@@ -536,11 +590,13 @@ function hitBase(d){
 /* ---------- レベルアップ ---------- */
 function gainXp(v){
   P.xp+=v;
-  while(P.xp>=P.next){P.xp-=P.next;P.lv++;P.next=Math.floor(P.next*1.26+3);pending++}
+  while(P.xp>=P.next){P.xp-=P.next;P.lv++;P.next=5+4*(P.lv-1);pending++}
   if(pending>0&&state==='play'&&!P.dead)openLevel();
   updateHud();
 }
 function openLevel(){
+  if((P.lv-pending+1)%5===0){openEvo();return}
+  $('levelTitle').textContent='レベルアップ！';
   const pool=UPS.filter(u=>skills[u.id]<u.max);
   if(!pool.length){pending=0;healPlayer(30);return}
   state='level';sfx('lv');
@@ -579,7 +635,77 @@ function chooseUp(u){
   if(pending>0)openLevel();
   updateHud();
 }
-function rebuildOrbs(){orbs=[];for(let i=0;i<skills.orb;i++)orbs.push({a:i/skills.orb*Math.PI*2,x:P.x,y:P.y})}
+function rebuildOrbs(){const n=skills.orb+P.ev.orbs;orbs=[];for(let i=0;i<n;i++)orbs.push({a:i/n*Math.PI*2,x:P.x,y:P.y})}
+function evoOptions(){
+  const kids=Object.keys(FORMS).filter(k=>FORMS[k].from===P.form);
+  if(kids.length)return kids.map(k=>({id:k,form:FORMS[k],name:FORMS[k].name,desc:FORMS[k].desc,fx:FORMS[k].fx}));
+  return AWAKES.map(a=>({id:a.id,awake:a,name:a.name,desc:a.desc,fx:a.fx}));
+}
+function openEvo(){
+  state='level';sfx('boss');
+  const L=P.lv-pending+1,opts=evoOptions();
+  $('levelTitle').textContent=opts[0].form?'進化！':'覚醒！';
+  $('levelSub').textContent=`LV ${L} ・ いまの姿：${formName()}　${opts[0].form?'進化先':'覚醒'}をひとつ選ぼう`;
+  const box=$('ups');box.innerHTML='';
+  opts.forEach(o=>{
+    const b=document.createElement('button');b.className='up';b.type='button';
+    const pv=document.createElement('canvas');pv.className='pv';pv.width=112;pv.height=112;
+    const f=o.form||curForm();
+    drawSlime(pv.getContext('2d'),56,66,30,f.col,1,0,1,{light:f.light,dark:f.dark,deco:f.deco,glow:!o.form});
+    const tx=document.createElement('div');
+    const nb=document.createElement('b');nb.textContent=o.form?o.name:`${o.awake.ic} ${o.name}`;
+    const ds=document.createElement('span');ds.textContent=o.desc;
+    tx.append(nb,ds);
+    const em=document.createElement('em');
+    if(o.form){const n=Object.keys(FORMS).filter(k=>FORMS[k].from===o.id).length;em.textContent=n?`この先 ${n}方向`:'最終進化'}
+    else em.textContent=AWAKE_PRE[Math.min(P.awaken+1,AWAKE_PRE.length)-1];
+    b.append(pv,tx,em);
+    b.onclick=()=>chooseEvo(o);
+    box.append(b);
+  });
+  $('levelOv').hidden=false;
+  setTimeout(()=>{const f=box.querySelector('button');if(f)f.focus({preventScroll:true})},30);
+}
+function chooseEvo(o){
+  const fx=o.fx,ev=P.ev;
+  if(o.form){P.form=o.id;P.path.push(o.name)}else{P.awaken++;P.path.push(o.name)}
+  if(fx.dmgMul)P.dmg*=fx.dmgMul;
+  if(fx.hpAdd)P.maxHp+=fx.hpAdd;
+  if(fx.spdMul)P.spd*=fx.spdMul;
+  if(fx.cdMul)P.dashCd*=fx.cdMul;
+  if(fx.magnet)P.magnet+=fx.magnet;
+  for(const k of ['armor','burn','slow','chain','wave','aura','regen','orbs','size'])if(fx[k])ev[k]+=fx[k];
+  for(const k of ['xpMul','shotMul','shotRate'])if(fx[k])ev[k]*=fx[k];
+  if(fx.shot)skills.shot=Math.min(5,skills.shot+fx.shot);
+  if(fx.mystic){let up=0;for(const k of ['burn','slow','chain','wave','aura'])if(ev[k]>0){ev[k]++;up++}if(!up)ev.wave++}
+  P.hp=P.maxHp;rebuildOrbs();
+  const f=curForm();
+  for(let i=0;i<36;i++)parts.push({x:P.x,y:P.y,vx:rnd(-260,260),vy:rnd(-260,260),t:rnd(.5,1),c:i%2?f.col:'#fff',r:rnd(3,6)});
+  parts.push({ring:true,x:P.x,y:P.y,t:.6,max:.6,R:140,c:f.col});
+  showBanner(o.form?`${formName()}に進化した！`:`${formName()}に覚醒した！`,o.desc,false);
+  pending--;
+  $('levelOv').hidden=true;
+  state='play';
+  if(pending>0)openLevel();
+  updateHud();
+}
+// 進化の力
+function evoHit(e){
+  const ev=P.ev;
+  if(ev.burn){e.burn=3;e.burnDps=(5+P.dmg*.08)*ev.burn}
+  if(ev.slow)e.slowT=1.5+.5*ev.slow;
+  if(ev.chain){
+    const near=enemies.filter(o=>o!==e&&!o.dead&&Math.hypot(o.x-e.x,o.y-e.y)<170).sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y)).slice(0,ev.chain);
+    let fx=e.x,fy=e.y;
+    for(const o of near){parts.push({line:true,x:fx,y:fy,x2:o.x,y2:o.y,t:.18,c:'#fff27a'});fx=o.x;fy=o.y;hurtEnemy(o,P.dmg*.5,0,0)}
+  }
+}
+function shockwave(){
+  const R=70+18*P.ev.wave+P.r;
+  parts.push({ring:true,x:P.x,y:P.y,t:.35,max:.35,R,c:'#ff8a3a'});
+  for(let i=0;i<14;i++){const a=i/14*Math.PI*2;parts.push({x:P.x,y:P.y,vx:Math.cos(a)*260,vy:Math.sin(a)*260,t:.35,c:i%2?'#ff5a2a':'#ffd23f',r:4})}
+  for(const e of enemies)if(!e.dead&&Math.hypot(e.x-P.x,e.y-P.y)<R+e.r)hurtEnemy(e,P.dmg*.45*P.ev.wave,(e.x-P.x)*2,(e.y-P.y)*2);
+}
 
 /* ---------- 更新 ---------- */
 function update(dt){
@@ -603,10 +729,11 @@ function update(dt){
 
   P.cd=Math.max(0,P.cd-dt);P.inv-=dt;P.sq=Math.max(0,P.sq-dt*4);
   if(!P.dead){
-    if(P.dashT>0){P.dashT-=dt;P.x+=P.dvx*dt;P.y+=P.dvy*dt}
+    if(P.dashT>0){P.dashT-=dt;P.x+=P.dvx*dt;P.y+=P.dvy*dt;if(P.dashT<=0&&P.ev.wave)shockwave()}
     else{P.x+=mx*P.spd*dt;P.y+=my*P.spd*dt}
   }
-  const tr=16+Math.min(18,(P.lv-1)*.9);P.r+=(tr-P.r)*Math.min(1,dt*3);
+  if(P.ev.regen&&!P.dead)P.hp=Math.min(P.maxHp,P.hp+P.ev.regen*dt);
+  const tr=16+Math.min(18,(P.lv-1)*.9)+P.ev.size;P.r+=(tr-P.r)*Math.min(1,dt*3);
   keepIn(P,P.r);
 
   // 酸の足あと
@@ -630,9 +757,9 @@ function update(dt){
       let tgt=null,bd=360;
       for(const e of enemies){const d=dist(P,e);if(d<bd){bd=d;tgt=e}}
       if(tgt){
-        P.shotT=Math.max(.35,1.5-skills.shot*.22);
+        P.shotT=Math.max(.2,(1.5-skills.shot*.22)*P.ev.shotRate);
         const a=Math.atan2(tgt.y-P.y,tgt.x-P.x),n=skills.shot>=4?2:1;
-        for(let i=0;i<n;i++){const aa=a+(n>1?(i-.5)*.25:0);pshots.push({x:P.x,y:P.y,vx:Math.cos(aa)*420,vy:Math.sin(aa)*420,t:1,dmg:12+skills.shot*6})}
+        for(let i=0;i<n;i++){const aa=a+(n>1?(i-.5)*.25:0);pshots.push({x:P.x,y:P.y,vx:Math.cos(aa)*420,vy:Math.sin(aa)*420,t:1,dmg:(12+skills.shot*6)*P.ev.shotMul})}
         sfx('shot');
       }else P.shotT=.2;
     }
@@ -710,7 +837,15 @@ function update(dt){
   // 敵
   for(const e of enemies){
     if(e.dead)continue;
-    e.hit-=dt;e.atkT-=dt;
+    e.hit-=dt;e.atkT-=dt;e.slowT=(e.slowT||0)-dt;
+    if(e.burn>0){
+      e.burn-=dt;e.burnTick=(e.burnTick||0)-dt;
+      if(e.burnTick<=0){e.burnTick=.5;hurtEnemy(e,e.burnDps*.5,0,0);parts.push({x:e.x+rnd(-6,6),y:e.y-e.r,vx:0,vy:-60,t:.4,c:'#ff8a3a',r:3});if(e.dead)continue}
+    }
+    if(P.ev.aura&&!P.dead&&Math.hypot(P.x-e.x,P.y-e.y)<P.r+e.r+60){
+      e.auraT=(e.auraT||0)-dt;
+      if(e.auraT<=0){e.auraT=.5;if(P.ev.slow)e.slowT=Math.max(e.slowT,.6);hurtEnemy(e,(4+P.dmg*.08)*P.ev.aura,0,0);if(e.dead)continue}
+    }
     // いちばん近い相手（スライム・拠点・仲間の魔物）をねらう。遠くから撃つ敵は拠点をねらわない
     let tg=P.dead?B:P,td=Math.hypot(tg.x-e.x,tg.y-e.y);
     if(!e.D.range&&!P.dead){const bd=Math.hypot(B.x-e.x,B.y-e.y)-B.r;if(bd<td){tg=B;td=bd}}
@@ -772,7 +907,8 @@ function update(dt){
       const ox=e.x-o.x,oy=e.y-o.y,od=Math.hypot(ox,oy),min=e.r+o.r;
       if(od<min&&od>0){const push=(min-od)/min*120;vx+=ox/od*push;vy+=oy/od*push}
     }
-    const slow=traps.some(tp=>tp.type==='swamp'&&Math.hypot(tp.x-e.x,tp.y-e.y)<tp.r)?(D.boss?.6:.4):1;
+    let slow=traps.some(tp=>tp.type==='swamp'&&Math.hypot(tp.x-e.x,tp.y-e.y)<tp.r)?(D.boss?.6:.4):1;
+    if(e.slowT>0)slow*=Math.max(D.boss?.55:.3,1-.22*P.ev.slow);
     e.x+=(vx*slow+e.kx)*dt;e.y+=(vy*slow+e.ky)*dt;
     const damp=Math.exp(-7*dt);e.kx*=damp;e.ky*=damp;
     keepIn(e,e.r);
@@ -797,7 +933,7 @@ function update(dt){
       if(P.dashT>0){
         if(!P.hitSet.has(e)){
           P.hitSet.add(e);
-          hurtEnemy(e,P.dmg*(1+P.r/60),P.dvx*.6,P.dvy*.6);sfx('hit');shake=Math.max(shake,reduceMotion?0:4);
+          hurtEnemy(e,P.dmg*(1+P.r/60),P.dvx*.6,P.dvy*.6);evoHit(e);sfx('hit');shake=Math.max(shake,reduceMotion?0:4);
           for(let i=0;i<6;i++)parts.push({x:e.x,y:e.y,vx:rnd(-120,120),vy:rnd(-120,120),t:.3,c:'#cfffc0',r:3});
           if(e.D.boss&&!e.dead){P.dvx*=-.4;P.dvy*=-.4;P.dashT=Math.min(P.dashT,.08)} // 勇者ははね返す
         }
@@ -809,7 +945,7 @@ function update(dt){
     // ちびスライム
     if(orbs.length){
       e.orbHit-=dt;
-      if(e.orbHit<=0)for(const o of orbs)if(Math.hypot(o.x-e.x,o.y-e.y)<e.r+9){e.orbHit=.45;hurtEnemy(e,8+skills.orb*5,(e.x-P.x)*.8,(e.y-P.y)*.8);break}
+      if(e.orbHit<=0)for(const o of orbs)if(Math.hypot(o.x-e.x,o.y-e.y)<e.r+9){e.orbHit=.45;hurtEnemy(e,8+(skills.orb+P.ev.orbs)*4,(e.x-P.x)*.8,(e.y-P.y)*.8);break}
     }
     // 酸
     if(puddles.length&&!e.dead){
@@ -849,7 +985,7 @@ function update(dt){
   for(const g of gems){
     const dx=P.x-g.x,dy=P.y-g.y,d=Math.hypot(dx,dy)||1;
     if(d<mag&&!P.dead){const sp=waveState==='rest'?700:420;g.x+=dx/d*sp*dt;g.y+=dy/d*sp*dt}
-    if(d<P.r+6&&!P.dead){g.got=true;gainXp(g.v);sfx('gem')}
+    if(d<P.r+6&&!P.dead){g.got=true;gainXp(g.v*P.ev.xpMul);sfx('gem')}
   }
   gems=gems.filter(g=>!g.got);
   for(const m of mats){
@@ -860,7 +996,7 @@ function update(dt){
   mats=mats.filter(m=>!m.got);
 
   // パーティクル
-  for(const p of parts){p.t-=dt;if(!p.ring){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.9;p.vy*=.9}}
+  for(const p of parts){p.t-=dt;if(!p.ring&&!p.line){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.9;p.vy*=.9}}
   parts=parts.filter(p=>p.t>0);
   for(const n of nums){n.t-=dt;n.y-=40*dt}
   nums=nums.filter(n=>n.t>0);
@@ -872,7 +1008,7 @@ function update(dt){
 /* ---------- HUD ---------- */
 function updateHud(){
   if(!P)return;
-  $('lv').textContent=P.lv;
+  $('lv').textContent=P.lv;$('formName').textContent=formName();$('formName').style.color=curForm().col;
   const hpP=P.hp/P.maxHp*100;
   $('hpFill').style.width=hpP+'%';$('hpFill').classList.toggle('low',hpP<30);
   $('hpNum').textContent=`${Math.ceil(P.hp)} / ${Math.round(P.maxHp)}`;
@@ -1008,6 +1144,9 @@ function drawSlime(c,x,y,r,col,t,sq,face,opts={}){
   c.fillStyle='rgba(0,0,0,.28)';c.beginPath();c.ellipse(0,r*.62,r*1.05,r*.32,0,0,Math.PI*2);c.fill();
   const wob=Math.sin(t*7)*.05;
   c.scale(1+sq*.28+wob,1-sq*.22-wob);
+  const deco=opts.deco||[];
+  if(opts.glow){const gg=c.createRadialGradient(0,0,r*.5,0,0,r*1.9);gg.addColorStop(0,'rgba(255,240,160,.45)');gg.addColorStop(1,'rgba(255,240,160,0)');c.fillStyle=gg;c.beginPath();c.arc(0,-r*.2,r*1.9,0,Math.PI*2);c.fill()}
+  if(deco.includes('wings'))drawDeco(c,'wings',r,t,face);
   c.beginPath();
   c.moveTo(-r,r*.6);
   c.quadraticCurveTo(-r*1.1,-r*.25,-r*.35,-r*.8);
@@ -1019,6 +1158,7 @@ function drawSlime(c,x,y,r,col,t,sq,face,opts={}){
   g.addColorStop(0,opts.light||'#c8ffb8');g.addColorStop(.55,col);g.addColorStop(1,opts.dark||'#3f9a32');
   c.fillStyle=g;c.fill();
   c.lineWidth=2;c.strokeStyle='rgba(0,0,0,.35)';c.stroke();
+  for(const d of deco)if(d!=='wings')drawDeco(c,d,r,t,face);
   c.fillStyle='rgba(255,255,255,.65)';c.beginPath();c.ellipse(-r*.45,-r*.35,r*.16,r*.26,-.5,0,Math.PI*2);c.fill();
   // 目と怒り眉
   const ex=face*r*.12;
@@ -1032,6 +1172,85 @@ function drawSlime(c,x,y,r,col,t,sq,face,opts={}){
   c.beginPath();
   if(opts.happy){c.arc(ex,r*.18,r*.18,.1,Math.PI-.1)}else{c.moveTo(-r*.16+ex,r*.3);c.quadraticCurveTo(ex,r*.18,r*.16+ex,r*.3)}
   c.stroke();
+  c.restore();
+}
+
+function drawDeco(c,d,r,t,face){
+  c.save();c.lineCap='round';c.lineJoin='round';
+  switch(d){
+    case 'wings':{
+      const fl=Math.sin(t*9)*.25;
+      for(const s of [-1,1]){
+        c.save();c.scale(s,1);c.rotate(-fl);
+        c.fillStyle='rgba(60,20,20,.85)';c.strokeStyle='rgba(0,0,0,.5)';c.lineWidth=2;
+        c.beginPath();c.moveTo(r*.5,-r*.4);c.quadraticCurveTo(r*1.4,-r*1.5,r*2.1,-r*.9);c.lineTo(r*1.75,-r*.45);c.lineTo(r*1.85,-r*.05);c.lineTo(r*1.35,-r*.1);c.lineTo(r*1.2,r*.3);c.quadraticCurveTo(r*.9,-r*.1,r*.5,r*.1);c.closePath();c.fill();c.stroke();
+        c.restore();
+      }
+      break;
+    }
+    case 'horns':
+      c.fillStyle='#f0e6c8';c.strokeStyle='rgba(0,0,0,.45)';c.lineWidth=1.5;
+      for(const s of [-1,1]){c.beginPath();c.moveTo(s*r*.35,-r*.85);c.quadraticCurveTo(s*r*.75,-r*1.2,s*r*.95,-r*1.55);c.quadraticCurveTo(s*r*.6,-r*1.15,s*r*.15,-r*1.0);c.closePath();c.fill();c.stroke()}
+      break;
+    case 'flame':
+      for(let i=0;i<3;i++){
+        const fx=(i-1)*r*.22,h=r*(.55+.15*Math.sin(t*12+i*2)),y0=-r*1.15;
+        c.fillStyle=i===1?'#ffd23f':'#ff6a2a';
+        c.beginPath();c.moveTo(fx-r*.16,y0+r*.1);c.quadraticCurveTo(fx-r*.12,y0-h*.5,fx,y0-h);c.quadraticCurveTo(fx+r*.12,y0-h*.5,fx+r*.16,y0+r*.1);c.closePath();c.fill();
+      }
+      break;
+    case 'spikes':
+      c.fillStyle='rgba(225,250,255,.95)';c.strokeStyle='rgba(40,120,170,.7)';c.lineWidth=1.5;
+      for(const [x,y,a] of [[-r*.8,-r*.2,-1.1],[-r*.55,-r*.65,-.6],[r*.55,-r*.65,.6],[r*.8,-r*.2,1.1]]){
+        c.save();c.translate(x,y);c.rotate(a);c.beginPath();c.moveTo(-r*.12,0);c.lineTo(0,-r*.42);c.lineTo(r*.12,0);c.closePath();c.fill();c.stroke();c.restore();
+      }
+      break;
+    case 'shell':
+      c.strokeStyle='rgba(255,255,255,.55)';c.lineWidth=Math.max(2,r*.08);
+      c.beginPath();c.arc(0,r*.35,r*.95,Math.PI*1.12,Math.PI*1.88);c.stroke();
+      c.fillStyle='rgba(60,70,90,.8)';
+      for(const x of [-.6,-.2,.2,.6]){c.beginPath();c.arc(x*r,r*.45,r*.06,0,Math.PI*2);c.fill()}
+      break;
+    case 'crown':{
+      const y0=-r*1.05,w=r*.5;
+      c.fillStyle='#ffd23f';c.strokeStyle='#a87a10';c.lineWidth=1.5;
+      c.beginPath();c.moveTo(-w,y0);c.lineTo(-w,y0-r*.35);c.lineTo(-w*.5,y0-r*.15);c.lineTo(0,y0-r*.45);c.lineTo(w*.5,y0-r*.15);c.lineTo(w,y0-r*.35);c.lineTo(w,y0);c.closePath();c.fill();c.stroke();
+      c.fillStyle='#ff4a6a';c.beginPath();c.arc(0,y0-r*.12,r*.07,0,Math.PI*2);c.fill();
+      break;
+    }
+    case 'halo':
+      c.strokeStyle='rgba(255,236,140,.95)';c.lineWidth=Math.max(2,r*.09);
+      c.beginPath();c.ellipse(0,-r*1.55+Math.sin(t*3)*r*.05,r*.45,r*.12,0,0,Math.PI*2);c.stroke();
+      break;
+    case 'bolt':
+      c.strokeStyle='#fff27a';c.lineWidth=Math.max(1.5,r*.07);
+      for(let i=0;i<3;i++){
+        if((Math.floor(t*8)+i)%3)continue;
+        const a=i*2.1+t,x=Math.cos(a)*r*1.05,y=Math.sin(a)*r*.8-r*.1;
+        c.beginPath();c.moveTo(x,y);c.lineTo(x+r*.15,y+r*.15);c.lineTo(x-r*.05,y+r*.22);c.lineTo(x+r*.12,y+r*.4);c.stroke();
+      }
+      c.fillStyle='#fff27a';c.beginPath();c.moveTo(r*.05,-r*.95);c.lineTo(-r*.12,-r*.62);c.lineTo(r*.02,-r*.62);c.lineTo(-r*.06,-r*.4);c.lineTo(r*.14,-r*.72);c.lineTo(0,-r*.72);c.closePath();c.fill();
+      break;
+    case 'drip':
+      c.fillStyle='#ff8a2a';
+      for(const [x,ph] of [[-.7,0],[-.25,.4],[.35,.7],[.75,.2]]){const l=r*(.15+.15*((t*.8+ph)%1));c.beginPath();c.ellipse(x*r,r*.62+l*.5,r*.07,l*.6,0,0,Math.PI*2);c.fill()}
+      break;
+    case 'eye':
+      c.fillStyle='#fff';c.beginPath();c.ellipse(face*r*.1,-r*.55,r*.12,r*.15,0,0,Math.PI*2);c.fill();
+      c.fillStyle='#b01a4a';c.beginPath();c.arc(face*r*.13,-r*.53,r*.065,0,Math.PI*2);c.fill();
+      break;
+    case 'snow':
+      c.fillStyle='#ffffff';
+      c.beginPath();c.moveTo(-r*.55,-r*.72);c.quadraticCurveTo(-r*.3,-r*1.05,0,-r*1.3);c.quadraticCurveTo(r*.3,-r*1.05,r*.55,-r*.72);c.quadraticCurveTo(r*.25,-r*.6,0,-r*.75);c.quadraticCurveTo(-r*.25,-r*.6,-r*.55,-r*.72);c.fill();
+      c.fillStyle='rgba(255,255,255,.8)';
+      for(let i=0;i<3;i++){const ph=(t*.4+i/3)%1;c.beginPath();c.arc(Math.cos(i*2.4)*r*1.1,-r*1.2+ph*r*1.6,r*.06,0,Math.PI*2);c.fill()}
+      break;
+    case 'helm':
+      c.fillStyle='#8a96a8';c.strokeStyle='#2a303b';c.lineWidth=1.5;
+      c.beginPath();c.moveTo(-r*.85,-r*.3);c.quadraticCurveTo(-r*.8,-r*1.0,0,-r*1.15);c.quadraticCurveTo(r*.8,-r*1.0,r*.85,-r*.3);c.lineTo(r*.6,-r*.32);c.lineTo(-r*.6,-r*.32);c.closePath();c.fill();c.stroke();
+      c.fillStyle='#d84a4a';c.beginPath();c.moveTo(-r*.08,-r*1.12);c.quadraticCurveTo(-r*.3,-r*1.6,r*.35,-r*1.55);c.quadraticCurveTo(r*.1,-r*1.3,r*.08,-r*1.12);c.closePath();c.fill();
+      break;
+  }
   c.restore();
 }
 
@@ -1261,11 +1480,13 @@ function draw(){
   list.push({y:P.y,f:()=>{
     if(P.dead){ctx.globalAlpha=.5}
     else if(P.inv>0&&Math.floor(T*16)%2)ctx.globalAlpha=.4;
-    if(P.dashT>0){ctx.fillStyle='rgba(123,227,106,.25)';for(let i=1;i<4;i++){ctx.beginPath();ctx.arc(P.x-P.dvx*.02*i,P.y-P.dvy*.02*i,P.r*(1-i*.15),0,Math.PI*2);ctx.fill()}}
-    drawSlime(ctx,P.x,P.y,P.r,'#7be36a',T,P.dashT>0?.6:P.sq*.5+(P.moving?Math.abs(Math.sin(T*10))*.15:0),P.fx>=0?1:-1);
+    const f=curForm();
+    if(P.ev.aura){ctx.strokeStyle=f.col;ctx.globalAlpha*=.25+Math.sin(T*5)*.1;ctx.lineWidth=3;ctx.beginPath();ctx.arc(P.x,P.y,P.r+60,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=P.dead?.5:(P.inv>0&&Math.floor(T*16)%2?.4:1)}
+    if(P.dashT>0){const a0=ctx.globalAlpha;ctx.globalAlpha=a0*.3;ctx.fillStyle=f.col;for(let i=1;i<4;i++){ctx.beginPath();ctx.arc(P.x-P.dvx*.02*i,P.y-P.dvy*.02*i,P.r*(1-i*.15),0,Math.PI*2);ctx.fill()}ctx.globalAlpha=a0}
+    drawSlime(ctx,P.x,P.y,P.r,f.col,T,P.dashT>0?.6:P.sq*.5+(P.moving?Math.abs(Math.sin(T*10))*.15:0),P.fx>=0?1:-1,{light:f.light,dark:f.dark,deco:f.deco,glow:P.awaken>0});
     ctx.globalAlpha=1;
   }});
-  for(const o of orbs)list.push({y:o.y,f:()=>drawSlime(ctx,o.x,o.y,9,'#a8f08a',T*1.3+o.a,0,o.x>P.x?1:-1)});
+  for(const o of orbs)list.push({y:o.y,f:()=>drawSlime(ctx,o.x,o.y,9,curForm().col,T*1.3+o.a,0,o.x>P.x?1:-1,{light:curForm().light,dark:curForm().dark})});
   list.sort((a,b)=>a.y-b.y).forEach(o=>o.f());
   // 弾
   for(const s of shots){
@@ -1275,7 +1496,9 @@ function draw(){
   }
   for(const s of pshots){ctx.fillStyle=s.col||'#9cff7a';ctx.beginPath();ctx.arc(s.x,s.y,6,0,Math.PI*2);ctx.fill();ctx.fillStyle='rgba(255,255,255,.7)';ctx.beginPath();ctx.arc(s.x-2,s.y-2,2,0,Math.PI*2);ctx.fill()}
   // パーティクル
-  for(const p of parts)if(!p.ring){ctx.globalAlpha=Math.min(1,p.t*3);ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill()}
+  for(const p of parts)if(p.line){ctx.globalAlpha=p.t/.18;ctx.strokeStyle=p.c;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(p.x,p.y);const mx=(p.x+p.x2)/2+rnd(-12,12),my=(p.y+p.y2)/2+rnd(-12,12);ctx.lineTo(mx,my);ctx.lineTo(p.x2,p.y2);ctx.stroke()}
+  ctx.globalAlpha=1;
+  for(const p of parts)if(!p.ring&&!p.line){ctx.globalAlpha=Math.min(1,p.t*3);ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill()}
   ctx.globalAlpha=1;
   // ダメージ数字
   ctx.textAlign='center';ctx.font='16px "DotGothic16",sans-serif';
@@ -1321,7 +1544,7 @@ function togglePause(){
   if(state==='play'){
     state='pause';joy=null;
     const owned=UPS.filter(u=>skills[u.id]).map(u=>`${u.ic}${u.name} Lv${skills[u.id]}`);
-    $('pauseSkills').textContent=owned.length?owned.join('　'):'まだスキルはない';
+    $('pauseSkills').textContent=`進化：スライム${P.path.map(n=>' → '+n).join('')}\n`+(owned.length?owned.join('　'):'まだスキルはない');
     $('pauseOv').hidden=false;$('resumeBtn').focus({preventScroll:true});
   }else if(state==='pause'){$('pauseOv').hidden=true;state='play'}
 }
@@ -1331,6 +1554,7 @@ function endGame(win,why){
   const reached=win?LAST_WAVE:wave;
   $('endTitle').textContent=win?'逆襲大成功！':'やられてしまった…';
   $('endSub').textContent=win?'勇者も冒険者も、もう誰もスライムをなめられない。ダンジョンの平和はキミが守った！':why==='base'?'魔物の拠点が冒険者に落とされてしまった…。次は罠と仲間でしっかり守ろう！':'冒険者たちの経験値にされてしまった。でもスライムは何度でもよみがえる！';
+  $('endForm').textContent=`最後の姿：${formName()}`;
   $('sWave').textContent=reached;$('sKill').textContent=kills;$('sLv').textContent=P.lv;
   const rec=reached>best.wave||(reached===best.wave&&kills>best.kills)||(win&&!best.clear);
   if(rec){best={wave:reached,kills,clear:best.clear||win};saveBest()}
