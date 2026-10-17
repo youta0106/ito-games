@@ -20,6 +20,9 @@
 /* ハロウィン（10月）だけの配色 */
 :root.hw{--night:#1a1226;--sun:#ff9a2e;--grass:#6b4f8a;--panel:rgba(30,18,44,.92);--line:#4a3460}
 .hwonly{display:none}:root.hw .hwonly{display:block}
+/* クリスマス（12月）だけの配色 */
+:root.xm{--night:#13233a;--sun:#ffe27a;--grass:#2f9e5a;--panel:rgba(14,38,32,.92);--line:#2d5a46}
+.xmonly{display:none}:root.xm .xmonly{display:block}
 html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;font-family:var(--body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #app{position:relative;height:100%}
 #cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
@@ -133,7 +136,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
 
   <div class="ov" id="selectOv">
     <div class="card">
-      <h1>ロードホッパー<small class="hwonly" style="font-size:.55em;color:#c99bff">🎃 ハロウィン 🦇</small></h1>
+      <h1>ロードホッパー<small class="hwonly" style="font-size:.55em;color:#c99bff">🎃 ハロウィン 🦇</small><small class="xmonly" style="font-size:.55em;color:#ff8a8a">🎄 クリスマス 🎅</small></h1>
       <p class="sub">ゴールの旗までたどり着くとクリア。次のステージが解放されます。</p>
       <div class="tabs" role="tablist">
         <button class="tab on" id="tabNormal" type="button" role="tab">ステージ</button>
@@ -233,8 +236,11 @@ const STAGES=[
 ];
 
 // ハロウィンは10月だけ（?halloween=1 / ?halloween=0 で確認用に切り替え）
-const HW=(()=>{const q=new URLSearchParams(location.search).get('halloween');if(q==='1')return true;if(q==='0')return false;return new Date().getMonth()===9;})();
+// クリスマスは12月だけ（?christmas=1 / ?christmas=0 で確認用に切り替え）
+const XM=(()=>{const q=new URLSearchParams(location.search).get('christmas');if(q==='1')return true;if(q==='0')return false;return new Date().getMonth()===11;})();
+const HW=!XM&&(()=>{const q=new URLSearchParams(location.search).get('halloween');if(q==='1')return true;if(q==='0')return false;return new Date().getMonth()===9;})();
 if(HW){document.documentElement.classList.add('hw');document.title='ロードホッパー ハロウィン';}
+if(XM){document.documentElement.classList.add('xm');document.title='ロードホッパー クリスマス';}
 
 // ---------- storage ----------
 let prog={unlocked:1,best:{}};
@@ -1584,16 +1590,16 @@ function shadow(cx,cy,w,h){ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.e
 function drawGround(L,r){
   const y=sy(r);
   if(L.type==='grass'){
-    rect(0,y,W,T+1,ST.war?(r%2?'#9a9468':'#918b5f'):(HW?(r%2?'#4d5a3a':'#465334'):(r%2?'#8fd062':'#86c75a')));
-    ctx.fillStyle=ST.war?(r%2?'#857f55':'#7d774e'):(HW?(r%2?'#3c4a2c':'#384428'):(r%2?'#7fbe53':'#78b74e'));
+    rect(0,y,W,T+1,ST.war?(r%2?'#9a9468':'#918b5f'):(HW?(r%2?'#4d5a3a':'#465334'):XM?(r%2?'#eef3f8':'#e3eaf2'):(r%2?'#8fd062':'#86c75a')));
+    ctx.fillStyle=ST.war?(r%2?'#857f55':'#7d774e'):(HW?(r%2?'#3c4a2c':'#384428'):XM?(r%2?'#cfdbe8':'#c8d4e2'):(r%2?'#7fbe53':'#78b74e'));
     for(let c=-8;c<COLS+8;c++){const h=((r*73856093)^(c*19349663))>>>0;if(h%5===0)ctx.fillRect(sx(c)+(h%7)/7*T*.7,y+((h>>3)%5)/5*T*.7,T*.12,T*.06);}
     if(L.pits){for(const c of L.pits)pit(c,y);for(const c of L.open)pit(c,y,true);for(const c of L.doors)door(L,c,y,r);}
     if(L.peels)for(const c of L.peels){const x=sx(c);ctx.fillStyle='#ffe066';ctx.beginPath();ctx.ellipse(x+T*.5,y+T*.56,T*.24,T*.1,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e0b020';ctx.fillRect(x+T*.28,y+T*.5,T*.1,T*.18);ctx.fillRect(x+T*.62,y+T*.5,T*.1,T*.18);rect(x+T*.47,y+T*.44,T*.06,T*.08,'#6b4a2e');}
   }else if(L.type==='goal'){
-    rect(0,y,W,T+1,HW?'#4d5a3a':'#8fd062');
+    rect(0,y,W,T+1,HW?'#4d5a3a':XM?'#eef3f8':'#8fd062');
     const s=T/3;
-    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2===0)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#ff9a2e':'#f4f1e8');
-    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#1e1428':'#2a2f3b');
+    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2===0)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#ff9a2e':XM?'#ffffff':'#f4f1e8');
+    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#1e1428':XM?'#d63a3a':'#2a2f3b');
   }else if(L.type==='road'){
     rect(0,y,W,T+1,ST.war?'#6a5d4d':HW?'#3e3a4c':'#4b4f5c');
     const up=lanes.get(r+1);
@@ -1601,8 +1607,8 @@ function drawGround(L,r){
     else rect(0,y,W,T*.07,'#6d7280');
     const dn=lanes.get(r-1);if(!dn||dn.type!=='road')rect(0,y+T*.93,W,T*.07,'#3a3d48');
   }else if(L.type==='river'){
-    rect(0,y,W,T+1,HW?'#5a3a8c':'#3d97df');
-    ctx.fillStyle=HW?'rgba(170,255,140,.2)':'rgba(255,255,255,.18)';
+    rect(0,y,W,T+1,HW?'#5a3a8c':XM?'#5aa6dc':'#3d97df');
+    ctx.fillStyle=HW?'rgba(170,255,140,.2)':XM?'rgba(255,255,255,.35)':'rgba(255,255,255,.18)';
     for(let i=0;i<6;i++){const ph=((time*L.dir*L.speed*.5+i*2.3+r*1.7)%(COLS+10)+(COLS+10))%(COLS+10)-5;ctx.fillRect(sx(ph),y+T*(.2+(i%3)*.27),T*.6,T*.05);}
     const up=lanes.get(r+1);if(up&&up.type!=='river')rect(0,y,W,T*.08,HW?'rgba(30,10,60,.4)':'rgba(20,60,110,.35)');
   }else{
@@ -1646,6 +1652,27 @@ function sandbag(x,y){
 function tree(c,y,r){
   if(ST.war){sandbag(sx(c),y);return;}
   const x=sx(c),h=(Math.imul(c+97,73856093)^Math.imul((r|0)+31,19349663))>>>0;
+  if(XM){
+    const k=h%4;
+    if(k===3){ // プレゼント
+      shadow(x+T*.5,y+T*.86,T*.36,T*.1);
+      const col=['#d63a3a','#2f9e5a','#3a7bd6','#b05ad6'][(h>>3)%4];
+      rrect(x+T*.16,y+T*.3,T*.68,T*.56,T*.06,col);rect(x+T*.12,y+T*.22,T*.76,T*.16,col);
+      rect(x+T*.45,y+T*.22,T*.1,T*.64,'#ffe27a');rect(x+T*.12,y+T*.26,T*.76,T*.06,'#ffe27a');
+      ctx.fillStyle='#ffe27a';ctx.beginPath();ctx.ellipse(x+T*.38,y+T*.16,T*.12,T*.07,-.4,0,Math.PI*2);ctx.ellipse(x+T*.62,y+T*.16,T*.12,T*.07,.4,0,Math.PI*2);ctx.fill();
+      return;
+    }
+    // もみの木（雪とオーナメント）
+    shadow(x+T*.5,y+T*.86,T*.38,T*.1);
+    rect(x+T*.43,y+T*.66,T*.14,T*.22,'#6b4a2e');
+    const tri=(w,top,bot,col)=>{ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x+T*.5,y+T*top);ctx.lineTo(x+T*(.5+w),y+T*bot);ctx.lineTo(x+T*(.5-w),y+T*bot);ctx.closePath();ctx.fill();};
+    tri(.42,.12,.72,'#2a7a45');tri(.34,-.08,.44,'#2f8c4e');tri(.24,-.28,.14,'#36a058');
+    rect(x+T*.22,y+T*.66,T*.56,T*.06,'#ffffff');rect(x+T*.3,y+T*.38,T*.4,T*.05,'#ffffff');
+    const tw=k===0;const bl=Math.floor(time*3+c+(r|0))%2;
+    [[.34,.56,'#d63a3a'],[.64,.6,'#ffe27a'],[.5,.3,'#3a9bff'],[.4,.1,'#ffe27a'],[.62,.2,'#d63a3a']].forEach(([ox,oy,col],i)=>{ctx.fillStyle=(i+bl)%2&&tw?'#ffffff':col;ctx.beginPath();ctx.arc(x+T*ox,y+T*oy,T*.05,0,Math.PI*2);ctx.fill();});
+    if(k!==2){ctx.fillStyle='#ffd23f';ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?T*.05:T*.12;ctx.lineTo(x+T*.5+Math.cos(a)*rr,y-T*.3+Math.sin(a)*rr);}ctx.closePath();ctx.fill();}
+    return;
+  }
   if(!HW){
     shadow(x+T*.55,y+T*.86,T*.36,T*.1);
     rect(x+T*.4,y+T*.55,T*.2,T*.32,'#7a4b2a');
@@ -1685,7 +1712,7 @@ function flag(c,y){
   const x=sx(c)+T*.45;
   rect(x,y-T*.9,T*.08,T*1.6,'#e9e4d8');
   const wv=Math.sin(time*6)*T*.06;
-  ctx.fillStyle=HW?'#ff9a2e':'#ef4b3f';ctx.beginPath();ctx.moveTo(x+T*.08,y-T*.9);ctx.lineTo(x+T*.7,y-T*.7+wv);ctx.lineTo(x+T*.08,y-T*.45);ctx.closePath();ctx.fill();
+  ctx.fillStyle=HW?'#ff9a2e':XM?'#2f9e5a':'#ef4b3f';ctx.beginPath();ctx.moveTo(x+T*.08,y-T*.9);ctx.lineTo(x+T*.7,y-T*.7+wv);ctx.lineTo(x+T*.08,y-T*.45);ctx.closePath();ctx.fill();
 }
 function car(it,y,dir){
   const x=sx(it.x),w=it.len*T,[top,front]=it.col;
@@ -1994,6 +2021,7 @@ function draw(){
   }
   drawShots();
   if(HW)halloweenFx(p);
+  if(XM)christmasFx();
   if(ST.night&&!hasB('sun')){
     const cx=sx(p.x)+T/2,cy=sy(p.r)+T/2;
     const g=ctx.createRadialGradient(cx,cy,T*1.2,cx,cy,T*5);
@@ -2014,6 +2042,17 @@ function draw(){
   }
 }
 
+function christmasFx(){
+  // 雪が降る
+  ctx.fillStyle='rgba(255,255,255,.85)';
+  for(let i=0;i<60;i++){
+    const sp=.4+(i%5)*.12,fx=((i*0.6180339)%1),xx=GX+((fx*GW+Math.sin(time*1.3+i)*T*.4)%GW+GW)%GW,yy=((time*T*sp*1.4+i*97.3)%(H+20))-10,rr=T*(.03+(i%3)*.018);
+    ctx.beginPath();ctx.arc(xx,yy,rr,0,Math.PI*2);ctx.fill();
+  }
+  // 上にイルミネーション
+  for(let i=0;i<14;i++){const lx=GX+(i+.5)*GW/14,ly=T*.18+Math.sin(i*1.2)*T*.08,on=(Math.floor(time*2)+i)%3;
+    ctx.fillStyle=['#ff5a5a','#ffe27a','#5ad68a'][on];ctx.beginPath();ctx.arc(lx,ly,T*.07,0,Math.PI*2);ctx.fill();}
+}
 function halloweenFx(p){
   // 紫のもや＋周辺を暗く
   const cx=sx(p.x)+T/2,cy=sy(p.r)+T/2;
