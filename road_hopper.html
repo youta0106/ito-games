@@ -358,7 +358,7 @@ const pSize=()=>hasB('small')?.55:1;
 const coinGain=()=>hasB('double')?2:1;
 
 // ---------- skins ----------
-const RAR={f:{name:'はじめから',price:0,col:'#b8c0cf'},c:{name:'ノーマル',price:10,col:'#cfd6e2'},r:{name:'レア',price:25,col:'#6cc0f0'},e:{name:'エピック',price:50,col:'#b892f0'},l:{name:'レジェンド',price:100,col:'#ffc35a'},m:{name:'ミシック',price:200,col:'#ff7a70'},h:{name:'ハロウィン限定',price:80,col:'#ff9a2e'}};
+const RAR={f:{name:'はじめから',price:0,col:'#b8c0cf'},c:{name:'ノーマル',price:10,col:'#cfd6e2'},r:{name:'レア',price:25,col:'#6cc0f0'},e:{name:'エピック',price:50,col:'#b892f0'},l:{name:'レジェンド',price:100,col:'#ffc35a'},m:{name:'ミシック',price:200,col:'#ff7a70'},h:{name:'ハロウィン限定',price:80,col:'#ff9a2e'},n:{name:'お正月限定',price:80,col:'#e8463c'}};
 const SKINS=[
 {id:'hiyoko',name:'ひよこ',rar:'f',body:'#ffe066',shade:'#eab421',acc:'#ef4b3f',parts:['comb'],mouth:'beak'},
 {id:'ahiru',name:'アヒル',rar:'c',body:'#f7f7f2',shade:'#d4d4ca',parts:[],mouth:'beak',mcol:'#ff9a3d'},
@@ -415,10 +415,26 @@ SKINS.push(
 {id:'hw_candy',name:'キャンディ',rar:'h',body:'#ff8fc8',shade:'#e0609f',pat:'#ffffff',parts:['stripes','wrapper'],mouth:'smile',mcol:'#a02a60'}
 );
 for(const b of SKINS.filter(k=>!k.hw&&k.rar!=='h'))SKINS.push(Object.assign({},b,{id:b.id+'_hat',name:b.name+'（魔女帽子）',rar:'h',base:b.rar,parts:b.parts.filter(q=>q!=='hat'&&q!=='tophat').concat('witchhat')}));
-for(const k of SKINS)if(k.rar==='h')k.hw=true;
+for(const k of SKINS)if(k.rar==='h')k.season='hw';
+// お正月限定（1月1日〜15日だけ買える）
+SKINS.push(
+{id:'ny_shishi',name:'獅子舞',rar:'n',body:'#d63a3a',shade:'#a82424',pat:'#2f8c4e',eye:'#ffd23f',eyes:'glow',parts:['shishicloth','horns'],horn:'#ffd23f',mouth:'teeth'},
+{id:'ny_daruma',name:'だるま',rar:'n',body:'#d63a3a',shade:'#a82424',parts:['darumaface'],mouth:'smile',mcol:'#a82424'},
+{id:'ny_kingdaruma',name:'金のだるま',rar:'n',body:'#ffc928',shade:'#d99a0c',parts:['darumaface','sparkle'],mouth:'smile',mcol:'#a87a0c'},
+{id:'ny_maneki',name:'招き猫',rar:'n',body:'#fbf8f0',shade:'#ddd6c4',acc:'#fbf8f0',inner:'#f7a8b8',pat:'#f08a3c',parts:['ears','spots','bellcollar'],mouth:'nose',mcol:'#ff8fa8'},
+{id:'ny_kagami',name:'鏡餅',rar:'n',body:'#fbf8f0',shade:'#e6dfcc',parts:['mochitier','mikan'],mouth:'smile',mcol:'#8a7a5a'},
+{id:'ny_tsuru',name:'ツル',rar:'n',body:'#ffffff',shade:'#dcdce4',acc:'#e53935',wing:'#ffffff',parts:['comb','wings'],mouth:'beak',mcol:'#2a2420'},
+{id:'ny_kame',name:'カメ',rar:'n',body:'#6cc04a',shade:'#4a9632',pat:'#3f7d2a',parts:['spots'],mouth:'smile',mcol:'#2e5e22'},
+{id:'ny_fuji',name:'富士山',rar:'n',body:'#4a7bd0',shade:'#3560a8',parts:['snowcap'],mouth:'smile',mcol:'#1d3a70'},
+{id:'ny_okame',name:'おかめ',rar:'n',body:'#fbf6ee',shade:'#e6dccc',parts:['hairbun','cheeks'],mouth:'smile',mcol:'#d63a3a'},
+{id:'ny_koma',name:'こま',rar:'n',body:'#e0b878',shade:'#b8904c',pat:'#d63a3a',parts:['stripes','topspin'],mouth:'smile',mcol:'#6b4a2e'}
+);
+for(const k of SKINS)if(k.rar==='n')k.season='ny';
+const SEASON=HW?'hw':NY?'ny':XM?'xm':null;
+const SEASON_TXT={hw:'10月',ny:'1月1日〜15日'};
 const priceOf=sk=>sk.base?RAR[sk.base].price+15:RAR[sk.rar].price;
-// 10月以外は、持っていないハロウィン限定スキンはショップに出さない
-const shopSkins=()=>{const v=SKINS.filter(k=>!k.hw||HW||prog.owned.includes(k.id));return HW?v.filter(k=>k.hw).concat(v.filter(k=>!k.hw)):v;};
+// 期間外は、持っていない限定スキンはショップに出さない
+const shopSkins=()=>{const v=SKINS.filter(k=>!k.season||k.season===SEASON||prog.owned.includes(k.id));return SEASON?v.filter(k=>k.season===SEASON).concat(v.filter(k=>k.season!==SEASON)):v;};
 const curSkin=()=>SKINS.find(k=>k.id===prog.skin)||SKINS[0];
 
 function drawHopper(c,px,py,t,face,squash,lift,sk){
@@ -437,6 +453,7 @@ function drawHopper(c,px,py,t,face,squash,lift,sk){
   // behind the body
   if(has('cape'))RR(x-s*.08,y+s*.25,s*1.16,s*.78,s*.08,'#c0392b');
   if(has('wings')){const f=Math.sin(time*14)*s*.05,wc=sk.wing||'#ffffff';RR(x-s*.3,y+s*.18-f,s*.34,s*.42,s*.12,wc);RR(x+s*.96,y+s*.18-f,s*.34,s*.42,s*.12,wc);}
+  if(has('shishicloth')){RR(x-s*.22,y+s*.3,s*1.44,s*.72,s*.12,pat);c.strokeStyle='#ffffff';c.lineWidth=s*.04;for(const ox of [-.08,1.08]){c.beginPath();c.arc(x+s*ox,y+s*.66,s*.08,0,Math.PI*1.5);c.stroke();}}
   if(has('batwings')){const f=Math.sin(time*12)*s*.08;TRI(x+s*.06,y+s*.3,x-s*.42,y+s*.04-f,x-s*.3,y+s*.56,shade);TRI(x+s*.06,y+s*.4,x-s*.36,y+s*.5-f*.5,x-s*.1,y+s*.66,shade);TRI(x+s*.94,y+s*.3,x+s*1.42,y+s*.04-f,x+s*1.3,y+s*.56,shade);TRI(x+s*.94,y+s*.4,x+s*1.36,y+s*.5-f*.5,x+s*1.1,y+s*.66,shade);}
   if(has('wrapper')){TRI(x+s*.02,y+s*.45,x-s*.3,y+s*.22,x-s*.3,y+s*.68,pat);TRI(x+s*.98,y+s*.45,x+s*1.3,y+s*.22,x+s*1.3,y+s*.68,pat);}
   if(has('tail')){R(x+s*.9,y+s*.56,s*.28,s*.08,shade);TRI(x+s*1.14,y+s*.46,x+s*1.34,y+s*.6,x+s*1.14,y+s*.72,shade);}
@@ -459,6 +476,11 @@ function drawHopper(c,px,py,t,face,squash,lift,sk){
   if(sk.belly)RR(x+s*.2,y+s*.52,s*.6,s*.42,s*.1,sk.belly);
   R(x+s*.15,y+s*.08,s*.25,s*.12,'rgba(255,255,255,.35)');
   if(has('comb')){R(cx-s*.12,y-s*.12,s*.24,s*.16,acc);if(sk.bigcomb)R(cx-s*.2,y-s*.06,s*.4,s*.1,acc);}
+  if(has('darumaface')){E(cx,y+s*.36,s*.36,s*.28,'#fbf6ee');R(x+s*.16,y+s*.12,s*.22,s*.06,'#1d1f26');R(x+s*.62,y+s*.12,s*.22,s*.06,'#1d1f26');R(x+s*.3,y+s*.58,s*.4,s*.04,'#1d1f26');}
+  if(has('mochitier')){R(x,y+s*.36,s,s*.05,shade);}
+  if(has('snowcap')){c.fillStyle='#ffffff';c.beginPath();c.moveTo(x,y+s*.3);c.lineTo(x+s*.18,y+s*.18);c.lineTo(x+s*.34,y+s*.32);c.lineTo(cx,y+s*.16);c.lineTo(x+s*.66,y+s*.32);c.lineTo(x+s*.82,y+s*.18);c.lineTo(x+s,y+s*.3);c.lineTo(x+s,y);c.lineTo(x,y);c.closePath();c.fill();}
+  if(has('cheeks')){E(x+s*.18,y+s*.48,s*.1,s*.06,'rgba(240,110,130,.55)');E(x+s*.82,y+s*.48,s*.1,s*.06,'rgba(240,110,130,.55)');}
+  if(has('bellcollar')){R(x,y+s*.62,s,s*.08,'#d63a3a');E(cx,y+s*.74,s*.08,s*.08,'#ffd23f');R(cx-s*.05,y+s*.74,s*.1,s*.02,'#a87a0c');}
   if(has('scar')){R(x+s*.58,y+s*.3,s*.26,s*.04,'#3a2a2a');for(let i=0;i<3;i++)R(x+s*(.61+i*.08),y+s*.26,s*.03,s*.12,'#3a2a2a');}
   if(has('flattop')){R(x-s*.02,y-s*.1,s*1.04,s*.2,'#1d1f26');for(let i=0;i<5;i++)R(x+s*(.02+i*.2),y+s*.08,s*.1,s*.06,'#1d1f26');}
   if(has('bolts')){R(x-s*.16,y+s*.42,s*.18,s*.12,'#8a95a3');R(x+s*.98,y+s*.42,s*.18,s*.12,'#8a95a3');}
@@ -498,6 +520,9 @@ function drawHopper(c,px,py,t,face,squash,lift,sk){
   if(has('stem')){R(cx-s*.05,y-s*.18,s*.1,s*.2,'#6b4a2e');E(cx+s*.15,y-s*.12,s*.12,s*.06,'#4caf50');}
   if(has('hat')){TRI(x-s*.08,y+s*.1,cx+s*.06,y-s*.62,x+s*1.08,y+s*.1,sk.hat);R(cx-s*.03,y-s*.3,s*.07,s*.07,'#ffd23f');}
   if(has('tophat')){R(x+s*.1,y-s*.02,s*.8,s*.1,'#1d1f26');R(x+s*.24,y-s*.4,s*.52,s*.4,'#1d1f26');R(x+s*.24,y-s*.12,s*.52,s*.06,'#c0392b');}
+  if(has('mikan')){E(cx,y-s*.08,s*.2,s*.15,'#ff9a1a');R(cx,y-s*.26,s*.16,s*.07,'#4caf50');}
+  if(has('hairbun')){R(x,y-s*.02,s,s*.14,'#1d1f26');E(cx,y-s*.16,s*.2,s*.14,'#1d1f26');R(x,y+s*.1,s*.08,s*.3,'#1d1f26');R(x+s*.92,y+s*.1,s*.08,s*.3,'#1d1f26');}
+  if(has('topspin')){R(cx-s*.04,y-s*.3,s*.08,s*.32,'#6b4a2e');E(cx,y-s*.3,s*.06,s*.04,'#d63a3a');}
   if(has('witchhat')){const hc=sk.hc||'#2a1838';E(cx,y+s*.02,s*.66,s*.13,hc);c.fillStyle=hc;c.beginPath();c.moveTo(x+s*.12,y+s*.04);c.lineTo(x+s*.88,y+s*.04);c.lineTo(cx+s*.1,y-s*.32);c.lineTo(cx+s*.4,y-s*.4);c.lineTo(cx-s*.06,y-s*.4);c.closePath();c.fill();R(x+s*.16,y-s*.12,s*.68,s*.1,sk.hb||'#ff9a2e');}
   if(has('plume'))RR(cx-s*.06,y-s*.42,s*.12,s*.46,s*.06,'#e53935');
   if(has('halo')){c.strokeStyle='#ffd23f';c.lineWidth=s*.07;c.beginPath();c.ellipse(cx,y-s*.3+Math.sin(time*3)*s*.04,s*.3,s*.09,0,0,Math.PI*2);c.stroke();}
@@ -2169,7 +2194,7 @@ function updateDetail(){
   const b=$('dBtn');b.disabled=false;
   if(prog.skin===sk.id){$('dInfo').textContent='いま使っているスキン';b.textContent='装備中';b.disabled=true;}
   else if(own){$('dInfo').textContent='持っているスキン';b.textContent='装備する';}
-  else if(sk.hw&&!HW){$('dInfo').textContent='10月だけ買えるスキン';b.textContent='10月に買えるよ';b.disabled=true;}
+  else if(sk.season&&sk.season!==SEASON){$('dInfo').textContent=SEASON_TXT[sk.season]+'だけ買えるスキン';b.textContent=SEASON_TXT[sk.season]+'に買えるよ';b.disabled=true;}
   else if(prog.wallet>=price){$('dInfo').textContent='値段 '+price+'コイン';b.textContent=price+'コインで買う';}
   else{$('dInfo').textContent='値段 '+price+'コイン';b.textContent='あと'+(price-prog.wallet)+'コイン';b.disabled=true;}
   b.onclick=()=>{
