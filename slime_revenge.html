@@ -153,7 +153,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
         <li><b>移動</b>：画面をドラッグ / WASD・矢印キー</li>
         <li><b>ぽよん（体当たり）</b>：右下ボタン / スペース。突進中は無敵</li>
         <li>倒した敵が落とす<b>ゼリー</b>を集めるとレベルアップ。スキルを選んで強くなる</li>
-        <li>まん中の<b>魔物の拠点</b>を守れ。壊されたらおしまい</li>
+        <li>まん中の<b>魔物の拠点</b>を守れ。壊されたらおしまい。毎ウェーブ<b>15体の仲間</b>が集まってくる</li>
         <li>冒険者が落とす<b>素材</b>（🪵木材・🔩鉄・💎魔石）で、拠点の強化・罠・魔物の仲間を手に入れよう</li>
         <li>買った罠は<b>🪤ボタン / T</b>でスライムの足もとに置ける</li>
         <li>拠点メニューの<b>ダンジョン</b>で、広さ・色・形を変えられる</li>
@@ -394,7 +394,7 @@ const rankOf=lv=>RANKS.reduce((r,[l],i)=>lv>=l?i:r,0);
 const rankName=()=>RANKS[rankOf(B.lv)][1];
 const trapCap=()=>Math.min(40,3+2*(B.lv-1)+dunSize);
 const MON_MAX=200;
-const monCap=()=>Math.min(MON_MAX,5+5*B.lv+3*dunSize);
+const monCap=()=>Math.min(MON_MAX,40+10*B.lv+5*dunSize);
 const baseR=lv=>46+Math.min(150,(lv-1)*9);
 const canPay=c=>!!c&&Object.keys(c).every(k=>inv[k]>=c[k]);
 const pay=c=>{for(const k in c)inv[k]-=c[k]};
@@ -511,7 +511,8 @@ function startWave(n){
 function gatherMonsters(){
   const pool=monPool();
   let n=0;
-  for(let i=0;i<B.lv+depth-1&&allies.length<monCap();i++){addAlly(pool[Math.floor(Math.random()*pool.length)]);n++}
+  const GATHER=15; // 最初から毎ウェーブ15体。拠点Lvと階層でさらに増える
+  for(let i=0;i<GATHER+(B.lv-1)+(depth-1)&&allies.length<MON_MAX;i++){addAlly(pool[Math.floor(Math.random()*pool.length)]);n++}
   if(n)nums.push({x:B.x,y:B.y-B.r-30,v:`魔物が${n}体集まってきた！`,t:2,c:'#c99bff'});
 }
 function addAlly(k){
@@ -1164,7 +1165,7 @@ function renderBase(){
   $('tabNote').textContent=baseTab==='base'?'素材を使って拠点を強くしよう。'
     :baseTab==='dun'?`広さ ${dunSize+1} / ${DUN_MAX+1}・いま地下${depth}階。色と形は素材なしでいつでも変えられる（次のゲームでもそのまま）。`
     :baseTab==='trap'?`罠 ${traps.length+trapStock.length} / ${trapCap()}（置いた罠＋手持ち）。🪤ボタンかTキーでスライムの足もとに置ける。`
-    :`仲間 ${allies.length} / ${monCap()}体。ふつうの魔物は1回で5体。毎ウェーブ「拠点Lv＋階層」の数だけ魔物が集まり、大帝国では無限に生まれる。`;
+    :`仲間 ${allies.length} / ${monCap()}体。ふつうの魔物は1回で5体。毎ウェーブ15体（拠点Lvと階層でさらに増える）の魔物が集まり、大帝国では無限に生まれる。`;
   const box=$('shop');box.innerHTML='';
   baseItems().forEach(it=>{
     const row=document.createElement('div');row.className='item';
