@@ -23,6 +23,9 @@
 /* クリスマス（12月）だけの配色 */
 :root.xm{--night:#13233a;--sun:#ffe27a;--grass:#2f9e5a;--panel:rgba(14,38,32,.92);--line:#2d5a46}
 .xmonly{display:none}:root.xm .xmonly{display:block}
+/* お正月（1月1日〜15日）だけの配色 */
+:root.ny{--night:#2a1214;--sun:#ffd23f;--grass:#d63a3a;--panel:rgba(56,16,18,.92);--line:#6a2a2a}
+.nyonly{display:none}:root.ny .nyonly{display:block}
 html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;font-family:var(--body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #app{position:relative;height:100%}
 #cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
@@ -136,7 +139,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
 
   <div class="ov" id="selectOv">
     <div class="card">
-      <h1>ロードホッパー<small class="hwonly" style="font-size:.55em;color:#c99bff">🎃 ハロウィン 🦇</small><small class="xmonly" style="font-size:.55em;color:#ff8a8a">🎄 クリスマス 🎅</small></h1>
+      <h1>ロードホッパー<small class="hwonly" style="font-size:.55em;color:#c99bff">🎃 ハロウィン 🦇</small><small class="xmonly" style="font-size:.55em;color:#ff8a8a">🎄 クリスマス 🎅</small><small class="nyonly" style="font-size:.55em;color:#ffffff">🎍 お正月 🎍</small></h1>
       <p class="sub">ゴールの旗までたどり着くとクリア。次のステージが解放されます。</p>
       <div class="tabs" role="tablist">
         <button class="tab on" id="tabNormal" type="button" role="tab">ステージ</button>
@@ -238,9 +241,12 @@ const STAGES=[
 // ハロウィンは10月だけ（?halloween=1 / ?halloween=0 で確認用に切り替え）
 // クリスマスは12月だけ（?christmas=1 / ?christmas=0 で確認用に切り替え）
 const XM=(()=>{const q=new URLSearchParams(location.search).get('christmas');if(q==='1')return true;if(q==='0')return false;return new Date().getMonth()===11;})();
-const HW=!XM&&(()=>{const q=new URLSearchParams(location.search).get('halloween');if(q==='1')return true;if(q==='0')return false;return new Date().getMonth()===9;})();
+// お正月は1月1日〜15日（?newyear=1 / ?newyear=0 で確認用に切り替え）
+const NY=!XM&&(()=>{const q=new URLSearchParams(location.search).get('newyear');if(q==='1')return true;if(q==='0')return false;const d=new Date();return d.getMonth()===0&&d.getDate()<=15;})();
+const HW=!XM&&!NY&&(()=>{const q=new URLSearchParams(location.search).get('halloween');if(q==='1')return true;if(q==='0')return false;return new Date().getMonth()===9;})();
 if(HW){document.documentElement.classList.add('hw');document.title='ロードホッパー ハロウィン';}
 if(XM){document.documentElement.classList.add('xm');document.title='ロードホッパー クリスマス';}
+if(NY){document.documentElement.classList.add('ny');document.title='ロードホッパー お正月';}
 
 // ---------- storage ----------
 let prog={unlocked:1,best:{}};
@@ -1590,16 +1596,16 @@ function shadow(cx,cy,w,h){ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.e
 function drawGround(L,r){
   const y=sy(r);
   if(L.type==='grass'){
-    rect(0,y,W,T+1,ST.war?(r%2?'#9a9468':'#918b5f'):(HW?(r%2?'#4d5a3a':'#465334'):XM?(r%2?'#eef3f8':'#e3eaf2'):(r%2?'#8fd062':'#86c75a')));
-    ctx.fillStyle=ST.war?(r%2?'#857f55':'#7d774e'):(HW?(r%2?'#3c4a2c':'#384428'):XM?(r%2?'#cfdbe8':'#c8d4e2'):(r%2?'#7fbe53':'#78b74e'));
+    rect(0,y,W,T+1,ST.war?(r%2?'#9a9468':'#918b5f'):(HW?(r%2?'#4d5a3a':'#465334'):XM?(r%2?'#eef3f8':'#e3eaf2'):NY?(r%2?'#e9dcc0':'#e2d4b6'):(r%2?'#8fd062':'#86c75a')));
+    ctx.fillStyle=ST.war?(r%2?'#857f55':'#7d774e'):(HW?(r%2?'#3c4a2c':'#384428'):XM?(r%2?'#cfdbe8':'#c8d4e2'):NY?(r%2?'#cbbb98':'#c4b490'):(r%2?'#7fbe53':'#78b74e'));
     for(let c=-8;c<COLS+8;c++){const h=((r*73856093)^(c*19349663))>>>0;if(h%5===0)ctx.fillRect(sx(c)+(h%7)/7*T*.7,y+((h>>3)%5)/5*T*.7,T*.12,T*.06);}
     if(L.pits){for(const c of L.pits)pit(c,y);for(const c of L.open)pit(c,y,true);for(const c of L.doors)door(L,c,y,r);}
     if(L.peels)for(const c of L.peels){const x=sx(c);ctx.fillStyle='#ffe066';ctx.beginPath();ctx.ellipse(x+T*.5,y+T*.56,T*.24,T*.1,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e0b020';ctx.fillRect(x+T*.28,y+T*.5,T*.1,T*.18);ctx.fillRect(x+T*.62,y+T*.5,T*.1,T*.18);rect(x+T*.47,y+T*.44,T*.06,T*.08,'#6b4a2e');}
   }else if(L.type==='goal'){
-    rect(0,y,W,T+1,HW?'#4d5a3a':XM?'#eef3f8':'#8fd062');
+    rect(0,y,W,T+1,HW?'#4d5a3a':XM?'#eef3f8':NY?'#e9dcc0':'#8fd062');
     const s=T/3;
-    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2===0)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#ff9a2e':XM?'#ffffff':'#f4f1e8');
-    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#1e1428':XM?'#d63a3a':'#2a2f3b');
+    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2===0)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#ff9a2e':XM?'#ffffff':NY?'#ffffff':'#f4f1e8');
+    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#1e1428':XM?'#d63a3a':NY?'#d63a3a':'#2a2f3b');
   }else if(L.type==='road'){
     rect(0,y,W,T+1,ST.war?'#6a5d4d':HW?'#3e3a4c':'#4b4f5c');
     const up=lanes.get(r+1);
@@ -1652,6 +1658,34 @@ function sandbag(x,y){
 function tree(c,y,r){
   if(ST.war){sandbag(sx(c),y);return;}
   const x=sx(c),h=(Math.imul(c+97,73856093)^Math.imul((r|0)+31,19349663))>>>0;
+  if(NY){
+    const k=h%3;
+    if(k===0){ // 門松
+      shadow(x+T*.5,y+T*.86,T*.38,T*.1);
+      ctx.fillStyle='#2f7d3a';for(const[ox,oy]of[[.28,.34],[.72,.34],[.5,.26]]){ctx.beginPath();ctx.arc(x+T*ox,y+T*oy,T*.16,0,Math.PI*2);ctx.fill();}
+      for(const[ox,top]of[[.36,-.18],[.5,-.34],[.64,-.1]]){rect(x+T*(ox-.06),y+T*top,T*.12,T*.7,'#6fae4a');ctx.fillStyle='#e8f4d0';ctx.beginPath();ctx.ellipse(x+T*ox,y+T*top,T*.06,T*.03,0,0,Math.PI*2);ctx.fill();}
+      rrect(x+T*.18,y+T*.48,T*.64,T*.38,T*.06,'#c9a36a');
+      rect(x+T*.18,y+T*.56,T*.64,T*.05,'#8a6a3a');rect(x+T*.18,y+T*.72,T*.64,T*.05,'#8a6a3a');
+      return;
+    }
+    if(k===1){ // 鏡餅
+      shadow(x+T*.5,y+T*.86,T*.36,T*.1);
+      rect(x+T*.2,y+T*.66,T*.6,T*.2,'#c9a36a');rect(x+T*.16,y+T*.62,T*.68,T*.06,'#e0c08a');
+      ctx.fillStyle='#d63a3a';ctx.beginPath();ctx.moveTo(x+T*.22,y+T*.62);ctx.lineTo(x+T*.5,y+T*.5);ctx.lineTo(x+T*.78,y+T*.62);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#fbf8f0';ctx.beginPath();ctx.ellipse(x+T*.5,y+T*.5,T*.32,T*.13,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#f2ede0';ctx.beginPath();ctx.ellipse(x+T*.5,y+T*.32,T*.24,T*.11,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ff9a1a';ctx.beginPath();ctx.arc(x+T*.5,y+T*.16,T*.1,0,Math.PI*2);ctx.fill();
+      rect(x+T*.52,y+T*.04,T*.1,T*.05,'#4caf50');
+      return;
+    }
+    // 松の木
+    shadow(x+T*.55,y+T*.86,T*.36,T*.1);
+    rect(x+T*.44,y+T*.4,T*.12,T*.48,'#6b4a2e');
+    rrect(x+T*.06,y+T*.28,T*.5,T*.2,T*.1,'#2f7d3a');rrect(x+T*.44,y+T*.1,T*.5,T*.2,T*.1,'#2f7d3a');rrect(x+T*.16,y-T*.1,T*.6,T*.22,T*.11,'#3a9248');
+    const bl=(Math.sin(time*2+c)+1)/2;ctx.fillStyle='rgba(255,170,200,'+(.6+bl*.4)+')';
+    for(const[ox,oy]of[[.2,.3],[.82,.12],[.4,-.06]]){ctx.beginPath();ctx.arc(x+T*ox,y+T*oy,T*.045,0,Math.PI*2);ctx.fill();}
+    return;
+  }
   if(XM){
     const k=h%4;
     if(k===3){ // プレゼント
@@ -1712,7 +1746,7 @@ function flag(c,y){
   const x=sx(c)+T*.45;
   rect(x,y-T*.9,T*.08,T*1.6,'#e9e4d8');
   const wv=Math.sin(time*6)*T*.06;
-  ctx.fillStyle=HW?'#ff9a2e':XM?'#2f9e5a':'#ef4b3f';ctx.beginPath();ctx.moveTo(x+T*.08,y-T*.9);ctx.lineTo(x+T*.7,y-T*.7+wv);ctx.lineTo(x+T*.08,y-T*.45);ctx.closePath();ctx.fill();
+  ctx.fillStyle=HW?'#ff9a2e':XM?'#2f9e5a':NY?'#d63a3a':'#ef4b3f';ctx.beginPath();ctx.moveTo(x+T*.08,y-T*.9);ctx.lineTo(x+T*.7,y-T*.7+wv);ctx.lineTo(x+T*.08,y-T*.45);ctx.closePath();ctx.fill();
 }
 function car(it,y,dir){
   const x=sx(it.x),w=it.len*T,[top,front]=it.col;
@@ -1784,6 +1818,7 @@ function coin(c,y){
   shadow(x,y+T*.75,T*.16,T*.05);
   ctx.fillStyle=HW?'#c35a12':'#d79a12';ctx.beginPath();ctx.ellipse(x,y+T*.42+b,w,T*.22,0,0,Math.PI*2);ctx.fill();
   ctx.fillStyle=HW?'#ff9a2e':'#ffd23f';ctx.beginPath();ctx.ellipse(x,y+T*.4+b,w*.85,T*.19,0,0,Math.PI*2);ctx.fill();
+  if(NY&&w>T*.08){ctx.fillStyle='#b5850e';ctx.beginPath();ctx.ellipse(x,y+T*.4+b,w*.25,T*.05,0,0,Math.PI*2);ctx.fill();}
   if(HW){ctx.fillStyle='#ffe0a0';ctx.beginPath();ctx.ellipse(x,y+T*.35+b,w*.35,T*.06,0,0,Math.PI*2);ctx.fill();}
 }
 function chick(px,py,face,squash,lift){drawHopper(ctx,px,py,T,face,squash,lift,curSkin());}
@@ -2022,6 +2057,7 @@ function draw(){
   drawShots();
   if(HW)halloweenFx(p);
   if(XM)christmasFx();
+  if(NY)newYearFx();
   if(ST.night&&!hasB('sun')){
     const cx=sx(p.x)+T/2,cy=sy(p.r)+T/2;
     const g=ctx.createRadialGradient(cx,cy,T*1.2,cx,cy,T*5);
@@ -2042,6 +2078,26 @@ function draw(){
   }
 }
 
+function newYearFx(){
+  // 初日の出の光
+  const g=ctx.createLinearGradient(0,0,0,T*2.4);g.addColorStop(0,'rgba(255,170,90,.32)');g.addColorStop(1,'rgba(255,170,90,0)');
+  ctx.fillStyle=g;ctx.fillRect(GX,0,GW,T*2.4);
+  // 凧あげ
+  for(let i=0;i<2;i++){
+    const kx=GX+GW*(.25+i*.5)+Math.sin(time*.8+i*2)*T*.6,ky=T*(2.9+i*.6)+Math.sin(time*1.3+i)*T*.25;
+    ctx.save();ctx.translate(kx,ky);ctx.rotate(Math.sin(time*1.1+i)*.15);
+    rect(-T*.32,-T*.4,T*.64,T*.8,'#fbf8f0');rect(-T*.32,-T*.4,T*.64,T*.08,'#d63a3a');rect(-T*.32,T*.32,T*.64,T*.08,'#d63a3a');
+    ctx.fillStyle=i?'#2a6ad6':'#d63a3a';ctx.beginPath();ctx.arc(0,0,T*.17,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#d63a3a';ctx.lineWidth=T*.04;ctx.beginPath();ctx.moveTo(0,T*.4);ctx.quadraticCurveTo(T*.2,T*.8,-T*.1,T*1.2);ctx.stroke();
+    ctx.restore();
+  }
+  // 梅の花びらが舞う
+  ctx.fillStyle='rgba(255,160,190,.85)';
+  for(let i=0;i<22;i++){
+    const xx=GX+(((i*0.618)%1)*GW+Math.sin(time*1.1+i)*T*.6+time*T*.3)%GW,yy=((time*T*(.5+(i%4)*.12)+i*131)%(H+20))-10;
+    ctx.beginPath();ctx.ellipse(xx,yy,T*.07,T*.045,time*2+i,0,Math.PI*2);ctx.fill();
+  }
+}
 function christmasFx(){
   // 雪が降る
   ctx.fillStyle='rgba(255,255,255,.85)';
