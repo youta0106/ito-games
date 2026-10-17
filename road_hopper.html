@@ -1,22 +1,25 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>ロードホッパー ハロウィン</title>
+<title>ロードホッパー</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+Rounded+1c:wght@500;800&display=swap" rel="stylesheet">
 <style>
 /* Layout: full-screen canvas playfield in a centered column; HUD floats on top, cards overlay the middle */
 :root{
-  --night:#1a1226;
+  --night:#1b2230;
   --ink:#fff8e7;
-  --sun:#ff9a2e;
-  --grass:#6b4f8a;
-  --panel:rgba(30,18,44,.92);
-  --line:#4a3460;
+  --sun:#ffd23f;
+  --grass:#8fd062;
+  --panel:rgba(24,30,44,.92);
+  --line:#3a4558;
   --muted:#b8c0cf;
   --display:"DotGothic16","M PLUS Rounded 1c",system-ui,sans-serif;
   --body:"M PLUS Rounded 1c",system-ui,sans-serif;
   color-scheme:dark;
 }
+/* ハロウィン（10月）だけの配色 */
+:root.hw{--night:#1a1226;--sun:#ff9a2e;--grass:#6b4f8a;--panel:rgba(30,18,44,.92);--line:#4a3460}
+.hwonly{display:none}:root.hw .hwonly{display:block}
 html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;font-family:var(--body);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #app{position:relative;height:100%}
 #cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
@@ -130,7 +133,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
 
   <div class="ov" id="selectOv">
     <div class="card">
-      <h1>ロードホッパー<br><small style="font-size:.55em;color:#c99bff">🎃 ハロウィン 🦇</small></h1>
+      <h1>ロードホッパー<small class="hwonly" style="font-size:.55em;color:#c99bff">🎃 ハロウィン 🦇</small></h1>
       <p class="sub">ゴールの旗までたどり着くとクリア。次のステージが解放されます。</p>
       <div class="tabs" role="tablist">
         <button class="tab on" id="tabNormal" type="button" role="tab">ステージ</button>
@@ -228,6 +231,10 @@ const STAGES=[
   {name:'夜の街',      len:60,w:[.25,.4,.2,.15],max:[4,3,2],diff:.75,speed:1.3, creep:.38,night:true,trap:[.28,.25]},
   {name:'ラストラン',  len:80,w:[.2,.38,.25,.17],max:[5,4,2],diff:1,  speed:1.45,creep:.42,trap:[.32,.3]},
 ];
+
+// ハロウィンは10月だけ（?halloween=1 / ?halloween=0 で確認用に切り替え）
+const HW=(()=>{const q=new URLSearchParams(location.search).get('halloween');if(q==='1')return true;if(q==='0')return false;return new Date().getMonth()===9;})();
+if(HW){document.documentElement.classList.add('hw');document.title='ロードホッパー ハロウィン';}
 
 // ---------- storage ----------
 let prog={unlocked:1,best:{}};
@@ -339,7 +346,7 @@ const pSize=()=>hasB('small')?.55:1;
 const coinGain=()=>hasB('double')?2:1;
 
 // ---------- skins ----------
-const RAR={f:{name:'はじめから',price:0,col:'#b8c0cf'},c:{name:'ノーマル',price:10,col:'#cfd6e2'},r:{name:'レア',price:25,col:'#6cc0f0'},e:{name:'エピック',price:50,col:'#b892f0'},l:{name:'レジェンド',price:100,col:'#ffc35a'},m:{name:'ミシック',price:200,col:'#ff7a70'}};
+const RAR={f:{name:'はじめから',price:0,col:'#b8c0cf'},c:{name:'ノーマル',price:10,col:'#cfd6e2'},r:{name:'レア',price:25,col:'#6cc0f0'},e:{name:'エピック',price:50,col:'#b892f0'},l:{name:'レジェンド',price:100,col:'#ffc35a'},m:{name:'ミシック',price:200,col:'#ff7a70'},h:{name:'ハロウィン限定',price:80,col:'#ff9a2e'}};
 const SKINS=[
 {id:'hiyoko',name:'ひよこ',rar:'f',body:'#ffe066',shade:'#eab421',acc:'#ef4b3f',parts:['comb'],mouth:'beak'},
 {id:'ahiru',name:'アヒル',rar:'c',body:'#f7f7f2',shade:'#d4d4ca',parts:[],mouth:'beak',mcol:'#ff9a3d'},
@@ -382,7 +389,24 @@ const SKINS=[
 {id:'gold',name:'ゴールデンひよこ',rar:'m',body:'#ffd23f',shade:'#c99512',acc:'#fff1a8',parts:['comb','sparkle'],mouth:'beak'},
 {id:'rainbow',name:'レインボーひよこ',rar:'m',body:'#ffffff',shade:'#cccccc',rainbow:true,acc:'#ffffff',parts:['comb','sparkle'],mouth:'beak'},
 ];
-const priceOf=sk=>RAR[sk.rar].price;
+// ハロウィン限定: 新しい10種 ＋ 今あるスキン全部の魔女帽子バージョン（10月だけ買える）
+SKINS.push(
+{id:'hw_obake',name:'かぼちゃお化け',rar:'h',body:'#f28c28',shade:'#c86a12',pat:'#d9771c',eye:'#ffe27a',eyes:'glow',alpha:.9,parts:['vstripes','stem','tentacles'],mouth:'teeth'},
+{id:'hw_dracula',name:'ドラキュラ',rar:'h',body:'#e8e4f0',shade:'#bdb6cc',eye:'#e53935',eyes:'glow',parts:['cape','vamphair'],mouth:'fangs'},
+{id:'hw_franken',name:'フランケン',rar:'h',body:'#8fbf6a',shade:'#6a9a48',parts:['flattop','bolts','scar'],mouth:'smile',mcol:'#2e3a22'},
+{id:'hw_mummy',name:'ミイラ',rar:'h',body:'#e8e0c8',shade:'#c8bea0',pat:'#a89a78',eye:'#ffe27a',eyes:'glow',parts:['stripes'],mouth:'none'},
+{id:'hw_wolf',name:'オオカミ男',rar:'h',body:'#7a6a5c',shade:'#58493c',acc:'#7a6a5c',inner:'#c9a882',belly:'#b8a48c',eye:'#ffd23f',eyes:'glow',parts:['ears'],mouth:'fangs'},
+{id:'hw_bat',name:'コウモリ',rar:'h',body:'#4a3a5c',shade:'#30243e',acc:'#4a3a5c',inner:'#c98aa0',eye:'#ff5a5a',eyes:'glow',parts:['batwings','ears'],mouth:'fangs'},
+{id:'hw_kuroneko',name:'黒ネコ',rar:'h',body:'#2a2430',shade:'#17131c',acc:'#2a2430',inner:'#c98aa0',eye:'#ffd23f',eyes:'glow',parts:['ears','witchhat'],mouth:'nose',mcol:'#ff8fa8'},
+{id:'hw_majo',name:'魔女',rar:'h',body:'#9be07a',shade:'#6fb552',hc:'#5b2d86',hb:'#9be07a',parts:['witchhat'],mouth:'smile',mcol:'#2e5e22'},
+{id:'hw_zombie',name:'ゾンビ',rar:'h',body:'#8aa38a',shade:'#627a62',pat:'#5f7a5a',eyes:'hollow',parts:['spots','scar'],mouth:'teeth'},
+{id:'hw_candy',name:'キャンディ',rar:'h',body:'#ff8fc8',shade:'#e0609f',pat:'#ffffff',parts:['stripes','wrapper'],mouth:'smile',mcol:'#a02a60'}
+);
+for(const b of SKINS.filter(k=>!k.hw&&k.rar!=='h'))SKINS.push(Object.assign({},b,{id:b.id+'_hat',name:b.name+'（魔女帽子）',rar:'h',base:b.rar,parts:b.parts.filter(q=>q!=='hat'&&q!=='tophat').concat('witchhat')}));
+for(const k of SKINS)if(k.rar==='h')k.hw=true;
+const priceOf=sk=>sk.base?RAR[sk.base].price+15:RAR[sk.rar].price;
+// 10月以外は、持っていないハロウィン限定スキンはショップに出さない
+const shopSkins=()=>{const v=SKINS.filter(k=>!k.hw||HW||prog.owned.includes(k.id));return HW?v.filter(k=>k.hw).concat(v.filter(k=>!k.hw)):v;};
 const curSkin=()=>SKINS.find(k=>k.id===prog.skin)||SKINS[0];
 
 function drawHopper(c,px,py,t,face,squash,lift,sk){
@@ -401,6 +425,8 @@ function drawHopper(c,px,py,t,face,squash,lift,sk){
   // behind the body
   if(has('cape'))RR(x-s*.08,y+s*.25,s*1.16,s*.78,s*.08,'#c0392b');
   if(has('wings')){const f=Math.sin(time*14)*s*.05,wc=sk.wing||'#ffffff';RR(x-s*.3,y+s*.18-f,s*.34,s*.42,s*.12,wc);RR(x+s*.96,y+s*.18-f,s*.34,s*.42,s*.12,wc);}
+  if(has('batwings')){const f=Math.sin(time*12)*s*.08;TRI(x+s*.06,y+s*.3,x-s*.42,y+s*.04-f,x-s*.3,y+s*.56,shade);TRI(x+s*.06,y+s*.4,x-s*.36,y+s*.5-f*.5,x-s*.1,y+s*.66,shade);TRI(x+s*.94,y+s*.3,x+s*1.42,y+s*.04-f,x+s*1.3,y+s*.56,shade);TRI(x+s*.94,y+s*.4,x+s*1.36,y+s*.5-f*.5,x+s*1.1,y+s*.66,shade);}
+  if(has('wrapper')){TRI(x+s*.02,y+s*.45,x-s*.3,y+s*.22,x-s*.3,y+s*.68,pat);TRI(x+s*.98,y+s*.45,x+s*1.3,y+s*.22,x+s*1.3,y+s*.68,pat);}
   if(has('tail')){R(x+s*.9,y+s*.56,s*.28,s*.08,shade);TRI(x+s*1.14,y+s*.46,x+s*1.34,y+s*.6,x+s*1.14,y+s*.72,shade);}
   if(has('tentacles'))for(let i=0;i<4;i++)RR(x+s*(.02+i*.26),y+s*.82+Math.sin(time*8+i)*s*.03,s*.2,s*.22,s*.08,shade);
   if(has('ears')){TRI(x+s*.02,y+s*.12,x+s*.16,y-s*.24,x+s*.42,y+s*.04,acc);TRI(x+s*.98,y+s*.12,x+s*.84,y-s*.24,x+s*.58,y+s*.04,acc);
@@ -421,6 +447,10 @@ function drawHopper(c,px,py,t,face,squash,lift,sk){
   if(sk.belly)RR(x+s*.2,y+s*.52,s*.6,s*.42,s*.1,sk.belly);
   R(x+s*.15,y+s*.08,s*.25,s*.12,'rgba(255,255,255,.35)');
   if(has('comb')){R(cx-s*.12,y-s*.12,s*.24,s*.16,acc);if(sk.bigcomb)R(cx-s*.2,y-s*.06,s*.4,s*.1,acc);}
+  if(has('scar')){R(x+s*.58,y+s*.3,s*.26,s*.04,'#3a2a2a');for(let i=0;i<3;i++)R(x+s*(.61+i*.08),y+s*.26,s*.03,s*.12,'#3a2a2a');}
+  if(has('flattop')){R(x-s*.02,y-s*.1,s*1.04,s*.2,'#1d1f26');for(let i=0;i<5;i++)R(x+s*(.02+i*.2),y+s*.08,s*.1,s*.06,'#1d1f26');}
+  if(has('bolts')){R(x-s*.16,y+s*.42,s*.18,s*.12,'#8a95a3');R(x+s*.98,y+s*.42,s*.18,s*.12,'#8a95a3');}
+  if(has('vamphair')){R(x,y-s*.04,s,s*.14,'#1d1f26');TRI(cx-s*.14,y+s*.08,cx,y+s*.26,cx+s*.14,y+s*.08,'#1d1f26');}
   if(has('headband')){R(x,y+s*.02,s,s*.1,sk.band);R(x+s*.92,y+s*.04,s*.26,s*.06,sk.band);}
   // face
   let eyes,mx,my,md;
@@ -444,6 +474,7 @@ function drawHopper(c,px,py,t,face,squash,lift,sk){
   else if(mt==='nose')R(mx-s*.05,my-s*.04,s*.1,s*.08,mc);
   else if(mt==='smile')R(mx-s*.1,my-s*.02,s*.2,s*.05,mc);
   else if(mt==='teeth'){R(mx-s*.14,my-s*.05,s*.28,s*.1,'#2a2420');for(let i=0;i<3;i++)R(mx-s*.11+i*s*.09,my-s*.04,s*.05,s*.06,'#f2efe6');}
+  else if(mt==='fangs'){R(mx-s*.12,my-s*.03,s*.24,s*.05,'#5a1a2a');TRI(mx-s*.1,my+s*.01,mx-s*.06,my+s*.12,mx-s*.02,my+s*.01,'#ffffff');TRI(mx+s*.02,my+s*.01,mx+s*.06,my+s*.12,mx+s*.1,my+s*.01,'#ffffff');}
   else if(mt==='carrot'){R(mx-s*.05,my-s*.05,s*.1,s*.1,'#ff7a1a');R(mx+md[0]*s*.1-s*.035,my+md[1]*s*.1-s*.035,s*.07,s*.07,'#ff7a1a');}
   // headwear
   if(has('tufts')){TRI(x,y+s*.08,x+s*.04,y-s*.18,x+s*.26,y+s*.02,acc);TRI(x+s,y+s*.08,x+s*.96,y-s*.18,x+s*.74,y+s*.02,acc);}
@@ -455,6 +486,7 @@ function drawHopper(c,px,py,t,face,squash,lift,sk){
   if(has('stem')){R(cx-s*.05,y-s*.18,s*.1,s*.2,'#6b4a2e');E(cx+s*.15,y-s*.12,s*.12,s*.06,'#4caf50');}
   if(has('hat')){TRI(x-s*.08,y+s*.1,cx+s*.06,y-s*.62,x+s*1.08,y+s*.1,sk.hat);R(cx-s*.03,y-s*.3,s*.07,s*.07,'#ffd23f');}
   if(has('tophat')){R(x+s*.1,y-s*.02,s*.8,s*.1,'#1d1f26');R(x+s*.24,y-s*.4,s*.52,s*.4,'#1d1f26');R(x+s*.24,y-s*.12,s*.52,s*.06,'#c0392b');}
+  if(has('witchhat')){const hc=sk.hc||'#2a1838';E(cx,y+s*.02,s*.66,s*.13,hc);c.fillStyle=hc;c.beginPath();c.moveTo(x+s*.12,y+s*.04);c.lineTo(x+s*.88,y+s*.04);c.lineTo(cx+s*.1,y-s*.32);c.lineTo(cx+s*.4,y-s*.4);c.lineTo(cx-s*.06,y-s*.4);c.closePath();c.fill();R(x+s*.16,y-s*.12,s*.68,s*.1,sk.hb||'#ff9a2e');}
   if(has('plume'))RR(cx-s*.06,y-s*.42,s*.12,s*.46,s*.06,'#e53935');
   if(has('halo')){c.strokeStyle='#ffd23f';c.lineWidth=s*.07;c.beginPath();c.ellipse(cx,y-s*.3+Math.sin(time*3)*s*.04,s*.3,s*.09,0,0,Math.PI*2);c.stroke();}
   if(has('helmet')){c.save();c.globalAlpha=.3;RR(x-s*.1,y-s*.14,s*1.2,s*1.02,s*.32,'#bfe6ff');c.restore();c.strokeStyle='#ffffff';c.lineWidth=s*.05;c.beginPath();if(c.roundRect)c.roundRect(x-s*.1,y-s*.14,s*1.2,s*1.02,s*.32);else c.rect(x-s*.1,y-s*.14,s*1.2,s*1.02);c.stroke();R(x+s*.02,y-s*.04,s*.12,s*.22,'rgba(255,255,255,.6)');}
@@ -1156,7 +1188,7 @@ function hitShot(s){
 // ---------- なかま（AI） ----------
 function makeAIs(){
   ais=[];if(!ST.walk)return;
-  const pool=SKINS.filter(k=>k.id!==prog.skin);
+  const pool=shopSkins().filter(k=>k.id!==prog.skin);
   [2,6,7].forEach((c,i)=>{const sk=pool[Math.floor(Math.random()*pool.length)];
     ais.push({name:AI_NAMES[i],skin:sk,r:0,x:c,fr:0,fx:c,tr:0,tx:c,t:1,face:0,log:false,item:null,alive:true,deadT:0,think:rnd(.3,.8),atk:0,squash:1,inv:0});});
 }
@@ -1552,27 +1584,27 @@ function shadow(cx,cy,w,h){ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.e
 function drawGround(L,r){
   const y=sy(r);
   if(L.type==='grass'){
-    rect(0,y,W,T+1,ST.war?(r%2?'#9a9468':'#918b5f'):r%2?'#4d5a3a':'#465334');
-    ctx.fillStyle=ST.war?(r%2?'#857f55':'#7d774e'):r%2?'#3c4a2c':'#384428';
+    rect(0,y,W,T+1,ST.war?(r%2?'#9a9468':'#918b5f'):(HW?(r%2?'#4d5a3a':'#465334'):(r%2?'#8fd062':'#86c75a')));
+    ctx.fillStyle=ST.war?(r%2?'#857f55':'#7d774e'):(HW?(r%2?'#3c4a2c':'#384428'):(r%2?'#7fbe53':'#78b74e'));
     for(let c=-8;c<COLS+8;c++){const h=((r*73856093)^(c*19349663))>>>0;if(h%5===0)ctx.fillRect(sx(c)+(h%7)/7*T*.7,y+((h>>3)%5)/5*T*.7,T*.12,T*.06);}
     if(L.pits){for(const c of L.pits)pit(c,y);for(const c of L.open)pit(c,y,true);for(const c of L.doors)door(L,c,y,r);}
     if(L.peels)for(const c of L.peels){const x=sx(c);ctx.fillStyle='#ffe066';ctx.beginPath();ctx.ellipse(x+T*.5,y+T*.56,T*.24,T*.1,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e0b020';ctx.fillRect(x+T*.28,y+T*.5,T*.1,T*.18);ctx.fillRect(x+T*.62,y+T*.5,T*.1,T*.18);rect(x+T*.47,y+T*.44,T*.06,T*.08,'#6b4a2e');}
   }else if(L.type==='goal'){
-    rect(0,y,W,T+1,'#4d5a3a');
+    rect(0,y,W,T+1,HW?'#4d5a3a':'#8fd062');
     const s=T/3;
-    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2===0)rect(GX+c*s,y+k*s,s+.5,s+.5,'#ff9a2e');
-    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2)rect(GX+c*s,y+k*s,s+.5,s+.5,'#1e1428');
+    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2===0)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#ff9a2e':'#f4f1e8');
+    for(let c=-24;c<COLS*3+24;c++)for(let k=0;k<3;k++)if((c+k)%2)rect(GX+c*s,y+k*s,s+.5,s+.5,HW?'#1e1428':'#2a2f3b');
   }else if(L.type==='road'){
-    rect(0,y,W,T+1,ST.war?'#6a5d4d':'#3e3a4c');
+    rect(0,y,W,T+1,ST.war?'#6a5d4d':HW?'#3e3a4c':'#4b4f5c');
     const up=lanes.get(r+1);
     if(up&&up.type==='road'){ctx.fillStyle='#e6e3d6';for(let c=-8;c<COLS+8;c++)ctx.fillRect(sx(c)+T*.25,y-T*.03,T*.5,T*.06);}
     else rect(0,y,W,T*.07,'#6d7280');
     const dn=lanes.get(r-1);if(!dn||dn.type!=='road')rect(0,y+T*.93,W,T*.07,'#3a3d48');
   }else if(L.type==='river'){
-    rect(0,y,W,T+1,'#5a3a8c');
-    ctx.fillStyle='rgba(170,255,140,.2)';
+    rect(0,y,W,T+1,HW?'#5a3a8c':'#3d97df');
+    ctx.fillStyle=HW?'rgba(170,255,140,.2)':'rgba(255,255,255,.18)';
     for(let i=0;i<6;i++){const ph=((time*L.dir*L.speed*.5+i*2.3+r*1.7)%(COLS+10)+(COLS+10))%(COLS+10)-5;ctx.fillRect(sx(ph),y+T*(.2+(i%3)*.27),T*.6,T*.05);}
-    const up=lanes.get(r+1);if(up&&up.type!=='river')rect(0,y,W,T*.08,'rgba(30,10,60,.4)');
+    const up=lanes.get(r+1);if(up&&up.type!=='river')rect(0,y,W,T*.08,HW?'rgba(30,10,60,.4)':'rgba(20,60,110,.35)');
   }else{
     rect(0,y,W,T+1,'#9a8a78');
     ctx.fillStyle='#6b5240';for(let c=-8;c<COLS+8;c++)ctx.fillRect(sx(c)+T*.2,y+T*.12,T*.2,T*.76);
@@ -1614,6 +1646,14 @@ function sandbag(x,y){
 function tree(c,y,r){
   if(ST.war){sandbag(sx(c),y);return;}
   const x=sx(c),h=(Math.imul(c+97,73856093)^Math.imul((r|0)+31,19349663))>>>0;
+  if(!HW){
+    shadow(x+T*.55,y+T*.86,T*.36,T*.1);
+    rect(x+T*.4,y+T*.55,T*.2,T*.32,'#7a4b2a');
+    rrect(x+T*.14,y-T*.22,T*.72,T*.62,T*.08,'#4caf50');
+    rect(x+T*.14,y+T*.32,T*.72,T*.26,'#2f7d3a');
+    rect(x+T*.22,y-T*.14,T*.22,T*.12,'rgba(255,255,255,.18)');
+    return;
+  }
   const k=h%3;
   if(k===0){ // ジャック・オー・ランタン
     shadow(x+T*.5,y+T*.86,T*.4,T*.1);
@@ -1645,7 +1685,7 @@ function flag(c,y){
   const x=sx(c)+T*.45;
   rect(x,y-T*.9,T*.08,T*1.6,'#e9e4d8');
   const wv=Math.sin(time*6)*T*.06;
-  ctx.fillStyle='#ff9a2e';ctx.beginPath();ctx.moveTo(x+T*.08,y-T*.9);ctx.lineTo(x+T*.7,y-T*.7+wv);ctx.lineTo(x+T*.08,y-T*.45);ctx.closePath();ctx.fill();
+  ctx.fillStyle=HW?'#ff9a2e':'#ef4b3f';ctx.beginPath();ctx.moveTo(x+T*.08,y-T*.9);ctx.lineTo(x+T*.7,y-T*.7+wv);ctx.lineTo(x+T*.08,y-T*.45);ctx.closePath();ctx.fill();
 }
 function car(it,y,dir){
   const x=sx(it.x),w=it.len*T,[top,front]=it.col;
@@ -1715,16 +1755,11 @@ function bigCoin(c,y){
 function coin(c,y){
   const x=sx(c)+T/2,b=Math.sin(time*4+c)*T*.05,w=Math.abs(Math.cos(time*3+c))*T*.2+T*.04;
   shadow(x,y+T*.75,T*.16,T*.05);
-  ctx.fillStyle='#c35a12';ctx.beginPath();ctx.ellipse(x,y+T*.42+b,w,T*.22,0,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#ff9a2e';ctx.beginPath();ctx.ellipse(x,y+T*.4+b,w*.85,T*.19,0,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#ffe0a0';ctx.beginPath();ctx.ellipse(x,y+T*.35+b,w*.35,T*.06,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=HW?'#c35a12':'#d79a12';ctx.beginPath();ctx.ellipse(x,y+T*.42+b,w,T*.22,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=HW?'#ff9a2e':'#ffd23f';ctx.beginPath();ctx.ellipse(x,y+T*.4+b,w*.85,T*.19,0,0,Math.PI*2);ctx.fill();
+  if(HW){ctx.fillStyle='#ffe0a0';ctx.beginPath();ctx.ellipse(x,y+T*.35+b,w*.35,T*.06,0,0,Math.PI*2);ctx.fill();}
 }
-function chick(px,py,face,squash,lift){drawHopper(ctx,px,py,T,face,squash,lift,curSkin());witchHat(px+T/2,py+T*.12-lift*T);}
-function witchHat(cx,by){
-  ctx.fillStyle='#2a1838';ctx.beginPath();ctx.ellipse(cx,by,T*.34,T*.08,0,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.moveTo(cx-T*.2,by);ctx.lineTo(cx+T*.2,by);ctx.lineTo(cx+T*.08,by-T*.34);ctx.lineTo(cx+T*.26,by-T*.46);ctx.lineTo(cx-T*.02,by-T*.4);ctx.closePath();ctx.fill();
-  rect(cx-T*.19,by-T*.1,T*.38,T*.07,'#ff9a2e');
-}
+function chick(px,py,face,squash,lift){drawHopper(ctx,px,py,T,face,squash,lift,curSkin());}
 function circ(x,y,r,c){ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
 function eye2(x,y,c){rect(x,y,T*.08,T*.09,c||'#1d1f26');}
 function statusFx(px,py){
@@ -1958,7 +1993,7 @@ function draw(){
     else drawEn(e,sx(e.x),sy(e.r),'a');
   }
   drawShots();
-  halloweenFx(p);
+  if(HW)halloweenFx(p);
   if(ST.night&&!hasB('sun')){
     const cx=sx(p.x)+T/2,cy=sy(p.r)+T/2;
     const g=ctx.createRadialGradient(cx,cy,T*1.2,cx,cy,T*5);
@@ -2018,7 +2053,7 @@ function openShop(){
 function closeShop(){$('shopOv').hidden=true;openSelect();}
 function buildSkins(){
   const g=$('skins');g.innerHTML='';
-  for(const sk of SKINS){
+  for(const sk of shopSkins()){
     const own=prog.owned.includes(sk.id);
     const b=document.createElement('button');b.type='button';b.id='skin-'+sk.id;
     b.className='sk'+(own?' own':' lock')+(prog.skin===sk.id?' on':'')+(shopSel===sk.id?' sel':'');
@@ -2030,7 +2065,7 @@ function buildSkins(){
     g.appendChild(b);
     paint(prep(cnv,52),52,sk,2,0);
   }
-  $('ownCount').textContent='所持スキン '+prog.owned.length+' / '+SKINS.length;
+  $('ownCount').textContent='所持スキン '+prog.owned.length+' / '+shopSkins().length;
 }
 function updateDetail(){
   const sk=SKINS.find(k=>k.id===shopSel)||SKINS[0],own=prog.owned.includes(sk.id),price=priceOf(sk);
@@ -2039,6 +2074,7 @@ function updateDetail(){
   const b=$('dBtn');b.disabled=false;
   if(prog.skin===sk.id){$('dInfo').textContent='いま使っているスキン';b.textContent='装備中';b.disabled=true;}
   else if(own){$('dInfo').textContent='持っているスキン';b.textContent='装備する';}
+  else if(sk.hw&&!HW){$('dInfo').textContent='10月だけ買えるスキン';b.textContent='10月に買えるよ';b.disabled=true;}
   else if(prog.wallet>=price){$('dInfo').textContent='値段 '+price+'コイン';b.textContent=price+'コインで買う';}
   else{$('dInfo').textContent='値段 '+price+'コイン';b.textContent='あと'+(price-prog.wallet)+'コイン';b.disabled=true;}
   b.onclick=()=>{
