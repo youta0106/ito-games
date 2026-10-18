@@ -112,6 +112,11 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
 .opt.on{border-color:var(--slime);background:rgba(123,227,106,.12)}
 .opt:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
 .opt canvas{width:36px;height:36px}
+.btn.stress{background:#ff4a6a;color:#fff;box-shadow:0 5px 0 #a0203a}
+.btn.stress:active{box-shadow:0 2px 0 #a0203a}
+.combo{font-family:var(--display);font-size:22px;color:#ff8aa0;text-shadow:0 3px 0 rgba(0,0,0,.5);font-variant-numeric:tabular-nums}
+.combo:empty{display:none}
+.hud.stress .bar,.hud.stress .hpnum,.hud.stress .lbl,.hud.stress .mats,.hud.stress .skrow,.hud.stress .wave{display:none}
 .best{font-family:var(--display);font-size:13px;color:var(--muted)}
 .title-slime{width:120px;height:90px}
 </style>
@@ -132,6 +137,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
     <div class="right">
       <div class="wave">WAVE <span id="waveN">1</span> <small id="floorN">地下1階</small></div>
       <div class="kills">たおした数 <span id="killN">0</span></div>
+      <div class="combo" id="combo"></div>
       <div class="small-btns">
         <button class="mini" id="mute" type="button">音 ON</button>
         <button class="mini" id="pauseBtn" type="button">ポーズ</button>
@@ -162,7 +168,12 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
         <li>拠点は 巣 → 砦 → 城 → 魔王城 → <b>魔物大帝国</b> へ育つ。大帝国では魔物が無限に生まれる</li>
       </ul>
       <div class="best" id="bestLbl"></div>
-      <button class="btn" id="startBtn" type="button">逆襲をはじめる</button>
+      <div class="row">
+        <button class="btn" id="startBtn" type="button">逆襲をはじめる</button>
+        <button class="btn stress" id="stressBtn" type="button">超ストレス発散モード</button>
+      </div>
+      <p class="sub">超ストレス発散モード：仲間なし・拠点なし。100体以上の敵が押し寄せる。<br>スライムは無敵。体当たりで最強の衝撃波、ぶつかってきた敵も一撃！</p>
+      <div class="best" id="stressBest"></div>
     </div>
   </div>
 
@@ -476,7 +487,12 @@ const UPS=[
 ];
 
 /* ---------- ゲーム状態 ---------- */
-let state='title',T=0,shake=0,gid=0;
+let state='title',T=0,shake=0,gid=0,mode='normal';
+// 超ストレス発散モード
+const STRESS_N=140;
+let combo=0,comboT=0,maxCombo=0,stressBest=0;
+try{stressBest=+localStorage.getItem('slime-revenge-stress')||0}catch(e){}
+function saveStress(){if(kills>stressBest){stressBest=kills;try{localStorage.setItem('slime-revenge-stress',String(kills))}catch(e){}return true}return false}
 let P,B,inv,traps,trapStock,allies,mats,enemies,shots,pshots,gems,puddles,parts,nums,orbs;
 let wave,queue,spawnT,waveState,waveT,kills,pending,skills,depth=1;
 
@@ -490,6 +506,14 @@ function newGame(){
   enemies=[];shots=[];pshots=[];gems=[];puddles=[];parts=[];nums=[];orbs=[];
   kills=0;pending=0;skills={};T=0;gid++;
   UPS.forEach(u=>skills[u.id]=0);EVSK.forEach(u=>skills[u.id]=0);
+  combo=0;comboT=0;maxCombo=0;
+  if(mode==='stress'){
+    // 仲間も拠点もなし。スライムは無敵で、見た目は最終進化
+    B.x=B.y=-1e6;B.tower=0;wave=25;depth=1;HALF=halfOf(4);queue=[];waveState='stress';spawnT=0;
+    P.form='inferno';P.ev.size=8;P.spd=240;P.dashCd=.3;
+    showBanner('超ストレス発散モード！','押し寄せる敵をぶっとばせ！',false);
+    return;
+  }
   startWave(1);
 }
 
@@ -586,6 +610,14 @@ function dash(){
   const sp=560+skills.spd*25;
   P.dvx=P.fx*sp;P.dvy=P.fy*sp;P.dashT=.22;P.cd=P.dashCd;P.hitSet=new Set();P.sq=1;
   sfx('dash');
+  if(mode==='stress')megaBlast();
+}
+// 最強衝撃波：まわりの敵をすべて一撃
+function megaBlast(){
+  const R=340;
+  parts.push({ring:true,x:P.x,y:P.y,t:.45,max:.45,R,c:'#ff4a6a'},{ring:true,x:P.x,y:P.y,t:.3,max:.3,R:R*.6,c:'#ffd23f'});
+  shake=reduceMotion?0:10;sfx('boss');
+  for(const e of enemies)if(!e.dead&&Math.hypot(e.x-P.x,e.y-P.y)<R+e.r){const a=Math.atan2(e.y-P.y,e.x-P.x);hurtEnemy(e,1e15,Math.cos(a)*900,Math.sin(a)*900)}
 }
 
 /* ---------- ダメージ処理 ---------- */
@@ -595,10 +627,16 @@ function hurtEnemy(e,d,kx,ky){
   e.hp-=d;e.hit=.12;
   const kb=e.D.boss?.2:e.type==='knight'?.45:1;
   e.kx+=kx*kb;e.ky+=ky*kb;
-  nums.push({x:e.x+rnd(-6,6),y:e.y-e.r-8,v:Math.round(d),t:.7,c:'#fff'});
+  if(mode!=='stress')nums.push({x:e.x+rnd(-6,6),y:e.y-e.r-8,v:Math.round(d),t:.7,c:'#fff'});
   if(e.hp<=0)killEnemy(e);
 }
 function killEnemy(e){
+  if(mode==='stress'){
+    e.dead=true;kills++;combo++;comboT=1.6;maxCombo=Math.max(maxCombo,combo);sfx('kill');
+    if(parts.length<900)for(let i=0;i<6;i++)parts.push({x:e.x,y:e.y,vx:rnd(-260,260),vy:rnd(-260,260),t:rnd(.3,.6),c:i%2?e.D.col:'#ffd23f',r:rnd(2,5)});
+    if(e.D.boss)showBanner(`${e.name}も一撃！`,'',false);
+    updateHud();return;
+  }
   e.dead=true;kills++;sfx('kill');
   for(let i=0;i<10;i++)parts.push({x:e.x,y:e.y,vx:rnd(-160,160),vy:rnd(-160,160),t:rnd(.3,.6),c:e.D.col,r:rnd(2,5)});
   const xp=e.D.xp*(e.bd?1+e.bd.mul:1)*(1+wave*.015),n=e.D.boss?14:Math.max(1,Math.round(e.D.xp));
@@ -618,6 +656,7 @@ function healPlayer(v){
   if(P.hp>before+.5)nums.push({x:P.x,y:P.y-P.r-10,v:'+'+Math.round(P.hp-before),t:.7,c:'#7be36a'});
 }
 function hitPlayer(d,fx,fy){
+  if(mode==='stress')return; // 無敵
   if(P.inv>0||P.dashT>0||P.dead)return;
   d*=1-clamp(P.ev.armor,0,.6);
   P.hp-=d;P.inv=.75;shake=reduceMotion?0:9;sfx('hurt');
@@ -627,7 +666,7 @@ function hitPlayer(d,fx,fy){
   updateHud();
 }
 function hitBase(d){
-  if(B.hp<=0)return;
+  if(mode==='stress'||B.hp<=0)return;
   d*=.6;B.hp-=d;B.hit=.15;
   nums.push({x:B.x+rnd(-20,20),y:B.y-B.r,v:Math.round(d),t:.7,c:'#ff9ad0'});
   if(B.hp<=0){
@@ -892,7 +931,12 @@ function update(dt){
   traps=traps.filter(tp=>!tp.used&&(tp.type!=='spike'||tp.uses>0)&&(tp.type!=='swamp'||tp.t>0));
 
   // ウェーブ進行
-  if(waveState==='banner'){waveT-=dt;if(waveT<=0)waveState='fight'}
+  if(waveState==='stress'){
+    comboT-=dt;if(comboT<=0&&combo){combo=0;updateHud()}
+    const pool=enemyPool(25).filter(t=>t!=='cannon');
+    for(let i=0;i<8&&enemies.length<STRESS_N;i++)spawn(kills>0&&kills%150<8&&!enemies.some(e=>e.D.boss)?'hero':pool[Math.floor(Math.random()*pool.length)]);
+    $('bossBox').hidden=true;
+  }else if(waveState==='banner'){waveT-=dt;if(waveT<=0)waveState='fight'}
   else if(waveState==='fight'){
     spawnT-=dt;
     if(queue.length&&spawnT<=0){spawn(queue.shift());spawnT=Math.max(.18,.95-wave*.04)/SPAWN_MUL}
@@ -917,7 +961,7 @@ function update(dt){
     }
     // いちばん近い相手（スライム・拠点・仲間の魔物）をねらう。遠くから撃つ敵は拠点をねらわない
     let tg=P.dead?B:P,td=Math.hypot(tg.x-e.x,tg.y-e.y);
-    if(e.D.siege){tg=B;td=0}
+    if(e.D.siege&&mode!=='stress'){tg=B;td=0}
     else if(!e.D.range&&!P.dead){const bd=Math.hypot(B.x-e.x,B.y-e.y)-B.r;if(bd<td){tg=B;td=bd}}
     if(!e.D.siege){let td2=td*td;for(const a of allies){const ax=a.x-e.x,ay=a.y-e.y,ad2=ax*ax+ay*ay;if(ad2<td2){tg=a;td2=ad2}}td=Math.sqrt(td2)}
     const dx=tg.x-e.x,dy=tg.y-e.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d;
@@ -1014,6 +1058,7 @@ function update(dt){
     }
     // プレイヤーとの接触
     const cd=Math.hypot(P.x-e.x,P.y-e.y);
+    if(cd<P.r+e.r&&mode==='stress'){const a=Math.atan2(e.y-P.y,e.x-P.x);hurtEnemy(e,1e15,Math.cos(a)*700,Math.sin(a)*700);sfx('hit');continue}
     if(cd<P.r+e.r){
       if(P.dashT>0){
         if(!P.hitSet.has(e)){
@@ -1100,6 +1145,8 @@ function renderHud(){
   $('hpFill').style.width=hpP+'%';$('hpFill').classList.toggle('low',hpP<30);
   $('hpNum').textContent=`${Math.ceil(P.hp)} / ${Math.round(P.maxHp)}`;
   $('xpFill').style.width=Math.min(100,P.xp/P.next*100)+'%';
+  $('hud').classList.toggle('stress',mode==='stress');
+  $('combo').textContent=mode==='stress'&&combo>1?`${combo} コンボ！`:'';
   $('waveN').textContent=wave;$('killN').textContent=kills;$('floorN').textContent=`地下${depth}階`;$('rankLbl').textContent=`${rankName()} Lv${B.lv}・仲間${allies.length}`;
   const bp=B.hp/B.maxHp*100;
   $('baseFill').style.width=bp+'%';$('baseFill').classList.toggle('low',bp<30);
@@ -1680,9 +1727,9 @@ function draw(){
   // 酸
   for(const p of puddles){ctx.fillStyle=`rgba(140,255,90,${.28*p.t/p.max})`;ctx.beginPath();ctx.ellipse(p.x,p.y,p.r,p.r*.6,0,0,Math.PI*2);ctx.fill()}
   // 拠点のまわり（メニューを開ける範囲）
-  ctx.strokeStyle=nearBase()?'rgba(201,155,255,.55)':'rgba(201,155,255,.18)';ctx.lineWidth=2;ctx.setLineDash([8,8]);
+  if(mode!=='stress'){ctx.strokeStyle=nearBase()?'rgba(201,155,255,.55)':'rgba(201,155,255,.18)';ctx.lineWidth=2;ctx.setLineDash([8,8]);
   ctx.beginPath();ctx.arc(B.x,B.y,B.r+110,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
-  if(B.fount){ctx.fillStyle='rgba(140,220,255,.06)';ctx.beginPath();ctx.arc(B.x,B.y,B.r+100,0,Math.PI*2);ctx.fill()}
+  if(B.fount){ctx.fillStyle='rgba(140,220,255,.06)';ctx.beginPath();ctx.arc(B.x,B.y,B.r+100,0,Math.PI*2);ctx.fill()}}
   for(const tp of traps)drawTrap(tp);
   for(const m of mats)drawMat(m);
   // ゼリー
@@ -1701,7 +1748,7 @@ function draw(){
   // キャラ（y順）
   const inView=o=>o.x>cx-80&&o.x<cx+vw+80&&o.y>cy-120&&o.y<cy+vh+80; // 画面外は描かない
   const list=enemies.filter(inView).map(e=>({y:e.y,f:()=>drawEnemy(e)}));
-  list.push({y:-1e9,f:drawBase}); // 大きな城でキャラがかくれないよう、いつも先に描く
+  if(mode!=='stress')list.push({y:-1e9,f:drawBase}); // 大きな城でキャラがかくれないよう、いつも先に描く
   for(const a of allies)if(inView(a))list.push({y:a.y,f:()=>drawAlly(a)});
   list.push({y:P.y,f:()=>{
     if(P.dead){ctx.globalAlpha=.5}
@@ -1733,7 +1780,7 @@ function draw(){
   ctx.globalAlpha=1;
   ctx.restore();
   // 画面外の拠点を指す矢印
-  {
+  if(mode!=='stress'){
     const sx=(B.x-cx)*Z,sy=(B.y-cy)*Z,m=36;
     if(sx<-B.r*Z||sx>W+B.r*Z||sy<-B.r*Z||sy>H+B.r*Z){
       const a=Math.atan2(sy-H/2,sx-W/2),k=Math.min((W/2-m)/Math.abs(Math.cos(a)||1e-6),(H/2-m-60)/Math.abs(Math.sin(a)||1e-6));
@@ -1760,8 +1807,9 @@ function draw(){
 }
 
 /* ---------- 画面遷移 ---------- */
-function setHud(on){$('hud').hidden=!on;$('dashBtn').hidden=!on;$('trapBtn').hidden=!on;if(!on)$('baseBtn').hidden=true;lastNear=null;lastTrap=''}
-function startGame(){
+function setHud(on){$('hud').hidden=!on;$('dashBtn').hidden=!on;$('trapBtn').hidden=!on||mode==='stress';if(!on)$('baseBtn').hidden=true;lastNear=null;lastTrap=''}
+function startGame(m){
+  mode=m;
   newGame();
   ['titleOv','endOv','pauseOv','levelOv','baseOv'].forEach(id=>$(id).hidden=true);baseTab='base';
   $('bossBox').hidden=true;setHud(true);state='play';lastP=-1;updateHud();
@@ -1771,7 +1819,8 @@ function togglePause(){
   if(state==='play'){
     state='pause';joy=null;
     const owned=UPS.concat(EVSK).filter(u=>skills[u.id]).map(u=>`${u.ic}${u.name} Lv${skills[u.id]}`);
-    $('pauseSkills').textContent=`進化：スライム${P.path.map(n=>' → '+n).join('')}\n`+(owned.length?owned.join('　'):'まだスキルはない');
+    if(mode==='stress')$('pauseSkills').textContent=`撃破 ${kills}体・最大 ${maxCombo} コンボ\nベスト ${Math.max(stressBest,kills)}体`;
+    else $('pauseSkills').textContent=`進化：スライム${P.path.map(n=>' → '+n).join('')}\n`+(owned.length?owned.join('　'):'まだスキルはない');
     $('pauseOv').hidden=false;$('resumeBtn').focus({preventScroll:true});
   }else if(state==='pause'){$('pauseOv').hidden=true;state='play'}
 }
@@ -1789,12 +1838,15 @@ function endGame(win,why){
   $('endOv').hidden=false;$('retryBtn').focus({preventScroll:true});
 }
 function toTitle(){
+  if(mode==='stress'&&P)saveStress();
   state='title';setHud(false);$('bossBox').hidden=true;$('banner').hidden=true;
   ['endOv','pauseOv','levelOv','baseOv'].forEach(id=>$(id).hidden=true);
   $('titleOv').hidden=false;showBest();P=null;
 }
-function showBest(){$('bestLbl').textContent=best.wave?`ベスト：WAVE ${best.wave}（地下${best.depth||1+Math.floor((best.wave-1)/5)}階）・${best.kills}体`:''}
-$('startBtn').onclick=startGame;$('retryBtn').onclick=startGame;
+function showBest(){$('stressBest').textContent=stressBest?`超ストレス発散ベスト：${stressBest}体`:'';showBestN()}
+function showBestN(){$('bestLbl').textContent=best.wave?`ベスト：WAVE ${best.wave}（地下${best.depth||1+Math.floor((best.wave-1)/5)}階）・${best.kills}体`:''}
+$('startBtn').onclick=()=>startGame('normal');$('retryBtn').onclick=()=>startGame(mode);
+$('stressBtn').onclick=()=>startGame('stress');
 $('toTitle').onclick=toTitle;$('quitBtn').onclick=toTitle;
 $('resumeBtn').onclick=togglePause;$('pauseBtn').onclick=togglePause;
 showBest();
