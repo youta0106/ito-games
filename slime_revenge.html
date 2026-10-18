@@ -86,6 +86,10 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
 .trapbtn{position:absolute;right:calc(max(20px,env(safe-area-inset-right,0px)) + 14px);bottom:calc(134px + env(safe-area-inset-bottom,0px));width:64px;height:64px;border-radius:50%;border:3px solid rgba(255,255,255,.3);background:rgba(0,0,0,.55);color:var(--ink);font-size:22px;line-height:1;touch-action:none;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.4)}
 .trapbtn small{display:block;font-family:var(--display);font-size:11px;margin-top:2px}
 .trapbtn.empty{opacity:.45}
+.bombbtn{position:absolute;right:calc(max(20px,env(safe-area-inset-right,0px)) + 8px);bottom:calc(134px + env(safe-area-inset-bottom,0px));width:76px;height:76px;border-radius:50%;border:3px solid rgba(255,255,255,.35);background:conic-gradient(rgba(255,74,106,.9) calc(var(--p,1)*360deg),rgba(0,0,0,.5) 0);color:#fff;font-family:var(--display);font-size:15px;line-height:1.1;touch-action:none;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.4)}
+.bombbtn small{display:block;font-size:10px;opacity:.8}
+.bombbtn.cool{color:var(--muted)}
+.bombbtn:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
 .basebtn{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(34px + env(safe-area-inset-bottom,0px));font-family:var(--body);font-weight:800;font-size:16px;color:#fff;background:var(--demon);border:none;border-radius:999px;padding:12px 22px;box-shadow:0 5px 0 #4a2380;cursor:pointer;white-space:nowrap}
 .basebtn:active{transform:translate(-50%,3px);box-shadow:0 2px 0 #4a2380}
 .basebtn:focus-visible,.tab:focus-visible,.buy:focus-visible,.trapbtn:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
@@ -116,7 +120,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
 .btn.stress:active{box-shadow:0 2px 0 #a0203a}
 .combo{font-family:var(--display);font-size:22px;color:#ff8aa0;text-shadow:0 3px 0 rgba(0,0,0,.5);font-variant-numeric:tabular-nums}
 .combo:empty{display:none}
-.hud.stress .bar,.hud.stress .hpnum,.hud.stress .lbl,.hud.stress .mats,.hud.stress .skrow,.hud.stress .wave{display:none}
+.hud.stress .bar:not(.xp),.hud.stress .hpnum,.hud.stress .lbl,.hud.stress .mats,.hud.stress .skrow,.hud.stress .wave{display:none}
 .best{font-family:var(--display);font-size:13px;color:var(--muted)}
 .title-slime{width:120px;height:90px}
 </style>
@@ -147,6 +151,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
   <div class="boss" id="bossBox" hidden><span id="bossName">勇者</span><div class="bar"><i id="bossFill"></i></div></div>
   <div class="banner" id="banner" hidden></div>
   <button class="dashbtn" id="dashBtn" type="button" hidden>ぽよん<small>体当たり</small></button>
+  <button class="bombbtn" id="bombBtn" type="button" hidden>大爆発<small>B キー</small></button>
   <button class="trapbtn empty" id="trapBtn" type="button" hidden aria-label="罠を置く">🪤<small id="trapCnt">0</small></button>
   <button class="basebtn" id="baseBtn" type="button" hidden>🏰 拠点メニュー</button>
 
@@ -172,7 +177,7 @@ html,body{height:100%;background:var(--night);color:var(--ink);overflow:hidden;f
         <button class="btn" id="startBtn" type="button">逆襲をはじめる</button>
         <button class="btn stress" id="stressBtn" type="button">超ストレス発散モード</button>
       </div>
-      <p class="sub">超ストレス発散モード：仲間なし・拠点なし。100体以上の敵が押し寄せる。<br>スライムは無敵。体当たりで最強の衝撃波、ぶつかってきた敵も一撃！</p>
+      <p class="sub">超ストレス発散モード：仲間なし・拠点なし。100体以上の敵が押し寄せる。<br>スライムは無敵。体当たりで最強の衝撃波、ぶつかってきた敵も一撃！<br>「大爆発」ボタンで空高く飛び上がり、ダンジョン全体を吹き飛ばせ！</p>
       <div class="best" id="stressBest"></div>
     </div>
   </div>
@@ -490,7 +495,8 @@ const UPS=[
 let state='title',T=0,shake=0,gid=0,mode='normal';
 // 超ストレス発散モード
 const STRESS_N=140;
-let combo=0,comboT=0,maxCombo=0,stressBest=0;
+let combo=0,comboT=0,maxCombo=0,stressBest=0,bigT=0,bigCd=0,flash=0;
+const BIG_CD=6,BIG_LEN=1.3,BIG_AT=.75; // 大爆発：待ち時間・全体の長さ・爆発するタイミング（残り時間）
 try{stressBest=+localStorage.getItem('slime-revenge-stress')||0}catch(e){}
 function saveStress(){if(kills>stressBest){stressBest=kills;try{localStorage.setItem('slime-revenge-stress',String(kills))}catch(e){}return true}return false}
 let P,B,inv,traps,trapStock,allies,mats,enemies,shots,pshots,gems,puddles,parts,nums,orbs;
@@ -506,7 +512,7 @@ function newGame(){
   enemies=[];shots=[];pshots=[];gems=[];puddles=[];parts=[];nums=[];orbs=[];
   kills=0;pending=0;skills={};T=0;gid++;
   UPS.forEach(u=>skills[u.id]=0);EVSK.forEach(u=>skills[u.id]=0);
-  combo=0;comboT=0;maxCombo=0;
+  combo=0;comboT=0;maxCombo=0;bigT=0;bigCd=0;flash=0;
   if(mode==='stress'){
     // 仲間も拠点もなし。スライムは無敵で、見た目は最終進化
     B.x=B.y=-1e6;B.tower=0;wave=25;depth=1;HALF=halfOf(4);queue=[];waveState='stress';spawnT=0;
@@ -580,6 +586,7 @@ addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();keys[k]=true;
   if(state==='play'&&(k===' '||k==='shift'||k==='j'||k==='z')){dash();e.preventDefault()}
   if(state==='play'&&k==='t')placeTrap();
+  if(state==='play'&&(k==='b'||k==='x'))bigBoom();
   if(state==='play'&&k==='e'&&nearBase())openBase();
   else if(state==='base'&&(k==='e'||k==='escape')){closeBase();return}
   if((k==='escape'||k==='p')&&(state==='play'||state==='pause'))togglePause();
@@ -601,16 +608,31 @@ const endJoy=e=>{if(joy&&e.pointerId===joy.id)joy=null};
 cv.addEventListener('pointerup',endJoy);cv.addEventListener('pointercancel',endJoy);
 $('dashBtn').addEventListener('pointerdown',e=>{e.preventDefault();dash()});
 $('dashBtn').addEventListener('click',e=>{if(e.detail===0)dash()}); // keyboard activation
+$('bombBtn').addEventListener('pointerdown',e=>{e.preventDefault();bigBoom()});
+$('bombBtn').addEventListener('click',e=>{if(e.detail===0)bigBoom()});
 $('trapBtn').addEventListener('pointerdown',e=>{e.preventDefault();placeTrap()});
 $('trapBtn').addEventListener('click',e=>{if(e.detail===0)placeTrap()});
 $('baseBtn').onclick=()=>{if(state==='play'&&nearBase())openBase()};
 
 function dash(){
-  if(state!=='play'||P.cd>0||P.dashT>0)return;
+  if(state!=='play'||P.cd>0||P.dashT>0||bigT>0)return;
   const sp=560+skills.spd*25;
   P.dvx=P.fx*sp;P.dvy=P.fy*sp;P.dashT=.22;P.cd=P.dashCd;P.hitSet=new Set();P.sq=1;
   sfx('dash');
   if(mode==='stress')megaBlast();
+}
+// 大爆発：空高く飛び上がって、ダンジョンじゅうの敵を吹き飛ばす
+function bigBoom(){
+  if(mode!=='stress'||state!=='play'||bigT>0||bigCd>0)return;
+  bigT=BIG_LEN;bigCd=BIG_CD;P.dashT=0;sfx('lv');
+}
+const jumpH=()=>{if(bigT<=0)return 0;const e=BIG_LEN-bigT;return e<.55?Math.sin(e/.55*Math.PI/2)*320:bigT>BIG_AT-.05?320:320*Math.max(0,bigT/(BIG_AT-.05))};
+function bigExplode(){
+  flash=1;shake=reduceMotion?0:22;sfx('boss');
+  for(const e of enemies)if(!e.dead){const a=Math.atan2(e.y-P.y,e.x-P.x);hurtEnemy(e,1e15,Math.cos(a)*1200,Math.sin(a)*1200)}
+  for(let i=0;i<5;i++)parts.push({ring:true,x:P.x,y:P.y,t:.5+i*.12,max:.5+i*.12,R:400+i*500,c:i%2?'#ffd23f':'#ff4a6a'});
+  for(let i=0;i<80;i++){const a=Math.random()*Math.PI*2,v=rnd(200,900);parts.push({x:P.x,y:P.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,t:rnd(.5,1.1),c:['#ffd23f','#ff6a2a','#ffffff','#ff4a6a'][i%4],r:rnd(4,9)})}
+  showBanner('大爆発！！','',false);
 }
 // 最強衝撃波：まわりの敵をすべて一撃
 function megaBlast(){
@@ -623,6 +645,7 @@ function megaBlast(){
 /* ---------- ダメージ処理 ---------- */
 function hurtEnemy(e,d,kx,ky){
   if(e.dead)return;
+  if(mode==='stress')d=1e15; // どんな攻撃も一撃
   if(e.armor)d*=1-e.armor;
   e.hp-=d;e.hit=.12;
   const kb=e.D.boss?.2:e.type==='knight'?.45:1;
@@ -633,6 +656,7 @@ function hurtEnemy(e,d,kx,ky){
 function killEnemy(e){
   if(mode==='stress'){
     e.dead=true;kills++;combo++;comboT=1.6;maxCombo=Math.max(maxCombo,combo);sfx('kill');
+    gainXp(e.D.xp*(e.D.boss?20:.3)*P.ev.xpMul); // ゼリーは落とさず、そのまま経験値に
     if(parts.length<900)for(let i=0;i<6;i++)parts.push({x:e.x,y:e.y,vx:rnd(-260,260),vy:rnd(-260,260),t:rnd(.3,.6),c:i%2?e.D.col:'#ffd23f',r:rnd(2,5)});
     if(e.D.boss)showBanner(`${e.name}も一撃！`,'',false);
     updateHud();return;
@@ -687,9 +711,11 @@ function gainXp(v){
 }
 function openLevel(){
   const L=P.lv-pending+1;
+  if(mode==='stress'){autoLevel(L);return}
   if(L%5===0&&!P.evoDone[L]){openEvo();return}
   $('levelTitle').textContent='レベルアップ！';
-  const pool=UPS.filter(u=>skills[u.id]<u.max).concat(EVSK.filter(u=>skills[u.id]>0&&skills[u.id]<u.max).map(u=>({...u,ev:true})));
+  const useless=mode==='stress'?STRESS_USELESS:[]; // 無敵なのでいらないスキルは出さない
+  const pool=UPS.filter(u=>skills[u.id]<u.max&&!useless.includes(u.id)).concat(EVSK.filter(u=>skills[u.id]>0&&skills[u.id]<u.max&&!useless.includes(u.id)).map(u=>({...u,ev:true})));
   if(!pool.length){pending=0;healPlayer(30);return}
   state='level';sfx('lv');
   const pick=[];
@@ -733,6 +759,16 @@ function evoOptions(){
   const kids=Object.keys(FORMS).filter(k=>FORMS[k].from===P.form);
   if(kids.length)return kids.map(k=>({id:k,form:FORMS[k],name:FORMS[k].name,desc:FORMS[k].desc,fx:FORMS[k].fx}));
   return AWAKES.map(a=>({id:a.id,awake:a,name:a.name,desc:a.desc,fx:a.fx}));
+}
+// 超ストレス発散モードでは手を止めないよう、レベルアップは自動で選ぶ
+const STRESS_USELESS=['dmg','hp','absorb','magnet','regen','armor']; // 一撃・無敵なので意味のないスキル
+function autoLevel(L){
+  if(L%5===0&&!P.evoDone[L]){const o=evoOptions();chooseEvo(o[Math.floor(Math.random()*o.length)]);return}
+  const pool=UPS.filter(u=>skills[u.id]<u.max&&!STRESS_USELESS.includes(u.id)).concat(EVSK.filter(u=>skills[u.id]>0&&skills[u.id]<u.max&&!STRESS_USELESS.includes(u.id)).map(u=>({...u,ev:true})));
+  if(!pool.length){pending--;if(pending>0)openLevel();return}
+  const u=pool[Math.floor(Math.random()*pool.length)];
+  nums.push({x:P.x,y:P.y-P.r-30-(pending%4)*16,v:`LV${L} ${u.ic}${u.name}`,t:1.4,c:'#ffd23f'});
+  chooseUp(u);
 }
 function openEvo(){
   state='level';sfx('boss');
@@ -824,7 +860,10 @@ function update(dt){
   P.moving=ml>.15&&!P.dead;
 
   P.cd=Math.max(0,P.cd-dt);P.inv-=dt;P.sq=Math.max(0,P.sq-dt*4);
-  if(!P.dead){
+  if(bigCd>0)bigCd=Math.max(0,bigCd-dt);
+  if(flash>0)flash=Math.max(0,flash-dt*1.4);
+  if(bigT>0){const prev=bigT;bigT=Math.max(0,bigT-dt);if(prev>BIG_AT&&bigT<=BIG_AT)bigExplode();if(bigT===0)P.sq=1}
+  if(!P.dead&&bigT<=0){
     if(P.dashT>0){P.dashT-=dt;P.x+=P.dvx*dt;P.y+=P.dvy*dt;if(P.dashT<=0&&P.ev.wave)shockwave()}
     else{P.x+=mx*P.spd*dt;P.y+=my*P.spd*dt}
   }
@@ -1297,9 +1336,11 @@ function renderLook(box){
 document.querySelectorAll('#baseOv .tab').forEach(t=>t.onclick=()=>{baseTab=t.dataset.tab;renderBase()});
 $('baseClose').onclick=closeBase;
 let lastP=-1;
+let lastBig=-1;
 function updateDash(){
   const p=P.cd>0?1-P.cd/P.dashCd:1,q=Math.round(p*40)/40;
   if(q!==lastP){lastP=q;const b=$('dashBtn');b.style.setProperty('--p',q);b.classList.toggle('cool',q<1)}
+  if(mode==='stress'){const g=Math.round((1-bigCd/BIG_CD)*40)/40;if(g!==lastBig){lastBig=g;const b=$('bombBtn');b.style.setProperty('--p',g);b.classList.toggle('cool',g<1)}}
 }
 
 /* ---------- 描画 ---------- */
@@ -1756,7 +1797,9 @@ function draw(){
     const f=curForm();
     if(P.ev.aura){ctx.strokeStyle=f.col;ctx.globalAlpha*=.25+Math.sin(T*5)*.1;ctx.lineWidth=3;ctx.beginPath();ctx.arc(P.x,P.y,P.r+60,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=P.dead?.5:(P.inv>0&&Math.floor(T*16)%2?.4:1)}
     if(P.dashT>0){const a0=ctx.globalAlpha;ctx.globalAlpha=a0*.3;ctx.fillStyle=f.col;for(let i=1;i<4;i++){ctx.beginPath();ctx.arc(P.x-P.dvx*.02*i,P.y-P.dvy*.02*i,P.r*(1-i*.15),0,Math.PI*2);ctx.fill()}ctx.globalAlpha=a0}
-    drawSlime(ctx,P.x,P.y,P.r,f.col,T,P.dashT>0?.6:P.sq*.5+(P.moving?Math.abs(Math.sin(T*10))*.15:0),P.fx>=0?1:-1,{light:f.light,dark:f.dark,deco:f.deco,glow:P.awaken>0});
+    const jh=jumpH();
+    if(jh>0){ctx.fillStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.ellipse(P.x,P.y+P.r*.6,P.r*(1-jh/500),P.r*.3*(1-jh/500),0,0,Math.PI*2);ctx.fill()}
+    drawSlime(ctx,P.x,P.y-jh,P.r*(1+jh/400),f.col,T,P.dashT>0?.6:P.sq*.5+(P.moving?Math.abs(Math.sin(T*10))*.15:0),P.fx>=0?1:-1,{light:f.light,dark:f.dark,deco:f.deco,glow:P.awaken>0});
     ctx.globalAlpha=1;
   }});
   for(const o of orbs)list.push({y:o.y,f:()=>drawSlime(ctx,o.x,o.y,9,curForm().col,T*1.3+o.a,0,o.x>P.x?1:-1,{light:curForm().light,dark:curForm().dark})});
@@ -1798,6 +1841,7 @@ function draw(){
     const dx=joy.x-joy.ox,dy=joy.y-joy.oy,l=Math.min(55,Math.hypot(dx,dy)),a=Math.atan2(dy,dx);
     ctx.fillStyle='rgba(123,227,106,.5)';ctx.beginPath();ctx.arc(joy.ox+Math.cos(a)*l,joy.oy+Math.sin(a)*l,24,0,Math.PI*2);ctx.fill();
   }
+  if(flash>0){ctx.fillStyle=`rgba(255,244,214,${Math.min(1,flash)*.9})`;ctx.fillRect(0,0,W,H)}
   // 体力ピンチの赤い縁
   if(state==='play'&&P.hp/P.maxHp<.3&&!P.dead){
     const g=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.35,W/2,H/2,Math.max(W,H)*.7);
@@ -1807,7 +1851,7 @@ function draw(){
 }
 
 /* ---------- 画面遷移 ---------- */
-function setHud(on){$('hud').hidden=!on;$('dashBtn').hidden=!on;$('trapBtn').hidden=!on||mode==='stress';if(!on)$('baseBtn').hidden=true;lastNear=null;lastTrap=''}
+function setHud(on){$('hud').hidden=!on;$('dashBtn').hidden=!on;$('bombBtn').hidden=!on||mode!=='stress';lastBig=-1;$('trapBtn').hidden=!on||mode==='stress';if(!on)$('baseBtn').hidden=true;lastNear=null;lastTrap=''}
 function startGame(m){
   mode=m;
   newGame();
