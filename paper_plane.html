@@ -194,6 +194,17 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
     </div>
   </div>
 
+  <!-- かくにん -->
+  <div class="ov" id="ovAsk" hidden style="z-index:6">
+    <div class="card">
+      <h2 id="askT"></h2>
+      <div class="row">
+        <button class="btn red" id="askOk">はい</button>
+        <button class="btn ghost" id="askNo">やめる</button>
+      </div>
+    </div>
+  </div>
+
   <!-- けっか -->
   <div class="ov" id="ovRes" hidden>
     <div class="card">
@@ -515,6 +526,8 @@ function toMenu(){
   mode='menu';F=null;$('hud').hidden=true;$('rocketBtn').hidden=true;setHint('');
   renderMenu();showOnly('ovMenu');
 }
+// confirm() は つかえない かんきょうが あるので じぶんで だす
+function ask(t,fn){$('askT').textContent=t;$('ovAsk').hidden=false;$('askOk').onclick=()=>{$('ovAsk').hidden=true;fn();};$('askNo').onclick=()=>{$('ovAsk').hidden=true;};}
 let toastT=0;
 function toast(t){const el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,1800);}
 
@@ -599,12 +612,10 @@ $('wSaveNew').onclick=()=>{
 };
 $('wDel').onclick=()=>{
   if(S.planes.length<=1)return;
-  if(!confirm('「'+draft.name+'」を すてる？'))return;
-  S.planes=S.planes.filter(p=>p.id!==draft.id);S.cur=S.planes[0].id;save();toMenu();
+  ask('「'+draft.name+'」を すてる？',()=>{S.planes=S.planes.filter(p=>p.id!==draft.id);S.cur=S.planes[0].id;save();toMenu();});
 };
 $('wBack').onclick=()=>{
-  if(draftDirty&&!confirm('ほぞんしないで もどる？'))return;
-  toMenu();
+  if(draftDirty)ask('ほぞんしないで もどる？',toMenu);else toMenu();
 };
 
 /* ショップ */
