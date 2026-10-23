@@ -151,7 +151,7 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       <div class="hangar" id="hangar"></div>
       <ul class="how">
         <li><b>なげる：</b>がめんを うしろに ひっぱって はなす</li>
-        <li><b>とんでいるとき：</b>おしているあいだ はなさきが 上がる</li>
+        <li><b>そうじゅうかん</b>（パーツ）を つけると、とんでいるとき がめんの 上を おすと 上へ、下を おすと 下へ</li>
         <li><b>じょうしょうきりゅう</b>（ゆらゆらの はしら）に入ると ふわっと上がる</li>
         <li>とんだ きょり ＝ おかね！コインもひろおう</li>
         <li><b>パーツを 2つ くみあわせると ボーナス！</b>いろいろ ためそう</li>
@@ -264,8 +264,9 @@ const SHAPES={
 };
 const COLORS=['#ffffff','#ff5a5a','#ff9a2e','#ffd23f','#7ed957','#2ec4d6','#4a7dff','#9b6bff','#ff7ac0','#2d3442','#9a6a3a','#c0c8d4'];
 const PATTERNS=[{id:'none',name:'なし'},{id:'stripe',name:'しましま'},{id:'dots',name:'みずたま'},{id:'zigzag',name:'ギザギザ'},{id:'star',name:'ほし'},{id:'split',name:'はんぶん'}];
-// きょうかパーツ：10しゅるい、レベル1〜5。ショップで買って、パーツわく に つける
+// きょうかパーツ：11しゅるい、レベル1〜5。ショップで買って、パーツわく に つける
 const PARTS=[
+  {id:'stick',ic:'🕹️',name:'そうじゅうかん',desc:'とんでいるとき 上・下に うごかせる。レベルが 上がると よく まがる',base:40},
   {id:'wax',ic:'✨',name:'ツルツルコート',desc:'くうきの ていこうが へる',base:30},
   {id:'winglet',ic:'🔺',name:'ウイングレット',desc:'つばさの さきっぽ。ムダな ていこうが へる',base:50},
   {id:'bigwing',ic:'🪁',name:'ビッグウイング',desc:'つばさが 大きくなって うく力 アップ',base:70},
@@ -289,6 +290,7 @@ const COMBOS=[
   {id:'speed',name:'スピードスター',need:['wax','prop'],desc:'プロペラの ちから +40%'},
   {id:'super',name:'スーパーロケット',need:['rocket','wax'],desc:'ロケットの ちから 1.5ばい'},
   {id:'rich',name:'おかねもち',need:['magnet','gold'],desc:'おかね さらに +25%'},
+  {id:'stunt',name:'スタントひこう',need:['stick','tail'],desc:'うごかす ちから +50%'},
 ];
 // はっしゃだい：ゆかの たかさ（0 は じめんから なげる）
 const TOWER_H=[0,2,4,7,11,16,23,31,41,54];
@@ -340,6 +342,8 @@ function planeStats(p){
     propT:pr?(2+pr)*(cb.has('twin')?1.5:1):0,propF:(2.5+pr)*(cb.has('speed')?1.4:1),
     jetT:jt?(3+jt)*(cb.has('twin')?1.5:1):0,jetF:8+2.5*jt,
     rockets:lv('rocket'),rocketF:20*(cb.has('super')?1.5:1),
+    // そうじゅうかん が ないと 上下に うごかせない
+    ctrl:lv('stick')?(.1+.025*lv('stick'))*(cb.has('stunt')?1.5:1):0,
     magnet:1.1+1.6*lv('magnet'),mult:(1+.15*lv('gold'))*(cb.has('rich')?1.25:1),
   };
   const CL=5.5*.09;
@@ -349,14 +353,14 @@ function planeStats(p){
 }
 const trimAlpha=(st,v)=>.09*Math.min(1.3,1.05*Math.pow(st.vTrim/Math.max(.5,v),2));
 // ひこうきの うごき（1ステップ）。かえり値は ちゃくりく したか
-function flyStep(st,f,dt,pull,extraAy){
+function flyStep(st,f,dt,ctl,extraAy){
   const v=Math.max(.5,Math.hypot(f.vx,f.vy)),gam=Math.atan2(f.vy,f.vx);
   // ゆったり とぶ角度（はやいと 下がる）＋ おしてるあいだ 上げる
   let thrust=(f.propLeft>0?st.propF:0)+(f.jetLeft>0?st.jetF:0)+(f.rocketT>0?st.rocketF:0);
   let trim=trimAlpha(st,v);
   // エンジンが うごいている あいだは すこしずつ 上へ（10°くらい）
   if(thrust>0){const need=st.grav*Math.cos(gam)+2.5*(.17-gam)*v;trim=clamp(need/(AERO_K*v*v*st.lift*5.5),-.1,.2);}
-  const tgt=trim+(pull?.2*Math.min(1,14/v):0)+f.kick;
+  const tgt=trim+ctl*st.ctrl*Math.min(1,14/v)+f.kick;
   f.kick*=Math.exp(-dt*1.6);
   f.alpha+=(tgt-f.alpha)*Math.min(1,dt*2.6*st.stab);
   const a=f.alpha,aa=Math.abs(a);
@@ -433,6 +437,7 @@ function drawPlaneUnit(c,p,lw){
     let tip=sh.poly[0];for(const q of sh.poly)if(q[0]>tip[0])tip=q;
     c.fillStyle='#ef4b3f';for(const s of[1,-1]){c.fillRect(s*tip[0]-.05,tip[1]-.16,.1,.24)}
   }
+  if(on.includes('stick')){c.fillStyle='#2f6fd6';for(const sx of[1,-1])c.fillRect(sx*.36-.12,.72,.24,.07);}
   if(on.includes('tail')){c.fillStyle='#4a5a74';c.beginPath();c.moveTo(-.06,.95);c.lineTo(0,.5);c.lineTo(.06,.95);c.fill();c.fillRect(-.22,.85,.44,.08);}
   if(on.includes('prop')){c.fillStyle='#4a5a74';c.beginPath();c.arc(0,-1,.07,0,7);c.fill();c.fillStyle='rgba(80,90,110,.7)';c.beginPath();c.ellipse(0,-1.03,.32,.05,0,0,7);c.fill();}
   if(on.includes('magnet')){c.strokeStyle='#e0383a';c.lineWidth=.07;c.beginPath();c.arc(0,-.38,.1,0,Math.PI);c.stroke();}
@@ -461,7 +466,7 @@ function drawPreview(canvas,p){
 
 /* ---------- ゲーム状態 ---------- */
 let mode='menu'; // menu | aim | fly | result
-let F=null,world=null,pull=false,tNow=0;
+let F=null,world=null,ctl=0,tNow=0; // ctl: 1=上 -1=下
 const aim={ang:22*Math.PI/180,pow:1,drag:null};
 const cam={x:-6,b:-1.5,ppm:14};
 let floats=[],trail=[],parts=[];
@@ -470,7 +475,7 @@ function startAim(){
   const p=curPlane(),st=planeStats(p);
   F={p,st,x:.3,y:st.towerH+1.3,vx:0,vy:0,alpha:.05,kick:0,coins:0,rocketsLeft:st.rockets,rocketT:0,propLeft:st.propT,jetLeft:st.jetT,landed:false,maxY:0,mi:0,thermalMsg:false,t:0};
   world={thermals:[],coins:[],birds:[],genX:0,rnd:rng((Math.random()*1e9)|0)};
-  trail=[];floats=[];parts=[];pull=false;
+  trail=[];floats=[];parts=[];ctl=0;
   aim.drag=null;
   mode='aim';
   showOnly(null);
@@ -483,7 +488,7 @@ function launch(){
   const v=F.st.launchV*(.35+.65*aim.pow);
   F.vx=Math.cos(aim.ang)*v;F.vy=Math.sin(aim.ang)*v;F.alpha=trimAlpha(F.st,v);
   mode='fly';
-  setHint('おしているあいだ はなさきが 上がるよ');
+  setHint(F.st.ctrl?'がめんの 上を おすと 上へ、下を おすと 下へ':'そうじゅうかんを つけると 上下に うごかせるよ');
   setTimeout(()=>{if(mode==='fly')setHint('')},3500);
   if(F.rocketsLeft>0){$('rocketBtn').hidden=false;updRocket();}
 }
@@ -533,7 +538,7 @@ function step(dt){
     // かぜの ゆらぎ
     ay+=(vnoise(F.t*.9,5)-.5)*2.4*Math.min(1,F.t/2);
     F.alpha+=(vnoise(F.t*4,9)-.5)*.0012*dt*60/st.stab;
-    flyStep(st,F,dt,pull,ay);
+    flyStep(st,F,dt,ctl,ay);
     F.maxY=Math.max(F.maxY,F.y);
     // コイン
     for(const k of world.coins){
@@ -587,7 +592,7 @@ function finish(){
 /* ---------- 入力 ---------- */
 cv.addEventListener('pointerdown',e=>{
   if(mode==='aim'){aim.drag={sx:e.clientX,sy:e.clientY,moved:false};cv.setPointerCapture(e.pointerId);}
-  else if(mode==='fly')pull=true;
+  else if(mode==='fly'&&F.st.ctrl){ctl=e.clientY<H/2?1:-1;cv.setPointerCapture(e.pointerId);}
 });
 cv.addEventListener('pointermove',e=>{
   if(mode!=='aim'||!aim.drag)return;
@@ -599,7 +604,7 @@ cv.addEventListener('pointermove',e=>{
 });
 const endPtr=()=>{
   if(mode==='aim'&&aim.drag){const m=aim.drag.moved;aim.drag=null;if(m)launch();}
-  pull=false;
+  ctl=0;
 };
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
 $('rocketBtn').addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();fireRocket();});
@@ -614,11 +619,11 @@ addEventListener('keydown',e=>{
     else return;
     e.preventDefault();
   }else if(mode==='fly'){
-    if(e.key===' '||e.key==='ArrowUp'){pull=true;e.preventDefault();}
+    if(e.key===' '||e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();if(F.st.ctrl)ctl=e.key==='ArrowDown'?-1:1;}
     if(e.key==='r'||e.key==='R'||e.key==='Shift')fireRocket();
   }
 });
-addEventListener('keyup',e=>{if(e.key===' '||e.key==='ArrowUp')pull=false;});
+addEventListener('keyup',e=>{if(e.key===' '||e.key==='ArrowUp'||e.key==='ArrowDown')ctl=0;});
 $('quitBtn').addEventListener('click',()=>{
   if(mode==='aim'){toMenu();return;}
   if(mode==='fly'||mode==='landing')finish();
