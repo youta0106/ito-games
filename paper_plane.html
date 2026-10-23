@@ -108,6 +108,8 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
 .bigd{font-family:var(--display);font-size:56px;line-height:1;font-variant-numeric:tabular-nums}
 .bigd small{font-size:24px}
 .tag{font-family:var(--display);color:#ff8fc0;font-size:20px;animation:pop .6s ease-out}
+.tag small{font-family:var(--body);font-size:12px;color:var(--muted)}
+#rUnlock{color:var(--sun);text-align:center;line-height:1.3}
 @keyframes pop{0%{transform:scale(.3)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
 .toast{position:absolute;left:50%;bottom:calc(120px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:max-content;max-width:calc(100% - 32px);background:var(--panel);border:2px solid var(--sun);border-radius:10px;padding:8px 14px;text-align:center;pointer-events:none;font-weight:800;font-size:14px;z-index:5}
 </style></head><body>
@@ -155,6 +157,7 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
         <li><b>じょうしょうきりゅう</b>（ゆらゆらの はしら）に入ると ふわっと上がる</li>
         <li>とんだ きょり ＝ おかね！コインもひろおう</li>
         <li><b>パーツを 2つ くみあわせると ボーナス！</b>いろいろ ためそう</li>
+        <li><b>400m</b>を こえると、もっと つよい かたちが 3つ ふえる！</li>
       </ul>
     </div>
   </div>
@@ -224,6 +227,7 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       <h2>ちゃくりく！</h2>
       <div class="bigd"><span id="rDist">0</span><small>m</small></div>
       <div class="tag" id="rNew" hidden>★ しんきろく！ ★</div>
+      <div class="tag" id="rUnlock" hidden>✈ あたらしい かたちが 3つ ふえた！<br><small>こうさくしつで えらべるよ</small></div>
       <div class="res" id="rList"></div>
       <div class="wallet"><i class="coin-ic"></i><span id="rMoney">0</span></div>
       <div class="row">
@@ -261,7 +265,15 @@ const SHAPES={
     poly:[[0,-1],[.85,.9],[0,.7],[-.85,.9]]},
   ika:{name:'イカひこうき',desc:'ゆれにくい',lift:1.2,cd0:.065,cdi:.08,stab:1.8,launch:.95,
     poly:[[0,-.95],[.3,-.75],[.34,-.1],[.86,.55],[.76,.76],[.18,.56],[.22,.95],[-.22,.95],[-.18,.56],[-.76,.76],[-.86,.55],[-.34,-.1],[-.3,-.75]]},
+  // 400m を こえると つかえる。さいしょから すこし つよい（rough：おりかたが きれいで ていこうが すくない）
+  swallow:{name:'ツバメ',desc:'はやくて よく とぶ',lift:1.1,cd0:.035,cdi:.08,stab:1.3,launch:1.28,rough:.8,need:400,
+    poly:[[0,-1],[.18,-.4],[.9,.25],[.85,.4],[.2,.3],[.35,.95],[.12,.65],[0,.75],[-.12,.65],[-.35,.95],[-.2,.3],[-.85,.4],[-.9,.25],[-.18,-.4]]},
+  condor:{name:'コンドル',desc:'ゆったり とても ながく とぶ',lift:1.35,cd0:.045,cdi:.05,stab:1.2,launch:1,rough:.8,need:400,
+    poly:[[0,-1],[.15,-.5],[1,-.05],[.98,.2],[.2,.25],[.3,.8],[.1,.95],[-.1,.95],[-.3,.8],[-.2,.25],[-.98,.2],[-1,-.05],[-.15,-.5]]},
+  stealth:{name:'ステルス',desc:'はやくて ゆれない',lift:1.05,cd0:.028,cdi:.085,stab:1.9,launch:1.25,rough:.8,need:400,
+    poly:[[0,-.9],[1,.35],[.75,.6],[.5,.4],[.25,.65],[0,.45],[-.25,.65],[-.5,.4],[-.75,.6],[-1,.35]]},
 };
+const shapeOpen=k=>!SHAPES[k].need||S.best>=SHAPES[k].need;
 const COLORS=['#ffffff','#ff5a5a','#ff9a2e','#ffd23f','#7ed957','#2ec4d6','#4a7dff','#9b6bff','#ff7ac0','#2d3442','#9a6a3a','#c0c8d4'];
 const PATTERNS=[{id:'none',name:'なし'},{id:'stripe',name:'しましま'},{id:'dots',name:'みずたま'},{id:'zigzag',name:'ギザギザ'},{id:'star',name:'ほし'},{id:'split',name:'はんぶん'}];
 // きょうかパーツ：11しゅるい、レベル1〜5。ショップで買って、パーツわく に つける
@@ -330,7 +342,7 @@ function planeStats(p){
   const wax=lv('wax'),wl=lv('winglet'),bw=lv('bigwing'),t=lv('tail'),bl=lv('balloon'),pr=lv('prop'),jt=lv('jet');
   // さいしょの かみひこうきは ぐしゃっと していて ていこうが 大きい
   const boost=(1+.15*bw)*(1+.04*wl)*(cb.has('bird')?1.2:1);
-  const rough=.36/(1+.55*wax)/(1+.08*t)*(cb.has('stable')?.85:1);
+  const rough=.36*(sh.rough||1)/(1+.55*wax)/(1+.08*t)*(cb.has('stable')?.85:1);
   const st={
     // うく力アップは「おなじ はやさで ていこうが へる」として あつかう（おそく なりすぎない）
     lift:sh.lift,
@@ -573,12 +585,13 @@ function finish(){
   const dist=Math.max(0,F.x),st=F.st;
   const fromDist=Math.round(dist*MONEY_PER_M),fromCoins=F.coins*COIN_VAL,base=fromDist+fromCoins;
   const total=Math.round(base*st.mult);
-  const rec=dist>S.best;
+  const rec=dist>S.best,wasOpen=S.best>=400;
   S.money+=total;S.flights++;if(rec)S.best=dist;save();
   mode='result';
   $('hud').hidden=true;$('rocketBtn').hidden=true;setHint('');
   $('rDist').textContent=dist.toFixed(1);
   $('rNew').hidden=!rec;
+  $('rUnlock').hidden=wasOpen||S.best<400;
   let h=`<div class="rl"><span>きょり ${dist.toFixed(1)}m ×${MONEY_PER_M}</span><span>+${fromDist}</span></div>
   <div class="rl"><span>コイン ${F.coins}こ</span><span>+${fromCoins}</span></div>`;
   if(st.mult>1)h+=`<div class="rl"><span>💰 ボーナス</span><span>×${st.mult.toFixed(2)}</span></div>`;
@@ -670,7 +683,10 @@ function renderWs(){
   drawPreview($('wPv'),draft);
   $('wName').value=draft.name;
   const sh=$('wShape');sh.innerHTML='';
-  for(const k in SHAPES)sh.append(chip(SHAPES[k].name,draft.shape===k,()=>{draft.shape=k;touch();}));
+  for(const k in SHAPES){
+    const op=shapeOpen(k);
+    sh.append(chip(op?SHAPES[k].name:`🔒 ${SHAPES[k].name} <small>${SHAPES[k].need}mで</small>`,draft.shape===k,()=>{draft.shape=k;touch();},!op));
+  }
   const st=planeStats(draft),pd=predict(draft),now=predict(curPlane());
   const diff=pd-now;
   $('wPred').innerHTML=`よそう きょり ${fmtM(pd)} <small>${Math.abs(diff)<.05?'':(diff>0?'▲ +':'▼ ')+(diff>0?fmtM(diff):fmtM(-diff))+'（いまの ひこうきと くらべて）'}</small>`;
