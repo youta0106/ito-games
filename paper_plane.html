@@ -81,8 +81,15 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
 .bar{display:grid;grid-template-columns:72px 1fr;align-items:center;gap:8px;font-size:12px;font-weight:800;text-align:left}
 .bar i{display:block;height:10px;border-radius:5px;background:rgba(0,0,0,.35);overflow:hidden}
 .bar i b{display:block;height:100%;background:var(--good);border-radius:5px;transition:width .2s}
-.slots{display:flex;gap:8px;width:100%}
-.slot{flex:1;min-height:52px;border-radius:10px;border:2px dashed var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:var(--muted);gap:2px;padding:4px}
+.slots{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%}
+.pred{font-family:var(--display);font-size:20px;color:var(--sun);font-variant-numeric:tabular-nums}
+.pred small{font-family:var(--body);font-size:12px;color:var(--muted)}
+.combos{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;width:100%}
+.cb{padding:6px 8px;border-radius:8px;border:2px solid var(--line);text-align:left;font-size:11px;color:var(--muted);line-height:1.35}
+.cb b{display:block;font-size:13px;color:var(--ink)}
+.cb.on{border-color:#ff8fc0;background:rgba(255,143,192,.14)}
+.cb.on b{color:#ff8fc0}
+.slot{min-width:0;min-height:52px;text-align:center;word-break:break-all;border-radius:10px;border:2px dashed var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:var(--muted);gap:2px;padding:4px}
 .slot b{font-size:20px;line-height:1}
 .slot.full{border-style:solid;border-color:var(--good);color:var(--ink);background:rgba(126,217,87,.1)}
 .slot.lock{opacity:.55}
@@ -111,6 +118,7 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
     <div class="left">
       <div class="dist"><span id="hDist">0</span><small>m</small></div>
       <div class="sub2">たかさ <span id="hAlt">0</span>m ・ ベスト <span id="hBest">0</span>m</div>
+      <div class="sub2" id="hFF"></div>
     </div>
     <div class="right">
       <div class="coins"><i class="coin-ic"></i><span id="hCoins">0</span></div>
@@ -128,6 +136,7 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       <div class="wallet"><i class="coin-ic"></i><span id="mMoney">0</span></div>
       <canvas class="pv" id="mPv"></canvas>
       <div class="pname" id="mName"></div>
+      <p class="sub" id="mPred"></p>
       <div class="stats">
         <div class="stat"><span>ベスト</span><strong id="mBest">0m</strong></div>
         <div class="stat"><span>とばした回数</span><strong id="mFlights">0</strong></div>
@@ -145,6 +154,7 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
         <li><b>とんでいるとき：</b>おしているあいだ はなさきが 上がる</li>
         <li><b>じょうしょうきりゅう</b>（ゆらゆらの はしら）に入ると ふわっと上がる</li>
         <li>とんだ きょり ＝ おかね！コインもひろおう</li>
+        <li><b>パーツを 2つ くみあわせると ボーナス！</b>いろいろ ためそう</li>
       </ul>
     </div>
   </div>
@@ -157,6 +167,7 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       <label class="field">なまえ <input id="wName" maxlength="12" autocomplete="off" placeholder="なまえをつけよう"></label>
       <div class="sec">かたち</div>
       <div class="chips" id="wShape"></div>
+      <div class="pred" id="wPred"></div>
       <div class="bars" id="wStats"></div>
       <div class="sec">いろ</div>
       <div class="sw" id="wBody"></div>
@@ -168,6 +179,8 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       <div class="slots" id="wSlots"></div>
       <p class="note" id="wPartNote"></p>
       <div class="chips" id="wParts"></div>
+      <div class="sec">くみあわせ ボーナス</div>
+      <div class="combos" id="wCombo"></div>
       <div class="row">
         <button class="btn" id="wSave">💾 ほぞん</button>
         <button class="btn ghost" id="wSaveNew">＋ べつに ほぞん</button>
@@ -251,28 +264,54 @@ const SHAPES={
 };
 const COLORS=['#ffffff','#ff5a5a','#ff9a2e','#ffd23f','#7ed957','#2ec4d6','#4a7dff','#9b6bff','#ff7ac0','#2d3442','#9a6a3a','#c0c8d4'];
 const PATTERNS=[{id:'none',name:'なし'},{id:'stripe',name:'しましま'},{id:'dots',name:'みずたま'},{id:'zigzag',name:'ギザギザ'},{id:'star',name:'ほし'},{id:'split',name:'はんぶん'}];
-// きょうかパーツ：レベル1〜3。ショップで買って、パーツわく に つける
+// きょうかパーツ：10しゅるい、レベル1〜5。ショップで買って、パーツわく に つける
 const PARTS=[
-  {id:'winglet',ic:'🔺',name:'ウイングレット',desc:'つばさの さきっぽ。うく力 アップ',k:1},
-  {id:'wax',ic:'✨',name:'ツルツルコート',desc:'くうきの ていこうが へる',k:1},
-  {id:'tail',ic:'📐',name:'びよく',desc:'あんてい アップ。とりに ぶつかっても へいき',k:1.1},
-  {id:'prop',ic:'🌀',name:'プロペラ',desc:'さいしょの なんびょうか すすむ',k:1.3},
-  {id:'rocket',ic:'🚀',name:'ロケット',desc:'ボタンで ドーン！レベルの数だけ つかえる',k:1.6},
-  {id:'magnet',ic:'🧲',name:'じしゃく',desc:'コインを とおくから ひろえる',k:.9},
-  {id:'gold',ic:'💰',name:'ゴールドぬり',desc:'もらえる おかねが ふえる',k:1.5},
+  {id:'wax',ic:'✨',name:'ツルツルコート',desc:'くうきの ていこうが へる',base:30},
+  {id:'winglet',ic:'🔺',name:'ウイングレット',desc:'つばさの さきっぽ。ムダな ていこうが へる',base:50},
+  {id:'bigwing',ic:'🪁',name:'ビッグウイング',desc:'つばさが 大きくなって うく力 アップ',base:70},
+  {id:'tail',ic:'📐',name:'びよく',desc:'まっすぐ とぶ。とりに ぶつかっても へいき',base:45},
+  {id:'balloon',ic:'🎈',name:'ふうせん',desc:'からだが かるくなって おちにくい',base:120},
+  {id:'prop',ic:'🌀',name:'プロペラ',desc:'しばらく じぶんで すすむ',base:100},
+  {id:'jet',ic:'🔥',name:'ジェットエンジン',desc:'つよい ちからで ながく すすむ',base:600},
+  {id:'rocket',ic:'🚀',name:'ロケット',desc:'ボタンで ドーン！レベルの数だけ つかえる',base:350},
+  {id:'magnet',ic:'🧲',name:'じしゃく',desc:'コインを とおくから ひろえる',base:80},
+  {id:'gold',ic:'💰',name:'ゴールドぬり',desc:'もらえる おかねが ふえる',base:150},
 ];
-const PART_COST=[120,380,1000];
-const SLOT_COST=[150,800,3000];
+const PART_MAX=5;
+const partCost=(x,lv)=>Math.round(x.base*Math.pow(2.4,lv)/10)*10;
+const SLOT_COST=[20,120,500,2000,8000];
+// くみあわせ：2つ いっしょに つけると ボーナス
+const COMBOS=[
+  {id:'bird',name:'とりの つばさ',need:['winglet','bigwing'],desc:'うく力 +20%'},
+  {id:'stable',name:'あんてい ひこう',need:['tail','winglet'],desc:'ていこう -15%・ゆれない'},
+  {id:'fuwa',name:'ふわふわ',need:['balloon','bigwing'],desc:'もっと かるく'},
+  {id:'twin',name:'ツインエンジン',need:['prop','jet'],desc:'すすむ じかん 1.5ばい'},
+  {id:'speed',name:'スピードスター',need:['wax','prop'],desc:'プロペラの ちから +40%'},
+  {id:'super',name:'スーパーロケット',need:['rocket','wax'],desc:'ロケットの ちから 1.5ばい'},
+  {id:'rich',name:'おかねもち',need:['magnet','gold'],desc:'おかね さらに +25%'},
+];
+// はっしゃだい：ゆかの たかさ（0 は じめんから なげる）
+const TOWER_H=[0,2,4,7,11,16,23,31,41,54];
+const ARM_V=[3.6,5,6.5,8,9.5,11,12.5,14,15.5,17];
 const FACS=[
-  {id:'tower',ic:'🗼',name:'はっしゃだい',desc:'たかい ところから なげられる（＋6m）',cost:[100,300,700,1500,3000,6000]},
-  {id:'arm',ic:'💪',name:'なげる力',desc:'つよく なげられる',cost:[80,250,600,1300,2600,5200]},
+  {id:'tower',ic:'🗼',name:'はっしゃだい',desc:'たかい ところから なげられる',cost:[40,120,350,900,2200,5000,11000,24000,50000]},
+  {id:'arm',ic:'💪',name:'なげる力',desc:'つよく なげられる',cost:[25,80,250,700,1800,4200,9500,21000,45000]},
 ];
+const facDesc=f=>f.id==='tower'?`いま ${TOWER_H[S.fac.tower]}m`+(S.fac.tower<TOWER_H.length-1?` → ${TOWER_H[S.fac.tower+1]}m`:''):`いま ${ARM_V[S.fac.arm]}m/びょう`+(S.fac.arm<ARM_V.length-1?` → ${ARM_V[S.fac.arm+1]}`:'');
+const MONEY_PER_M=10,COIN_VAL=20;
 
 /* ---------- セーブ ---------- */
-const KEY='paperplane-v1';
+const KEY='paperplane-v2';
 let S={money:0,best:0,flights:0,slots:0,parts:{},fac:{tower:0,arm:0},planes:[],cur:0,nextId:1};
 function newPlane(name){return {id:S.nextId++,name,shape:'normal',body:'#ffffff',accent:'#4a7dff',pattern:'none',parts:[]}}
-try{const v=JSON.parse(localStorage.getItem(KEY)||'null');if(v&&Array.isArray(v.planes))S=Object.assign(S,v,{fac:Object.assign({tower:0,arm:0},v.fac),parts:Object.assign({},v.parts)});}catch(e){}
+try{
+  const v=JSON.parse(localStorage.getItem(KEY)||'null');
+  if(v&&Array.isArray(v.planes))S=Object.assign(S,v,{fac:Object.assign({tower:0,arm:0},v.fac),parts:Object.assign({},v.parts)});
+  else{ // まえの バージョンの ひこうき（かたち・いろ・なまえ）だけ ひきつぐ
+    const o=JSON.parse(localStorage.getItem('paperplane-v1')||'null');
+    if(o&&Array.isArray(o.planes)){S.planes=o.planes.map(p=>Object.assign(p,{parts:[]}));S.cur=o.cur;S.nextId=o.nextId||S.planes.length+1;}
+  }
+}catch(e){}
 S.planes=S.planes.filter(p=>p&&SHAPES[p.shape]);
 if(!S.planes.length){const p=newPlane('はじめての ひこうき');S.planes.push(p);S.cur=p.id;}
 if(!S.planes.some(p=>p.id===S.cur))S.cur=S.planes[0].id;
@@ -280,21 +319,70 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const curPlane=()=>S.planes.find(p=>p.id===S.cur)||S.planes[0];
 // つけられるのは「持っている」パーツを「わくの数」まで
 const activeParts=p=>p.parts.filter(id=>S.parts[id]>0).slice(0,S.slots);
+const activeCombos=p=>{const on=activeParts(p);return COMBOS.filter(c=>c.need.every(id=>on.includes(id)));};
 
+const AERO_K=.5;
 function planeStats(p){
   const sh=SHAPES[p.shape],on=activeParts(p),lv=id=>on.includes(id)?S.parts[id]:0;
-  const w=lv('winglet'),t=lv('tail');
+  const cb=new Set(activeCombos(p).map(c=>c.id));
+  const wax=lv('wax'),wl=lv('winglet'),bw=lv('bigwing'),t=lv('tail'),bl=lv('balloon'),pr=lv('prop'),jt=lv('jet');
+  // さいしょの かみひこうきは ぐしゃっと していて ていこうが 大きい
+  const boost=(1+.15*bw)*(1+.04*wl)*(cb.has('bird')?1.2:1);
+  const rough=.36/(1+.55*wax)/(1+.08*t)*(cb.has('stable')?.85:1);
   const st={
-    lift:sh.lift*(1+.08*w),cd0:sh.cd0*(1-.12*lv('wax')),cdi:sh.cdi*(1-.1*w),
-    stab:sh.stab+.4*t,stall:.28+.03*t,tail:t,
-    launchV:13*(1+.12*S.fac.arm)*sh.launch,towerH:10+6*S.fac.tower,
-    prop:lv('prop')?2+1.5*lv('prop'):0,rockets:lv('rocket'),
-    magnet:1.1+1.6*lv('magnet'),mult:1+.15*lv('gold'),
+    // うく力アップは「おなじ はやさで ていこうが へる」として あつかう（おそく なりすぎない）
+    lift:sh.lift,
+    cd0:(sh.cd0+rough+.008*bw+.01*bl)/boost,
+    cdi:sh.cdi*(1-.12*wl)/boost,
+    grav:9.8*(1-.08*bl)*(cb.has('fuwa')?.9:1),
+    stab:sh.stab+.35*t+(cb.has('stable')?.5:0),stall:.28+.02*t,tail:t,
+    launchV:ARM_V[S.fac.arm]*sh.launch,towerH:TOWER_H[S.fac.tower],
+    propT:pr?(2+pr)*(cb.has('twin')?1.5:1):0,propF:(2.5+pr)*(cb.has('speed')?1.4:1),
+    jetT:jt?(3+jt)*(cb.has('twin')?1.5:1):0,jetF:8+2.5*jt,
+    rockets:lv('rocket'),rocketF:20*(cb.has('super')?1.5:1),
+    magnet:1.1+1.6*lv('magnet'),mult:(1+.15*lv('gold'))*(cb.has('rich')?1.25:1),
   };
   const CL=5.5*.09;
   st.glide=st.lift*CL/(st.cd0+st.cdi*CL*CL);
-  st.vTrim=Math.sqrt(9.8/(.28*st.lift*CL));
+  st.vTrim=Math.sqrt(st.grav/(AERO_K*st.lift*CL));
   return st;
+}
+const trimAlpha=(st,v)=>.09*Math.min(1.3,1.05*Math.pow(st.vTrim/Math.max(.5,v),2));
+// ひこうきの うごき（1ステップ）。かえり値は ちゃくりく したか
+function flyStep(st,f,dt,pull,extraAy){
+  const v=Math.max(.5,Math.hypot(f.vx,f.vy)),gam=Math.atan2(f.vy,f.vx);
+  // ゆったり とぶ角度（はやいと 下がる）＋ おしてるあいだ 上げる
+  let thrust=(f.propLeft>0?st.propF:0)+(f.jetLeft>0?st.jetF:0)+(f.rocketT>0?st.rocketF:0);
+  let trim=trimAlpha(st,v);
+  // エンジンが うごいている あいだは すこしずつ 上へ（10°くらい）
+  if(thrust>0){const need=st.grav*Math.cos(gam)+2.5*(.17-gam)*v;trim=clamp(need/(AERO_K*v*v*st.lift*5.5),-.1,.2);}
+  const tgt=trim+(pull?.2*Math.min(1,14/v):0)+f.kick;
+  f.kick*=Math.exp(-dt*1.6);
+  f.alpha+=(tgt-f.alpha)*Math.min(1,dt*2.6*st.stab);
+  const a=f.alpha,aa=Math.abs(a);
+  const CL=aa<st.stall?5.5*a:Math.sign(a)*5.5*st.stall*Math.max(.35,1-(aa-st.stall)*4);
+  const q=AERO_K*v*v;
+  const L=clamp(q*st.lift*CL,-40,40),D=q*(st.cd0+st.cdi*CL*CL);
+  const c=Math.cos(gam),s=Math.sin(gam);
+  let ax=-D*c-L*s,ay=-D*s+L*c-st.grav+extraAy;
+  const th=gam+a;
+  if(f.propLeft>0)f.propLeft-=dt;
+  if(f.jetLeft>0)f.jetLeft-=dt;
+  if(f.rocketT>0)f.rocketT-=dt;
+  ax+=thrust*Math.cos(th);ay+=thrust*Math.sin(th);
+  f.vx+=ax*dt;f.vy+=ay*dt;f.x+=f.vx*dt;f.y+=f.vy*dt;
+  return f.y<=0;
+}
+// ちゃくりくしたあと すべる
+const SLIDE_DECEL=7;
+const slideV=vx=>Math.min(Math.max(0,vx)*.3,2.5);
+// よそう きょり（25°で おもいきり なげた とき。ロケット・かぜ・きりゅう なし）
+function predict(p){
+  const st=planeStats(p),v=st.launchV,an=25*Math.PI/180;
+  const f={x:.3,y:st.towerH+1.3,vx:Math.cos(an)*v,vy:Math.sin(an)*v,alpha:trimAlpha(st,v),kick:0,propLeft:st.propT,jetLeft:st.jetT,rocketT:0};
+  for(let t=0;t<240;t+=1/60)if(flyStep(st,f,1/60,false,0))break;
+  const sv=slideV(f.vx);
+  return Math.max(0,f.x+sv*sv/(2*SLIDE_DECEL));
 }
 
 /* ---------- ひこうきを かく ---------- */
@@ -304,6 +392,9 @@ function star(c,x,y,r){c.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*
 function drawPlaneUnit(c,p,lw){
   const sh=SHAPES[p.shape],on=activeParts(p);
   c.lineJoin='round';
+  c.save();
+  if(on.includes('bigwing'))c.scale(1.28,1);
+  if(on.includes('jet'))for(const s of[1,-1]){c.fillStyle='#59606e';c.fillRect(s*.42-.07,.05,.14,.5);c.fillStyle='#ff8a2e';c.fillRect(s*.42-.05,.53,.1,.06);}
   if(on.includes('rocket')){c.fillStyle='#6a7486';c.fillRect(-.09,.15,.18,.75);c.fillStyle='#ef4b3f';c.beginPath();c.moveTo(-.09,.15);c.lineTo(0,0);c.lineTo(.09,.15);c.fill();}
   polyPath(c,sh.poly);
   c.fillStyle=p.body;c.fill();
@@ -346,6 +437,13 @@ function drawPlaneUnit(c,p,lw){
   if(on.includes('prop')){c.fillStyle='#4a5a74';c.beginPath();c.arc(0,-1,.07,0,7);c.fill();c.fillStyle='rgba(80,90,110,.7)';c.beginPath();c.ellipse(0,-1.03,.32,.05,0,0,7);c.fill();}
   if(on.includes('magnet')){c.strokeStyle='#e0383a';c.lineWidth=.07;c.beginPath();c.arc(0,-.38,.1,0,Math.PI);c.stroke();}
   if(on.includes('wax')){c.strokeStyle='rgba(255,255,255,.9)';c.lineWidth=.04;c.beginPath();c.moveTo(-.45,.2);c.lineTo(-.25,.0);c.moveTo(.35,.35);c.lineTo(.55,.15);c.stroke();}
+  c.restore();
+}
+function drawBalloon(c,x,y,r,tx,ty){
+  c.strokeStyle='rgba(60,60,60,.6)';c.lineWidth=1;c.beginPath();c.moveTo(tx,ty);c.quadraticCurveTo(x+r*.3,(y+ty)/2,x,y+r);c.stroke();
+  const g=c.createRadialGradient(x-r*.35,y-r*.4,1,x,y,r*1.1);g.addColorStop(0,'#ffb3b3');g.addColorStop(.5,'#ef4b3f');g.addColorStop(1,'#9c2a22');
+  c.fillStyle=g;c.beginPath();c.ellipse(x,y,r*.85,r,0,0,7);c.fill();
+  c.fillStyle='#9c2a22';c.beginPath();c.moveTo(x-r*.15,y+r*1.12);c.lineTo(x,y+r*.95);c.lineTo(x+r*.15,y+r*1.12);c.fill();
 }
 // プレビュー（ななめ上から）
 function drawPreview(canvas,p){
@@ -355,6 +453,7 @@ function drawPreview(canvas,p){
   const s=Math.min(w,h)*.42;
   c.save();c.translate(w/2,h/2);
   c.fillStyle='rgba(0,0,0,.12)';c.beginPath();c.ellipse(0,h*.36,s*.9,s*.12,0,0,7);c.fill();
+  if(activeParts(p).includes('balloon'))drawBalloon(c,s*.62,-h*.3,s*.24,s*.1,-s*.1);
   c.scale(s,s*.7);c.rotate(.5);
   drawPlaneUnit(c,p,1.5/s);
   c.restore();
@@ -369,20 +468,20 @@ let floats=[],trail=[],parts=[];
 
 function startAim(){
   const p=curPlane(),st=planeStats(p);
-  F={p,st,x:.6,y:st.towerH+1.2,vx:0,vy:0,alpha:.05,kick:0,coins:0,rocketsLeft:st.rockets,rocketT:0,propLeft:st.prop,landed:false,maxY:0,milestone:100,thermalMsg:false,t:0};
+  F={p,st,x:.3,y:st.towerH+1.3,vx:0,vy:0,alpha:.05,kick:0,coins:0,rocketsLeft:st.rockets,rocketT:0,propLeft:st.propT,jetLeft:st.jetT,landed:false,maxY:0,mi:0,thermalMsg:false,t:0};
   world={thermals:[],coins:[],birds:[],genX:0,rnd:rng((Math.random()*1e9)|0)};
   trail=[];floats=[];parts=[];pull=false;
   aim.drag=null;
   mode='aim';
   showOnly(null);
   $('hud').hidden=false;$('hBest').textContent=Math.floor(S.best);
-  $('hDist').textContent='0';$('hCoins').textContent='0';
+  $('hDist').textContent='0';$('hCoins').textContent='0';$('hAlt').textContent='0';$('hFF').textContent='';
   setHint('うしろに ひっぱって はなすと なげるよ！');
   $('rocketBtn').hidden=true;
 }
 function launch(){
   const v=F.st.launchV*(.35+.65*aim.pow);
-  F.vx=Math.cos(aim.ang)*v;F.vy=Math.sin(aim.ang)*v;
+  F.vx=Math.cos(aim.ang)*v;F.vy=Math.sin(aim.ang)*v;F.alpha=trimAlpha(F.st,v);
   mode='fly';
   setHint('おしているあいだ はなさきが 上がるよ');
   setTimeout(()=>{if(mode==='fly')setHint('')},3500);
@@ -413,27 +512,18 @@ function genWorld(to){
   }
 }
 
+const MILES=[5,10,25,50,100,200,300,500,750,1000,1500,2000,3000,5000,1e9];
 function step(dt){
   F.t+=dt;
   const st=F.st;
   for(const b of world.birds)b.x+=b.vx*dt;
   if(!F.landed){
-    const v=Math.max(.5,Math.hypot(F.vx,F.vy)),gam=Math.atan2(F.vy,F.vx);
-    // ゆったり とぶ角度（はやいと 下がる）＋ おしてるあいだ 上げる
-    const trim=.09*Math.min(1.3,Math.pow(st.vTrim/v,1.5));
-    const tgt=trim+(pull?.2*Math.min(1,14/v):0)+F.kick;
-    F.kick*=Math.exp(-dt*1.6);
-    F.alpha+=(tgt-F.alpha)*Math.min(1,dt*2.6*st.stab);
-    const a=F.alpha,aa=Math.abs(a);
-    const CL=aa<st.stall?5.5*a:Math.sign(a)*5.5*st.stall*Math.max(.35,1-(aa-st.stall)*4);
-    const q=.28*v*v;
-    const L=clamp(q*st.lift*CL,-40,40),D=q*(st.cd0+st.cdi*CL*CL);
-    const c=Math.cos(gam),s=Math.sin(gam);
-    let ax=-D*c-L*s,ay=-D*s+L*c-9.8;
-    const th=gam+a;
-    if(F.propLeft>0){F.propLeft-=dt;ax+=3.6*Math.cos(th);ay+=3.6*Math.sin(th);}
-    if(F.rocketT>0){F.rocketT-=dt;ax+=20*Math.cos(th);ay+=20*Math.sin(th);
-      if(Math.random()<.7)parts.push({x:F.x-Math.cos(th)*.8,y:F.y-Math.sin(th)*.8,vx:-Math.cos(th)*4+(Math.random()-.5)*2,vy:-Math.sin(th)*4+(Math.random()-.5)*2,t:0,col:Math.random()<.5?'rgba(255,160,50,.8)':'rgba(255,90,40,.7)',glow:1});}
+    let ay=0;
+    const th=Math.atan2(F.vy,F.vx)+F.alpha;
+    if(F.rocketT>0||F.jetLeft>0){
+      const n=F.rocketT>0?.7:.35;
+      if(Math.random()<n)parts.push({x:F.x-Math.cos(th)*.8,y:F.y-Math.sin(th)*.8,vx:-Math.cos(th)*4+(Math.random()-.5)*2,vy:-Math.sin(th)*4+(Math.random()-.5)*2,t:0,col:Math.random()<.5?'rgba(255,160,50,.8)':'rgba(255,90,40,.7)',glow:1});
+    }
     for(const t of world.thermals){
       if(Math.abs(F.x-t.x)<t.w/2&&F.y<t.top){
         ay+=t.str*(1-.5*F.y/t.top);
@@ -441,16 +531,15 @@ function step(dt){
       }
     }
     // かぜの ゆらぎ
-    ay+=(vnoise(F.t*.9,5)-.5)*2.4;
+    ay+=(vnoise(F.t*.9,5)-.5)*2.4*Math.min(1,F.t/2);
     F.alpha+=(vnoise(F.t*4,9)-.5)*.0012*dt*60/st.stab;
-    F.vx+=ax*dt;F.vy+=ay*dt;
-    F.x+=F.vx*dt;F.y+=F.vy*dt;
+    flyStep(st,F,dt,pull,ay);
     F.maxY=Math.max(F.maxY,F.y);
     // コイン
     for(const k of world.coins){
       if(k.got)continue;
       const dx=k.x-F.x,dy=k.y-F.y,d=Math.hypot(dx,dy);
-      if(d<st.magnet){k.got=true;F.coins++;floats.push({x:k.x,y:k.y+1,t:0,txt:'+5',col:'#ffd23f'});}
+      if(d<st.magnet){k.got=true;F.coins++;floats.push({x:k.x,y:k.y+1,t:0,txt:'+'+COIN_VAL,col:'#ffd23f'});}
     }
     // とり
     for(const b of world.birds){
@@ -463,13 +552,13 @@ function step(dt){
         for(let i=0;i<8;i++)parts.push({x:b.x,y:b.y,vx:(Math.random()-.5)*6,vy:(Math.random()-.2)*5,t:0,col:'#f4f4f4'});
       }
     }
-    if(F.x>=F.milestone){floats.push({x:F.x,y:F.y+3,t:0,txt:F.milestone+'m とっぱ！',col:'#fff'});F.milestone+=100;}
+    if(F.x>=MILES[F.mi]){floats.push({x:F.x,y:F.y+1.5,t:0,txt:MILES[F.mi]+'m とっぱ！',col:'#fff'});F.mi++;}
     if(F.y<=0){
-      F.y=0;F.landed=true;F.vy=0;F.vx=Math.min(Math.max(0,F.vx)*.6,7);F.rocketT=0;F.propLeft=0;updRocket();
+      F.y=0;F.landed=true;F.vy=0;F.vx=slideV(F.vx);F.rocketT=0;F.propLeft=0;F.jetLeft=0;updRocket();
       for(let i=0;i<14;i++)parts.push({x:F.x,y:0,vx:(Math.random()-.3)*4,vy:Math.random()*3,t:0,col:i%2?'rgba(160,130,90,.7)':'rgba(120,170,70,.8)',r:2+Math.random()*2.5});
     }
   }else{
-    F.vx=Math.max(0,F.vx-7*dt);F.x+=F.vx*dt;F.alpha*=.9;
+    F.vx=Math.max(0,F.vx-SLIDE_DECEL*dt);F.x+=F.vx*dt;F.alpha*=.9;
     if(F.vx<=0&&mode==='fly'){mode='landing';setTimeout(finish,700);}
   }
 }
@@ -477,7 +566,7 @@ function step(dt){
 function finish(){
   if(!F||mode==='result')return;
   const dist=Math.max(0,F.x),st=F.st;
-  const fromDist=Math.floor(dist),fromCoins=F.coins*5,base=fromDist+fromCoins;
+  const fromDist=Math.round(dist*MONEY_PER_M),fromCoins=F.coins*COIN_VAL,base=fromDist+fromCoins;
   const total=Math.round(base*st.mult);
   const rec=dist>S.best;
   S.money+=total;S.flights++;if(rec)S.best=dist;save();
@@ -485,9 +574,9 @@ function finish(){
   $('hud').hidden=true;$('rocketBtn').hidden=true;setHint('');
   $('rDist').textContent=dist.toFixed(1);
   $('rNew').hidden=!rec;
-  let h=`<div class="rl"><span>きょり ${Math.floor(dist)}m</span><span>+${fromDist}</span></div>
+  let h=`<div class="rl"><span>きょり ${dist.toFixed(1)}m ×${MONEY_PER_M}</span><span>+${fromDist}</span></div>
   <div class="rl"><span>コイン ${F.coins}こ</span><span>+${fromCoins}</span></div>`;
-  if(st.mult>1)h+=`<div class="rl"><span>💰 ゴールドぬり</span><span>×${st.mult.toFixed(2)}</span></div>`;
+  if(st.mult>1)h+=`<div class="rl"><span>💰 ボーナス</span><span>×${st.mult.toFixed(2)}</span></div>`;
   h+=`<div class="rl"><span>いちばん たかく</span><span>${F.maxY.toFixed(1)}m</span></div>`;
   h+=`<div class="rl tot"><span>もらった おかね</span><span>+${total}</span></div>`;
   $('rList').innerHTML=h;
@@ -550,7 +639,8 @@ function toast(t){const el=$('toast');el.textContent=t;el.hidden=false;clearTime
 function renderMenu(){
   const p=curPlane();
   $('mMoney').textContent=S.money;$('mBest').textContent=Math.floor(S.best)+'m';
-  $('mFlights').textContent=S.flights;$('mSlots').textContent=S.slots+'/3';
+  $('mFlights').textContent=S.flights;$('mSlots').textContent=S.slots+'/'+SLOT_COST.length;
+  $('mPred').textContent='よそう きょり やく '+fmtM(predict(p));
   $('mName').textContent=p.name;
   drawPreview($('mPv'),p);
   const hg=$('hangar');hg.innerHTML='';
@@ -576,16 +666,18 @@ function renderWs(){
   $('wName').value=draft.name;
   const sh=$('wShape');sh.innerHTML='';
   for(const k in SHAPES)sh.append(chip(SHAPES[k].name,draft.shape===k,()=>{draft.shape=k;touch();}));
-  const st=planeStats(draft),cmp=planeStats(Object.assign({},draft,{parts:[]}));
+  const st=planeStats(draft),pd=predict(draft),now=predict(curPlane());
+  const diff=pd-now;
+  $('wPred').innerHTML=`よそう きょり ${fmtM(pd)} <small>${Math.abs(diff)<.05?'':(diff>0?'▲ +':'▼ ')+(diff>0?fmtM(diff):fmtM(-diff))+'（いまの ひこうきと くらべて）'}</small>`;
   const bar=(n,v,mx)=>`<div class="bar"><span>${n}</span><i><b style="width:${clamp(v/mx*100,4,100)}%"></b></i></div>`;
-  $('wStats').innerHTML=`<p class="note">${SHAPES[draft.shape].desc}</p>`+bar('ながく とぶ',st.glide-3,6)+bar('はやさ',st.launchV,26)+bar('あんてい',st.stab,3.2);
+  $('wStats').innerHTML=`<p class="note">${SHAPES[draft.shape].desc}</p>`+bar('ながく とぶ',st.glide,14)+bar('かるさ',9.8-st.grav+1,5.5)+bar('パワー',st.propF*(st.propT>0)*st.propT/4+st.jetF*st.jetT/6+st.rockets*3,60)+bar('あんてい',st.stab,3.8);
   const sw=(el,key)=>{el.innerHTML='';for(const col of COLORS){const b=document.createElement('button');b.className='swc'+(draft[key]===col?' on':'');b.style.background=col;b.setAttribute('aria-label','いろ '+col);b.onclick=()=>{draft[key]=col;touch();};el.append(b);}};
   sw($('wBody'),'body');sw($('wAccent'),'accent');
   const pt=$('wPat');pt.innerHTML='';
   for(const q of PATTERNS)pt.append(chip(q.name,draft.pattern===q.id,()=>{draft.pattern=q.id;touch();}));
   // パーツわく
   const sl=$('wSlots');sl.innerHTML='';
-  for(let i=0;i<3;i++){
+  for(let i=0;i<SLOT_COST.length;i++){
     const d=document.createElement('div');
     const id=draft.parts[i],pp=PARTS.find(x=>x.id===id);
     if(i>=S.slots){d.className='slot lock';d.innerHTML='<b>🔒</b>まだ つけられない';}
@@ -606,8 +698,13 @@ function renderWs(){
       touch();
     }));
   }
+  const on=new Set(activeCombos(draft).map(c=>c.id)),cw=$('wCombo');cw.innerHTML='';
+  for(const c of COMBOS){
+    const d=document.createElement('div');d.className='cb'+(on.has(c.id)?' on':'');
+    const ic=c.need.map(id=>PARTS.find(x=>x.id===id).ic).join('＋');
+    d.innerHTML=`<b>${on.has(c.id)?'✔ ':''}${c.name}</b>${ic}　${c.desc}`;cw.append(d);
+  }
   $('wDel').disabled=S.planes.length<=1||!S.planes.some(p=>p.id===draft.id);
-  void cmp;
 }
 function touch(){draftDirty=true;renderWs();}
 $('wName').addEventListener('input',e=>{draft.name=e.target.value;draftDirty=true;});
@@ -646,21 +743,23 @@ function itemRow(ic,name,lvTxt,desc,btn){
   d.innerHTML=`<div class="ic">${ic}</div><div><b>${name}</b> <span class="lv">${lvTxt}</span><p>${desc}</p></div>`;
   d.append(btn);return d;
 }
+const fmtM=d=>(d<10?d.toFixed(1):Math.round(d))+'m';
 const stars=(n,m)=>'★'.repeat(n)+'☆'.repeat(m-n);
 function renderShop(){
   $('sMoney').textContent=S.money;
   const ss=$('sSlots');ss.innerHTML='';
-  ss.append(itemRow('🧩','パーツわく',stars(S.slots,3),S.slots===0?'これを かうと パーツが つけられるように なる！':'つけられる パーツが ふえる',
-    buyBtn(S.slots<3?SLOT_COST[S.slots]:null,()=>{S.slots++;toast('パーツわくが '+S.slots+'こに なった！');})));
+  const ns=SLOT_COST.length;
+  ss.append(itemRow('🧩','パーツわく',stars(S.slots,ns),S.slots===0?'これを かうと パーツが つけられるように なる！':'つけられる パーツが ふえる。くみあわせを ためそう',
+    buyBtn(S.slots<ns?SLOT_COST[S.slots]:null,()=>{S.slots++;toast('パーツわくが '+S.slots+'こに なった！');})));
   const sp=$('sParts');sp.innerHTML='';
   for(const x of PARTS){
-    const lv=S.parts[x.id]||0,cost=lv<3?Math.round(PART_COST[lv]*x.k/10)*10:null;
-    sp.append(itemRow(x.ic,x.name,lv?stars(lv,3):'',x.desc,buyBtn(cost,()=>{S.parts[x.id]=lv+1;toast(lv?x.name+' を レベル'+(lv+1)+'に！':x.name+' を かった！こうさくしつで つけよう');})));
+    const lv=S.parts[x.id]||0,cost=lv<PART_MAX?partCost(x,lv):null;
+    sp.append(itemRow(x.ic,x.name,lv?stars(lv,PART_MAX):'',x.desc,buyBtn(cost,()=>{S.parts[x.id]=lv+1;toast(lv?x.name+' を レベル'+(lv+1)+'に！':x.name+' を かった！こうさくしつで つけよう');})));
   }
   const sf=$('sFac');sf.innerHTML='';
   for(const f of FACS){
     const lv=S.fac[f.id],mx=f.cost.length;
-    sf.append(itemRow(f.ic,f.name,stars(lv,mx),f.desc,buyBtn(lv<mx?f.cost[lv]:null,()=>{S.fac[f.id]=lv+1;toast(f.name+' レベル'+(lv+1)+'！');})));
+    sf.append(itemRow(f.ic,f.name,'Lv'+lv,f.desc+'（'+facDesc(f)+'）',buyBtn(lv<mx?f.cost[lv]:null,()=>{S.fac[f.id]=lv+1;toast(f.name+' レベル'+(lv+1)+'！');})));
   }
 }
 
@@ -724,14 +823,14 @@ const PAPER=(()=>{
 function W2S(x,y){return [(x-cam.x)*cam.ppm,H-(y-cam.b)*cam.ppm];}
 function updateCam(dt){
   let tx,tb,tp;
-  const towerH=F?F.st.towerH:10+6*S.fac.tower;
+  const towerH=(F?F.st.towerH:TOWER_H[S.fac.tower])+1.3;
   if(!F||mode==='aim'||mode==='menu'){
-    tp=clamp(Math.min(H*.55/(towerH+8),W/14),4,22);
-    tx=-W*(mode==='menu'?.5:.3)/tp;tb=-1.5;
+    tp=clamp(Math.min(H*.55/(towerH+6),W/12),4,40);
+    tx=-W*(mode==='menu'?.5:.25)/tp;tb=-H*.28/tp;
   }else{
-    tp=clamp(H/(26+F.y*1.25),3.2,16);
+    tp=clamp(H/(12+F.y*1.25),3.2,40);
     const vh=H/tp;
-    tx=F.x-W*.35/tp;tb=Math.max(-1.5,F.y-vh*.5);
+    tx=F.x-W*.35/tp;tb=Math.max(-H*.28/tp,F.y-vh*.5);
   }
   const k=Math.min(1,dt*(mode==='fly'?6:3));
   cam.ppm+=(tp-cam.ppm)*k;
@@ -740,7 +839,7 @@ function updateCam(dt){
 }
 // とおくの やま（とおいほど くうきで かすむ）
 function ridge(par,seed,amp,base,top,bot,haze,freq){
-  const by=H+cam.b*cam.ppm*par-base;
+  const by=H+Math.min(0,cam.b)*cam.ppm+Math.max(0,cam.b)*cam.ppm*par-base;
   if(by-amp>H)return by;
   const ox=cam.x*10*par;
   const g=cx.createLinearGradient(0,by-amp,0,by+30);g.addColorStop(0,top);g.addColorStop(1,bot);
@@ -753,7 +852,7 @@ function ridge(par,seed,amp,base,top,bot,haze,freq){
 }
 function drawBG(){
   const alt=clamp(cam.b/150,0,1);
-  const hor=H+cam.b*cam.ppm*.06-40;
+  const hor=H+Math.min(0,cam.b)*cam.ppm+Math.max(0,cam.b)*cam.ppm*.06-40;
   const g=cx.createLinearGradient(0,0,0,Math.max(H*.4,hor));
   g.addColorStop(0,`rgb(${48-alt*20},${104-alt*30},${190-alt*20})`);
   g.addColorStop(.55,`rgb(${110-alt*25},${165-alt*25},${225-alt*10})`);
@@ -775,7 +874,7 @@ function drawBG(){
       const h=hash(i*7+layer*1000);if(h<.25)continue;
       const cw=base*(.7+hash(i*3+layer)*.6),ch=cw*.53;
       const wx=i*sp+h*120-ox,alt=H*(.35+hash(i+33+layer*50)*.5)+layer*40;
-      const sy2=H-alt+cam.b*cam.ppm*par*.6-ch;
+      const sy2=H-alt+Math.min(0,cam.b)*cam.ppm+Math.max(0,cam.b)*cam.ppm*par*.6-ch;
       if(sy2>H||sy2+ch<0)continue;
       cx.drawImage(CLOUDS[((i*5+layer)%6+6)%6],wx,sy2,cw,ch);
     }
@@ -854,6 +953,22 @@ function drawTower(th){
   for(let i=8;i>=0;i--){const t=i/8;cx.lineTo(bx-1.37*ppm+t*ppm*1.3,ty-ppm*2.3+Math.sin(tNow*6-t*4)*ppm*.12*t);}
   cx.fill();
 }
+// なげる子ども
+function drawKid(th){
+  const ppm=cam.ppm,[bx,by]=W2S(-.35,th),u=ppm;
+  const thrown=mode!=='aim'&&mode!=='menu';
+  cx.save();cx.translate(bx,by);cx.lineCap='round';
+  cx.strokeStyle='#2c3e66';cx.lineWidth=Math.max(2,u*.16);
+  cx.beginPath();cx.moveTo(-u*.1,0);cx.lineTo(-u*.05,-u*.55);cx.moveTo(u*.12,0);cx.lineTo(u*.05,-u*.55);cx.stroke();
+  cx.fillStyle='#e8503a';cx.beginPath();cx.roundRect(-u*.17,-u*1.05,u*.34,u*.55,u*.08);cx.fill();
+  cx.strokeStyle='#f1c7a0';cx.lineWidth=Math.max(1.6,u*.11);cx.beginPath();
+  cx.moveTo(u*.05,-u*.95);
+  if(thrown)cx.lineTo(u*.55,-u*.85);else cx.quadraticCurveTo(u*.35,-u*1.2,u*.62,-u*1.3);
+  cx.moveTo(-u*.05,-u*.95);cx.lineTo(-u*.25,-u*.6);cx.stroke();
+  cx.fillStyle='#f1c7a0';cx.beginPath();cx.arc(0,-u*1.2,u*.16,0,7);cx.fill();
+  cx.fillStyle='#3a2a1a';cx.beginPath();cx.arc(0,-u*1.25,u*.16,Math.PI*1.05,Math.PI*2.05);cx.fill();
+  cx.restore();
+}
 function drawWorld(){
   const ppm=cam.ppm,x0=cam.x,x1=cam.x+W/ppm;
   // き
@@ -865,9 +980,17 @@ function drawWorld(){
   }
   // きょりの かんばん
   cx.textAlign='center';
+  if(ppm>=9){
+    cx.font='800 11px "M PLUS Rounded 1c",sans-serif';
+    for(let m=Math.max(1,Math.floor(x0));m<=x1+1;m++){
+      if(m%10===0)continue;
+      const [sx,sy]=W2S(m,0);cx.fillStyle='rgba(255,255,255,.7)';cx.fillRect(sx-1,sy-6,2,6);
+      if(ppm>=22||m%5===0){cx.fillStyle='rgba(255,255,255,.9)';cx.fillText(m+'m',sx,sy+14);}
+    }
+  }
   for(let m=Math.max(0,Math.floor(x0/10)*10);m<=x1+10;m+=10){
     const [sx,sy]=W2S(m,0);
-    if(m%50===0&&m>0){
+    if(m>0&&(m%50===0||(ppm>=6&&m%10===0))){
       cx.fillStyle='#5e3d1f';cx.fillRect(sx-2,sy-28,4,28);
       const bg=cx.createLinearGradient(0,sy-50,0,sy-26);bg.addColorStop(0,'#f6efe0');bg.addColorStop(1,'#ddd2bb');
       cx.fillStyle=bg;cx.strokeStyle='#5e3d1f';cx.lineWidth=2;
@@ -886,11 +1009,13 @@ function drawWorld(){
       cx.fillStyle='#fff';cx.font='800 11px "M PLUS Rounded 1c",sans-serif';cx.fillText('ベスト',sx+14,sy-57);
     }
   }
-  drawTower(F?F.st.towerH:10+6*S.fac.tower);
+  const twh=F?F.st.towerH:TOWER_H[S.fac.tower];
+  if(twh>0)drawTower(twh);
+  drawKid(twh);
   // ひこうきの かげ
   const sp=F&&mode!=='result'?[F.x,F.y]:null;
   if(sp&&sp[1]<40){
-    const [sx,sy]=W2S(sp[0],0),k=1-sp[1]/40,w=clamp(28+cam.ppm*1.6,32,54)*.5*(1+.5*(1-k));
+    const [sx,sy]=W2S(sp[0],0),k=1-sp[1]/40,w=clamp(22+cam.ppm*.6,28,40)*.5*(1+.5*(1-k));
     cx.fillStyle=`rgba(20,40,10,${.35*k})`;cx.beginPath();cx.ellipse(sx,sy+1,w,Math.max(1.5,w*.12),0,0,7);cx.fill();
   }
   drawGrass();
@@ -930,7 +1055,8 @@ function drawWorld(){
   }
 }
 function drawFlyer(x,y,th,p,flut){
-  const [sx,sy]=W2S(x,y),len=clamp(28+cam.ppm*1.6,32,54);
+  const [sx,sy]=W2S(x,y),len=clamp(22+cam.ppm*.6,28,40);
+  if(activeParts(p).includes('balloon'))drawBalloon(cx,sx-len*.15,sy-len*.95,len*.22,sx,sy);
   cx.save();cx.translate(sx,sy);cx.rotate(-th);
   // した の キール（おりかえし）
   const kg=cx.createLinearGradient(0,0,0,len*.14);kg.addColorStop(0,p.body);kg.addColorStop(1,'#000');
@@ -973,11 +1099,14 @@ function frame(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;tNow+=dt;
   if((mode==='fly'||mode==='landing')&&F){
     genWorld(F.x+200);
-    const n=Math.ceil(dt/(1/240));for(let i=0;i<n;i++)step(dt/n);
+    // ながい ひこうは だんだん はやおくり（さいだい 4ばい）
+    const ts=mode==='fly'&&!F.landed?clamp(1+(F.t-4)*.15,1,4):1;
+    const n=Math.ceil(dt*ts*240);for(let i=0;i<n;i++)step(dt*ts/n);
+    $('hFF').textContent=ts>1.2?'▶▶ ×'+ts.toFixed(1):'';
     if(!F.landed){trail.push([F.x,F.y]);if(trail.length>40)trail.shift();}
     $('hDist').textContent=Math.max(0,F.x).toFixed(1);
     $('hAlt').textContent=F.y.toFixed(1);
-    $('hCoins').textContent=F.coins*5;
+    $('hCoins').textContent=F.coins*COIN_VAL;
   }
   updateCam(dt);
   cx.setTransform(dpr,0,0,dpr,0,0);
@@ -992,8 +1121,8 @@ function frame(now){
     const fl=mode==='aim'||F.landed?0:Math.sin(tNow*38)*.035*Math.min(1,Math.hypot(F.vx,F.vy)/15);
     drawFlyer(F.x,F.y+(F.landed?.15:0),th,F.p,fl);
   }else if(mode==='menu'){
-    const th=10+6*S.fac.tower;
-    drawFlyer(.6,th+1.2+Math.sin(tNow*2)*.15,.15,curPlane());
+    const th=TOWER_H[S.fac.tower];
+    drawFlyer(.3,th+1.3+Math.sin(tNow*2)*.05,.15,curPlane());
   }
   drawFx(dt);
   requestAnimationFrame(frame);
