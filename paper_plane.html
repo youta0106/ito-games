@@ -82,6 +82,17 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
 .bar i{display:block;height:10px;border-radius:5px;background:rgba(0,0,0,.35);overflow:hidden}
 .bar i b{display:block;height:100%;background:var(--good);border-radius:5px;transition:width .2s}
 .slots{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%}
+.dot{color:#ff5a5a;font-size:12px;vertical-align:middle}
+.mh{align-self:stretch;text-align:left;font-size:12px;display:flex;flex-direction:column;gap:2px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.mh span{display:inline-block;min-width:78px;color:var(--muted)}
+.mb{align-self:stretch;text-align:left;font-size:13px;line-height:1.75;white-space:pre-wrap}
+.devgrid{max-height:34vh;overflow-y:auto;padding:4px;touch-action:pan-y}
+.mounts{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%}
+.mt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:64px;padding:6px 2px;border-radius:10px;border:2px dashed var(--line);background:rgba(255,255,255,.04);color:var(--ink);font-family:var(--body);font-size:10px;cursor:pointer;min-width:0}
+.mt b{font-size:22px;line-height:1}
+.mt.full{border-style:solid;border-color:var(--good);background:rgba(126,217,87,.1)}
+.mt.on{outline:3px solid var(--sun);outline-offset:1px}
+.mt:focus-visible{outline:3px solid var(--sun)}
 .pred{font-family:var(--display);font-size:20px;color:var(--sun);font-variant-numeric:tabular-nums}
 .pred small{font-family:var(--body);font-size:12px;color:var(--muted)}
 .combos{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;width:100%}
@@ -149,6 +160,10 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
         <button class="btn ghost" id="wsBtn">✂️ こうさく</button>
         <button class="btn ghost" id="shopBtn">🛒 ショップ</button>
       </div>
+      <div class="row">
+        <button class="btn ghost" id="mailBtn" hidden>✉️ メール <span class="dot" id="mailDot">●</span></button>
+        <button class="btn ghost" id="devBtn" hidden>🛠️ かいはつ</button>
+      </div>
       <div class="sec">ハンガー（ほぞんした ひこうき）</div>
       <div class="hangar" id="hangar"></div>
       <ul class="how">
@@ -159,6 +174,7 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
         <li><b>パーツを 2つ くみあわせると ボーナス！</b>いろいろ ためそう</li>
         <li><b>400m・800m・1000m</b>を こえると、もっと つよい かたちが 3つずつ ふえる！</li>
         <li><b>1000m</b>では あたらしい パーツ5つと パーツわく4つも ふえる</li>
+        <li><b>2000m</b>を こえると かいはつだん から メールが とどくよ…？</li>
       </ul>
     </div>
   </div>
@@ -208,6 +224,44 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       <div class="sec">しせつ</div>
       <div class="shop" id="sFac"></div>
       <button class="btn ghost" id="sBack">もどる</button>
+    </div>
+  </div>
+
+  <!-- メール -->
+  <div class="ov" id="ovMail" hidden>
+    <div class="card">
+      <h2>✉️ メール</h2>
+      <div class="mh"><div><span>さしだしにん</span>ちょうかみひこうき かいはつだん</div><div><span>けんめい</span>【きょうりょく の おねがい】</div></div>
+      <div class="mb" id="mailBody"></div>
+      <button class="btn" id="mailClose">とじる</button>
+    </div>
+  </div>
+
+  <!-- かいはつ -->
+  <div class="ov" id="ovDev" hidden>
+    <div class="card wide">
+      <h2>🛠️ かいはつ</h2>
+      <p class="sub">ちょうかみひこうき かいはつだん</p>
+      <div class="wallet"><i class="coin-ic"></i><span id="dMoney">0</span></div>
+      <canvas class="pv" id="dPv"></canvas>
+      <label class="field">なまえ <input id="dName" maxlength="12" autocomplete="off" placeholder="なまえをつけよう"></label>
+      <div class="pred" id="dPred"></div>
+      <div class="bars" id="dStats"></div>
+      <div class="sec">ベースの せんとうき（40しゅるい）</div>
+      <div class="hangar devgrid" id="dBase"></div>
+      <p class="note" id="dBaseNote"></p>
+      <div class="sec">とりつける ばしょ（5か所）</div>
+      <div class="mounts" id="dMounts"></div>
+      <p class="note" id="dPickNote"></p>
+      <div class="chips" id="dPick"></div>
+      <div class="sec">とくべつパーツ ショップ（20しゅるい）</div>
+      <p class="note">ふつうでは つくれない パーツ。はねは 2つ おなじパーツで ボーナス！</p>
+      <div class="shop" id="dShop"></div>
+      <div class="row">
+        <button class="btn" id="dSave">💾 ほぞん</button>
+        <button class="btn ghost" id="dSaveNew">＋ べつに ほぞん</button>
+      </div>
+      <button class="btn ghost sm" id="dBack">もどる</button>
     </div>
   </div>
 
@@ -289,6 +343,125 @@ const SHAPES={
     poly:[[0,-1],[.12,-.55],[.45,-.7],[.7,-.3],[1,0],[.85,.15],[.95,.45],[.6,.35],[.45,.62],[.28,.4],[.15,.95],[0,.7],[-.15,.95],[-.28,.4],[-.45,.62],[-.6,.35],[-.95,.45],[-.85,.15],[-1,0],[-.7,-.3],[-.45,-.7],[-.12,-.55]]},
 };
 const shapeOpen=k=>!SHAPES[k].need||S.best>=SHAPES[k].need;
+/* ---------- かいはつ：ほんものの せんとうき 40しゅるい（2000m で かいほう） ---------- */
+// けいじょう：[はば(どうたい), どうたいが ふとくなる y, [つばさ ねもとマエ, はし x, はしマエ, はしウシロ, ねもとウシロ], びよく[x,ねもと,はし]|0, カナード[x,ねもと,はし]|0, しっぽ y]
+const DEV_ARCH={
+  stealth:{lift:1.5,cd0:.02,cdi:.055,stab:2.4,launch:1.55},
+  agile:{lift:1.6,cd0:.024,cdi:.05,stab:1.9,launch:1.5},
+  speed:{lift:1.35,cd0:.02,cdi:.06,stab:1.8,launch:1.65},
+  swing:{lift:1.75,cd0:.023,cdi:.045,stab:2.1,launch:1.5},
+  attack:{lift:1.95,cd0:.03,cdi:.04,stab:2.3,launch:1.35},
+  prop:{lift:1.65,cd0:.03,cdi:.05,stab:1.8,launch:1.3},
+  early:{lift:1.5,cd0:.028,cdi:.055,stab:1.7,launch:1.4},
+};
+const DEV_LIST=[
+['f22','F-22 ラプター','アメリカ ステルス','stealth',[.11,-.55,[-.08,.62,.32,.56,.6],[.34,.58,.88],0,.95]],
+['f35','F-35 ライトニングII','アメリカ ステルス','stealth',[.13,-.6,[-.1,.66,.3,.58,.58],[.3,.6,.86],0,.93]],
+['f15','F-15 イーグル','アメリカ せいくうせんとうき','agile',[.14,-.6,[-.15,.7,.12,.5,.52],[.34,.55,.85],0,.95]],
+['f16','F-16 ファイティングファルコン','アメリカ かるくて きびん','agile',[.12,-.62,[0,.5,.35,.6,.62],[.3,.62,.85],0,.95]],
+['f18','F/A-18 ホーネット','アメリカ かんさいき','agile',[.13,-.58,[0,.62,.25,.55,.55],[.34,.6,.85],[.28,-.28,-.12],.95]],
+['f14','F-14 トムキャット','アメリカ かへんよく','swing',[.15,-.55,[-.2,.95,.15,.4,.5],[.4,.62,.9],0,.97]],
+['f4','F-4 ファントムII','アメリカ めいき','speed',[.15,-.6,[-.1,.7,.22,.55,.5],[.42,.66,.88],0,.97]],
+['f86','F-86 セイバー','アメリカ ジェットき しょき','early',[.13,-.55,[-.1,.78,.25,.5,.35],[.36,.7,.9],0,.96]],
+['f104','F-104 スターファイター','アメリカ ちょうこうそく','speed',[.1,-.68,[.05,.4,.25,.55,.5],[.3,.78,.92],0,.96]],
+['f117','F-117 ナイトホーク','アメリカ はじめての ステルス','stealth',[.2,-.3,[-.6,.9,.35,.62,.6],0,0,.8]],
+['mig15','MiG-15','ソれん ジェットき しょき','early',[.14,-.6,[-.05,.78,.25,.52,.4],[.32,.72,.9],0,.96]],
+['mig21','MiG-21 フィッシュベッド','ソれん デルタよく','speed',[.12,-.62,[.05,.55,.45,.62,.62],[.3,.65,.88],0,.95]],
+['mig25','MiG-25 フォックスバット','ソれん ちょうこうそく','speed',[.17,-.5,[-.1,.78,.2,.55,.55],[.36,.5,.82],0,.96]],
+['mig29','MiG-29 ファルクラム','ソれん・ロシア','agile',[.14,-.55,[-.1,.66,.18,.52,.52],[.38,.55,.85],0,.95]],
+['su27','Su-27 フランカー','ロシア きどうりょく','agile',[.15,-.55,[-.12,.68,.2,.52,.5],[.4,.55,.85],0,.98]],
+['su35','Su-35','ロシア カナードつき','agile',[.15,-.55,[-.1,.72,.22,.54,.5],[.42,.58,.88],[.35,-.45,-.3],.98]],
+['su57','Su-57','ロシア ステルス','stealth',[.15,-.55,[-.2,.7,.25,.55,.55],[.35,.58,.88],0,.96]],
+['su47','Su-47 ベルクート','ロシア ぜんしんよく','agile',[.13,-.55,[.1,.82,-.15,.05,.4],[.4,.6,.85],[.3,-.6,-.45],.96]],
+['j20','J-20','ちゅうごく ステルス','stealth',[.13,-.6,[0,.7,.3,.58,.58],[.36,.64,.88],[.32,-.4,-.2],.95]],
+['j10','J-10','ちゅうごく デルタ＋カナード','agile',[.12,-.6,[0,.6,.4,.62,.62],0,[.34,-.35,-.2],.94]],
+['fc31','FC-31','ちゅうごく ステルス','stealth',[.13,-.6,[-.1,.66,.3,.56,.56],[.3,.6,.86],0,.94]],
+['typhoon','ユーロファイター タイフーン','ヨーロッパ','agile',[.13,-.58,[-.05,.66,.3,.6,.6],0,[.34,-.45,-.3],.94]],
+['rafale','ラファール','フランス','agile',[.13,-.58,[0,.65,.35,.62,.62],0,[.3,-.32,-.18],.94]],
+['m2000','ミラージュ2000','フランス デルタよく','speed',[.13,-.6,[-.1,.62,.5,.7,.7],0,0,.94]],
+['m3','ミラージュIII','フランス デルタよく','speed',[.12,-.6,[-.05,.58,.5,.72,.72],0,0,.95]],
+['gripen','グリペン','スウェーデン','agile',[.12,-.6,[.05,.55,.4,.6,.6],0,[.28,-.38,-.24],.93]],
+['viggen','ビゲン','スウェーデン カナードつき','speed',[.14,-.6,[-.1,.72,.35,.65,.65],0,[.4,-.4,-.25],.95]],
+['draken','ドラケン','スウェーデン ダブルデルタ','speed',[.13,-.6,[-.2,.62,.5,.76,.76],0,0,.96]],
+['tornado','トーネード','ヨーロッパ かへんよく','swing',[.15,-.58,[-.1,.72,.35,.55,.5],[.4,.62,.88],0,.96]],
+['a10','A-10 サンダーボルトII','アメリカ こうげきき','attack',[.16,-.5,[-.1,.98,-.05,.2,.25],[.5,.7,.88],0,.94]],
+['f5','F-5 タイガーII','アメリカ けいりょう','agile',[.12,-.62,[-.05,.5,.3,.58,.5],[.28,.64,.88],0,.95]],
+['f105','F-105 サンダーチーフ','アメリカ ばくげきき','speed',[.15,-.6,[-.1,.62,.35,.62,.52],[.4,.72,.9],0,.97]],
+['f111','F-111 アードバーク','アメリカ かへんよく','swing',[.15,-.5,[-.2,.88,.2,.5,.45],[.42,.68,.92],0,.98]],
+['yf23','YF-23 ブラックウィドウII','アメリカ しさく ステルス','stealth',[.16,-.45,[-.35,.78,.2,.62,.6],[.34,.66,.9],0,.96]],
+['x29','X-29','アメリカ じっけんき ぜんしんよく','agile',[.12,-.55,[0,.65,-.2,0,.35],0,[.3,-.55,-.4],.95]],
+['zero','零戦','にほん プロペラき','prop',[.1,-.45,[-.1,.85,0,.18,.2],[.32,.7,.82],0,.96]],
+['spit','スピットファイア','イギリス プロペラき','prop',[.1,-.47,[-.15,.82,.1,.28,.22],[.3,.72,.85],0,.96]],
+['p51','P-51 マスタング','アメリカ プロペラき','prop',[.1,-.46,[-.1,.8,.05,.25,.25],[.32,.74,.88],0,.96]],
+['bf109','メッサーシュミット Bf109','ドイツ プロペラき','prop',[.1,-.45,[-.1,.7,.05,.22,.22],[.28,.7,.86],0,.96]],
+['me262','Me262 シュヴァルベ','ドイツ はじめての ジェットき','early',[.13,-.55,[-.1,.8,.2,.4,.3],[.26,.7,.88],0,.96]],
+];
+function devGeom(P){
+  const [fw,nz0,w,t,c,end0]=P,[rLE,tx,tLE,tTE,rTE]=w,nz=Math.min(nz0,rLE-.02);
+  const h=[[0,-1],[fw*.55,-1+(nz+1)*.5],[fw,nz]];
+  if(c){const cr=Math.min(c[1],rLE-.22),ct=Math.max(c[2],cr-.04);h.push([fw,cr],[c[0],ct],[c[0],ct+.08],[fw,cr+.2]);}
+  h.push([fw,rLE],[tx,tLE],[tx,tTE],[fw,rTE]);
+  let last=rTE;
+  if(t){
+    const yte=x=>rTE+(tTE-rTE)*(x-fw)/(tx-fw);
+    const tr=Math.max(t[1],rTE),tt=Math.max(t[2],yte(t[0])+.03,tr),tip=Math.min(tt+.1,.97),root=Math.min(Math.max(tr+.22,tip),.97);
+    h.push([fw,tr],[t[0],tt],[t[0],tip],[fw,root]);last=root;
+  }
+  const end=Math.max(end0,last+.01);
+  h.push([fw*.8,end],[0,end-.03]);
+  const poly=h.concat(h.slice(1,h.length-1).reverse().map(([x,y])=>[-x,y]));
+  const u=(.62*tx+.38*fw-fw)/(tx-fw),yle=rLE+(tLE-rLE)*u,yte=rTE+(tTE-rTE)*u;
+  const wx=.62*tx+.38*fw,wy=(yle+yte)/2;
+  return {poly,mp:{rw:[wx,wy],lw:[-wx,wy],fr:[0,-.68],rr:[0,end-.12],md:[0,(rLE+rTE)/2]}};
+}
+DEV_LIST.forEach(([id,name,desc,arch,P],i)=>{
+  const a=DEV_ARCH[arch],v=1+(((i*37)%11)-5)/100,g=devGeom(P);
+  SHAPES[id]={name,desc,lift:a.lift*v,cd0:a.cd0,cdi:a.cdi,stab:a.stab,launch:a.launch*(2-v),rough:.6,need:2000,dev:true,poly:g.poly,mp:g.mp};
+});
+// とりつける ばしょ（5か所）。はねは 2つで 1つぶんより おおきい
+const MOUNTS=[
+  {id:'rw',name:'みぎはね',w:.6},{id:'lw',name:'ひだりはね',w:.6},
+  {id:'fr',name:'まえ',w:1},{id:'rr',name:'うしろ',w:1},{id:'md',name:'まんなか',w:1},
+];
+const ALLM=['rw','lw','fr','rr','md'];
+// ふつうでは つくれない とくべつパーツ 20しゅるい
+const DPARTS=[
+  {id:'booster',ic:'🚀',name:'ブースターパック',desc:'ロケットを 3かい つかえる',cost:30000,allow:['rr','md'],col:'#ef4b3f',fx:{rockets:3}},
+  {id:'turbo',ic:'🔥',name:'ターボジェット',desc:'つよい ジェットで ぐいっと すすむ',cost:60000,allow:['rr'],col:'#ff8a2e',fx:{jetT:4,jetF:10}},
+  {id:'fusion',ic:'⚛️',name:'ミニかくゆうごうろ',desc:'なかなか とまらない ちから',cost:150000,allow:['rr','md'],col:'#7ed957',fx:{ionT:120,ionF:.4}},
+  {id:'blackhole',ic:'🕳️',name:'ブラックホールじしゃく',desc:'コインを すいこむ',cost:40000,allow:['fr','md','rw','lw'],col:'#3b2a6a',fx:{magnet:5}},
+  {id:'dcowl',ic:'💎',name:'ダイヤカウル',desc:'もらえる おかねが ふえる',cost:50000,allow:['fr','md'],col:'#7fe6ff',fx:{money:.4}},
+  {id:'warp',ic:'🌀',name:'ワープリング',desc:'とんでいる とちゅうで ワープ！',cost:80000,allow:['md','fr'],col:'#b07aff',fx:{warp:1}},
+  {id:'blade',ic:'🪽',name:'ブレードウイング',desc:'はねが のびて よく うく',cost:35000,allow:['rw','lw'],col:'#cfd6e4',fx:{boost:.35}},
+  {id:'canard',ic:'🛩️',name:'カナード',desc:'あんてい アップ。すこし うごかせる',cost:25000,allow:['fr'],col:'#9bd06a',fx:{stab:.6,ctrl:.08,drag:.04}},
+  {id:'barrier',ic:'🔮',name:'バリア',desc:'とりに ぶつからない',cost:45000,allow:['fr','md'],col:'#6ec1ff',fx:{bird:1}},
+  {id:'turbine',ic:'🌬️',name:'ウインドタービン',desc:'きりゅうの ちからを うける',cost:30000,allow:['rw','lw'],col:'#bff4ff',fx:{thermal:.6,drag:.04}},
+  {id:'solar',ic:'☀️',name:'ソーラーパネル',desc:'たかい ところほど ちからが でる',cost:70000,allow:['rw','lw','md'],col:'#ffd23f',fx:{solarF:.5}},
+  {id:'zero',ic:'🧊',name:'ゼロていこうコート',desc:'くうきの ていこうが ぐんと へる',cost:40000,allow:ALLM,col:'#e8fbff',fx:{drag:.18}},
+  {id:'feather',ic:'🪶',name:'うすうすカーボン',desc:'ひこうきが かるくなる',cost:50000,allow:ALLM,col:'#4a5a74',fx:{grav:.12,drag:.05}},
+  {id:'stabil',ic:'⚙️',name:'ジャイロスタビライザー',desc:'ぜんぜん ゆれない',cost:60000,allow:['md'],col:'#8a93a3',fx:{stab:1,bird:.6,drag:.05}},
+  {id:'catapult',ic:'🏹',name:'カタパルト',desc:'なげる はやさが ぐんと 上がる',cost:55000,allow:['fr'],col:'#c08a52',fx:{launch:.3}},
+  {id:'missile',ic:'🎯',name:'ミサイルポッド',desc:'まえの とりを うちおとす',cost:90000,allow:['rw','lw'],col:'#d9433a',fx:{missiles:1}},
+  {id:'rescue',ic:'🪂',name:'きゅうじょうパラシュート',desc:'おちそうに なると 1かい ふっかつ',cost:65000,allow:['rr','md'],col:'#ff7ac0',fx:{rescue:1}},
+  {id:'radar',ic:'🛰️',name:'レーダー',desc:'コインと きりゅうを さがす',cost:35000,allow:['fr','md'],col:'#2ec4d6',fx:{magnet:3,thermal:.4}},
+  {id:'lucky',ic:'🎰',name:'ラッキーコインきかん',desc:'とんでいる あいだ コインが ふえる',cost:120000,allow:['md'],col:'#ffb03a',fx:{lucky:1}},
+  {id:'chrono',ic:'🧿',name:'じくうエンジン',desc:'さいきょうの すいしん。ちょっと うかぶ',cost:400000,allow:['rr'],col:'#9b6bff',fx:{ionT:90,ionF:1,launch:.15}},
+];
+function devAcc(p){
+  const a={boost:0,drag:0,grav:0,stab:0,launch:0,magnet:0,money:0,thermal:0,ctrl:0,rockets:0,jetT:0,jetF:0,ionT:0,ionF:0,solarF:0,bird:0,missiles:0,rescue:0,warp:0,lucky:0};
+  if(!p.dev||!SHAPES[p.shape]||!SHAPES[p.shape].dev)return a;
+  const m=p.dev.mounts||{};
+  for(const mt of MOUNTS){
+    const x=DPARTS.find(d=>d.id===m[mt.id]);
+    if(!x||!S.dparts[x.id]||!x.allow.includes(mt.id))continue;
+    for(const k in x.fx)a[k]+=x.fx[k]*mt.w;
+  }
+  // りょうほうの はねに おなじ パーツ → ボーナス
+  const r=DPARTS.find(d=>d.id===m.rw);
+  if(r&&m.rw===m.lw&&S.dparts[r.id]&&r.allow.includes('rw')&&r.allow.includes('lw'))for(const k in r.fx)a[k]+=r.fx[k]*.2;
+  a.rockets=Math.round(a.rockets);
+  return a;
+}
 const COLORS=['#ffffff','#ff5a5a','#ff9a2e','#ffd23f','#7ed957','#2ec4d6','#4a7dff','#9b6bff','#ff7ac0','#2d3442','#9a6a3a','#c0c8d4'];
 const PATTERNS=[{id:'none',name:'なし'},{id:'stripe',name:'しましま'},{id:'dots',name:'みずたま'},{id:'zigzag',name:'ギザギザ'},{id:'star',name:'ほし'},{id:'split',name:'はんぶん'}];
 // きょうかパーツ：13しゅるい ＋ 1000m で 5しゅるい、レベル1〜5。ショップで買って、パーツわく に つける
@@ -346,7 +519,7 @@ const MONEY_PER_M=10,COIN_VAL=20;
 
 /* ---------- セーブ ---------- */
 const KEY='paperplane-v2';
-let S={money:0,best:0,flights:0,slots:0,parts:{},fac:{tower:0,arm:0},planes:[],cur:0,nextId:1};
+let S={money:0,best:0,flights:0,slots:0,parts:{},fac:{tower:0,arm:0},planes:[],cur:0,nextId:1,mailGot:false,mailRead:false,dparts:{}};
 function newPlane(name){return {id:S.nextId++,name,shape:'normal',body:'#ffffff',accent:'#4a7dff',pattern:'none',parts:[]}}
 try{
   const v=JSON.parse(localStorage.getItem(KEY)||'null');
@@ -356,6 +529,7 @@ try{
     if(o&&Array.isArray(o.planes)){S.planes=o.planes.map(p=>Object.assign(p,{parts:[]}));S.cur=o.cur;S.nextId=o.nextId||S.planes.length+1;}
   }
 }catch(e){}
+S.dparts=S.dparts||{};
 S.planes=S.planes.filter(p=>p&&SHAPES[p.shape]);
 if(!S.planes.length){const p=newPlane('はじめての ひこうき');S.planes.push(p);S.cur=p.id;}
 if(!S.planes.some(p=>p.id===S.cur))S.cur=S.planes[0].id;
@@ -369,10 +543,11 @@ const AERO_K=.5;
 function planeStats(p){
   const sh=SHAPES[p.shape],on=activeParts(p),lv=id=>on.includes(id)?S.parts[id]:0;
   const cb=new Set(activeCombos(p).map(c=>c.id));
+  const da=devAcc(p); // かいはつパーツの こうか
   const wax=lv('wax'),wl=lv('winglet'),bw=lv('bigwing'),t=lv('tail'),bl=lv('balloon'),pr=lv('prop'),jt=lv('jet');
   const cl=lv('clip'),cr=lv('carbon'),io=lv('ion'),gy=lv('gyro'),tm=1+.12*lv('after'); // tm：エンジンの ちから ばいりつ
   // さいしょの かみひこうきは ぐしゃっと していて ていこうが 大きい
-  const boost=(1+.15*bw)*(1+.04*wl)*(cb.has('bird')?1.2:1);
+  const boost=(1+.15*bw)*(1+.04*wl)*(cb.has('bird')?1.2:1)*(1+da.boost);
   const rough=.36*(sh.rough||1)/(1+.55*wax)/(1+.08*t)*(cb.has('stable')?.85:1);
   const st={
     // うく力アップは「おなじ はやさで ていこうが へる」として あつかう（おそく なりすぎない）
@@ -391,6 +566,11 @@ function planeStats(p){
     ctrl:lv('stick')?(.1+.025*lv('stick'))*(cb.has('stunt')?1.5:1):0,
     magnet:1.1+1.6*lv('magnet'),mult:(1+.15*lv('gold')+.25*lv('diamond'))*(cb.has('rich')?1.25:1),
   };
+  st.cd0*=1-da.drag;st.cdi*=1-da.drag;st.grav*=1-da.grav;st.stab+=da.stab;st.launchV*=1+da.launch;
+  st.magnet+=da.magnet;st.mult+=da.money;st.thermalMul*=1+da.thermal;st.ctrl+=da.ctrl;
+  st.rockets+=da.rockets;st.jetT=Math.max(st.jetT,da.jetT);st.jetF+=da.jetF;
+  st.ionT=Math.max(st.ionT,da.ionT);st.ionF+=da.ionF;st.solarF=da.solarF;st.solarT=da.solarF?45:0;
+  st.birdImm=da.bird;st.missiles=da.missiles;st.rescue=da.rescue;st.warp=da.warp;st.lucky=da.lucky;
   const CL=5.5*.09;
   st.glide=st.lift*CL/(st.cd0+st.cdi*CL*CL);
   st.vTrim=Math.sqrt(st.grav/(AERO_K*st.lift*CL));
@@ -399,10 +579,12 @@ function planeStats(p){
 const trimAlpha=(st,v)=>.09*Math.min(1.3,1.05*Math.pow(st.vTrim/Math.max(.5,v),2));
 // ひこうきの うごき（1ステップ）。かえり値は ちゃくりく したか
 function flyStep(st,f,dt,ctl,extraAy){
-  const v=Math.max(.5,Math.hypot(f.vx,f.vy)),gam=Math.atan2(f.vy,f.vx);
+  // きりゅうは「うえむきの かぜ」。くうきに たいする はやさで ちからを けいさんする（うかんだまま とまらない）
+  const vyr=f.vy-(f.wind||0);
+  const v=Math.max(.5,Math.hypot(f.vx,vyr)),gam=Math.atan2(vyr,f.vx);
   // ゆったり とぶ角度（はやいと 下がる）＋ おしてるあいだ 上げる
   const thrust=(f.propLeft>0?st.propF:0)+(f.jetLeft>0?st.jetF:0)+(f.rocketT>0?st.rocketF:0); // つよい エンジン（のぼる）
-  const ion=f.ionLeft>0?st.ionF:0; // イオン（のぼらない。ゆるく おす）
+  const ion=(f.ionLeft>0?st.ionF:0)+(f.solarLeft>0?st.solarF*Math.min(1,Math.max(0,f.y)/30):0); // イオン・ソーラー（のぼらない。ゆるく おす）
   let trim=trimAlpha(st,v);
   // エンジンが うごいている あいだは すこしずつ 上へ（10°くらい）
   if(thrust>0){const need=st.grav*Math.cos(gam)+2.5*(.17-gam)*v;trim=clamp(need/(AERO_K*v*v*st.lift*5.5),-.1,.2);}
@@ -420,6 +602,7 @@ function flyStep(st,f,dt,ctl,extraAy){
   if(f.jetLeft>0)f.jetLeft-=dt;
   if(f.rocketT>0)f.rocketT-=dt;
   if(f.ionLeft>0)f.ionLeft-=dt;
+  if(f.solarLeft>0)f.solarLeft-=dt;
   ax+=(thrust+ion)*Math.cos(th);ay+=(thrust+ion)*Math.sin(th);
   f.vx+=ax*dt;f.vy+=ay*dt;f.x+=f.vx*dt;f.y+=f.vy*dt;
   return f.y<=0;
@@ -430,7 +613,7 @@ const slideV=vx=>Math.min(Math.max(0,vx)*.3,2.5);
 // よそう きょり（25°で おもいきり なげた とき。ロケット・かぜ・きりゅう なし）
 function predict(p){
   const st=planeStats(p),v=st.launchV,an=25*Math.PI/180;
-  const f={x:.3,y:st.towerH+1.3,vx:Math.cos(an)*v,vy:Math.sin(an)*v,alpha:trimAlpha(st,v),kick:0,propLeft:st.propT,jetLeft:st.jetT,ionLeft:st.ionT,rocketT:0};
+  const f={x:.3,y:st.towerH+1.3,vx:Math.cos(an)*v,vy:Math.sin(an)*v,alpha:trimAlpha(st,v),kick:0,propLeft:st.propT,jetLeft:st.jetT,ionLeft:st.ionT,solarLeft:st.solarT,rocketT:0};
   for(let t=0;t<900;t+=1/60)if(flyStep(st,f,1/60,false,0))break;
   const sv=slideV(f.vx);
   return Math.max(0,f.x+sv*sv/(2*SLIDE_DECEL));
@@ -496,7 +679,24 @@ function drawPlaneUnit(c,p,lw){
   if(on.includes('prop')){c.fillStyle='#4a5a74';c.beginPath();c.arc(0,-1,.07,0,7);c.fill();c.fillStyle='rgba(80,90,110,.7)';c.beginPath();c.ellipse(0,-1.03,.32,.05,0,0,7);c.fill();}
   if(on.includes('magnet')){c.strokeStyle='#e0383a';c.lineWidth=.07;c.beginPath();c.arc(0,-.38,.1,0,Math.PI);c.stroke();}
   if(on.includes('wax')){c.strokeStyle='rgba(255,255,255,.9)';c.lineWidth=.04;c.beginPath();c.moveTo(-.45,.2);c.lineTo(-.25,.0);c.moveTo(.35,.35);c.lineTo(.55,.15);c.stroke();}
+  if(p.dev)drawDevMounts(c,p,sh,lw);
   c.restore();
+}
+function drawDevMounts(c,p,sh,lw){
+  if(!sh.dev||!p.dev)return;
+  const m=p.dev.mounts||{};
+  for(const mt of MOUNTS){
+    const x=DPARTS.find(d=>d.id===m[mt.id]);if(!x||!S.dparts[x.id]||!x.allow.includes(mt.id))continue;
+    const [px,py]=sh.mp[mt.id];
+    c.save();c.translate(px,py);
+    const g=c.createRadialGradient(-.025,-.05,0,0,0,.16);g.addColorStop(0,'#fff');g.addColorStop(.35,x.col);g.addColorStop(1,'#1c2230');
+    c.fillStyle=g;c.strokeStyle='rgba(0,0,0,.65)';c.lineWidth=lw;c.beginPath();
+    if(mt.id==='rw'||mt.id==='lw')c.ellipse(0,0,.06,.15,0,0,7);
+    else if(mt.id==='fr')c.ellipse(0,0,.07,.13,0,0,7);
+    else if(mt.id==='rr')c.roundRect(-.1,-.05,.2,.12,.03);
+    else c.arc(0,0,.1,0,7);
+    c.fill();c.stroke();c.restore();
+  }
 }
 function drawBalloon(c,x,y,r,tx,ty){
   c.strokeStyle='rgba(60,60,60,.6)';c.lineWidth=1;c.beginPath();c.moveTo(tx,ty);c.quadraticCurveTo(x+r*.3,(y+ty)/2,x,y+r);c.stroke();
@@ -527,7 +727,7 @@ let floats=[],trail=[],parts=[];
 
 function startAim(){
   const p=curPlane(),st=planeStats(p);
-  F={p,st,x:.3,y:st.towerH+1.3,vx:0,vy:0,alpha:.05,kick:0,coins:0,rocketsLeft:st.rockets,rocketT:0,propLeft:st.propT,jetLeft:st.jetT,ionLeft:st.ionT,landed:false,maxY:0,mi:0,thermalMsg:false,t:0};
+  F={p,st,x:.3,y:st.towerH+1.3,vx:0,vy:0,alpha:.05,kick:0,coins:0,rocketsLeft:st.rockets,rocketT:0,propLeft:st.propT,jetLeft:st.jetT,ionLeft:st.ionT,solarLeft:st.solarT,mCd:0,lt:0,warped:false,rescued:false,landed:false,maxY:0,mi:0,thermalMsg:false,t:0};
   world={thermals:[],coins:[],birds:[],genX:0,rnd:rng((Math.random()*1e9)|0)};
   trail=[];floats=[];parts=[];ctl=0;
   aim.drag=null;
@@ -559,7 +759,7 @@ function genWorld(to){
   while(world.genX<to){
     const c=world.genX;world.genX+=40;
     if(c<30)continue;
-    if(r()<.4)world.thermals.push({x:c+r()*36,w:8+r()*7,top:30+r()*55,str:6.5+r()*3});
+    if(r()<.4)world.thermals.push({x:c+r()*36,w:12+r()*10,top:30+r()*55,str:6.5+r()*3});
     if(r()<.65){
       const n=5+(r()*3|0),y0=3+r()*32,kind=r()*3|0,x0=c+r()*20;
       for(let i=0;i<n;i++){
@@ -571,6 +771,7 @@ function genWorld(to){
   }
 }
 
+const THERMAL_K=.5; // きりゅうの かぜの つよさ
 const MILES=[5,10,25,50,100,200,300,500,750,1000,1500,2000,3000,5000,1e9];
 function step(dt){
   F.t+=dt;
@@ -584,9 +785,12 @@ function step(dt){
       if(Math.random()<n)parts.push({x:F.x-Math.cos(th)*.8,y:F.y-Math.sin(th)*.8,vx:-Math.cos(th)*4+(Math.random()-.5)*2,vy:-Math.sin(th)*4+(Math.random()-.5)*2,t:0,col:Math.random()<.5?'rgba(255,160,50,.8)':'rgba(255,90,40,.7)',glow:1});
     }
     if(F.ionLeft>0&&Math.random()<.3)parts.push({x:F.x-Math.cos(th)*.8,y:F.y-Math.sin(th)*.8,vx:-Math.cos(th)*2,vy:-Math.sin(th)*2,t:0,col:'rgba(120,190,255,.8)',glow:1});
+    F.wind=0;
     for(const t of world.thermals){
-      if(Math.abs(F.x-t.x)<t.w/2&&F.y<t.top){
-        ay+=t.str*st.thermalMul*(1-.5*F.y/t.top);
+      // きりゅうの パーツは「つかまえる はば」と「かぜの つよさ」を ふやす
+      const hw=t.w/2*(1+(st.thermalMul-1)*.6);
+      if(Math.abs(F.x-t.x)<hw&&F.y<t.top){
+        F.wind=Math.max(F.wind,Math.min(5,t.str*THERMAL_K*(1+(st.thermalMul-1)*.25))*(1-F.y/t.top));
         if(!F.thermalMsg){F.thermalMsg=true;floats.push({x:F.x,y:F.y+3,t:0,txt:'じょうしょうきりゅう！',col:'#bff4ff'});}
       }
     }
@@ -595,6 +799,21 @@ function step(dt){
     F.alpha+=(vnoise(F.t*4,9)-.5)*.0012*dt*60/st.stab;
     flyStep(st,F,dt,ctl,ay);
     F.maxY=Math.max(F.maxY,F.y);
+    // かいはつパーツ：ワープ・ラッキーコイン・ミサイル・きゅうじょう
+    if(st.warp>0&&!F.warped&&F.t>=1.2){F.warped=true;F.x+=45*st.warp;floats.push({x:F.x,y:F.y+3,t:0,txt:'ワープ！',col:'#d7b8ff'});for(let i=0;i<14;i++)parts.push({x:F.x,y:F.y,vx:(Math.random()-.5)*8,vy:(Math.random()-.5)*8,t:0,col:'rgba(176,122,255,.8)',glow:1});}
+    if(st.lucky>0){F.lt+=dt;if(F.lt>=4){F.lt-=4;const n=Math.round(4*st.lucky);F.coins+=n;floats.push({x:F.x,y:F.y+2,t:0,txt:'+'+n*COIN_VAL,col:'#ffd23f'});}}
+    if(st.missiles>0){
+      F.mCd-=dt;
+      if(F.mCd<=0)for(const b of world.birds){
+        if(b.hit||b.x<F.x||b.x-F.x>6+6*st.missiles||Math.abs(b.y-F.y)>5)continue;
+        b.hit=true;F.mCd=1.2;F.coins+=2;
+        floats.push({x:b.x,y:b.y+1,t:0,txt:'ミサイル！ +'+2*COIN_VAL,col:'#ff8a3a'});
+        for(let i=0;i<10;i++)parts.push({x:b.x,y:b.y,vx:(Math.random()-.5)*7,vy:(Math.random()-.3)*6,t:0,col:i%2?'rgba(255,160,50,.9)':'#f4f4f4'});
+        break;
+      }
+    }
+    if(st.rescue>=.5&&!F.rescued&&F.t>2&&F.y<3&&F.vy<-.5){F.rescued=true;F.rocketT=1.6;floats.push({x:F.x,y:F.y+3,t:0,txt:'きゅうじょう！',col:'#ff9ad1'});}
+    if(F.t>600)F.y=0; // ながすぎる ひこうは ここで おわり
     // コイン
     for(const k of world.coins){
       if(k.got)continue;
@@ -606,6 +825,7 @@ function step(dt){
       if(b.hit)continue;
       if(Math.hypot(b.x-F.x,b.y-F.y)<1.3){
         b.hit=true;
+        if(st.birdImm>=.5){floats.push({x:F.x,y:F.y+2,t:0,txt:'バリア！',col:'#9bd8ff'});continue;}
         const keep=Math.min(.97,.55+.12*st.tail+.07*st.gyro);
         F.vx*=keep;F.vy*=keep;F.kick=-.22*(1-.28*st.tail)/(1+.5*st.gyro);
         floats.push({x:F.x,y:F.y+2,t:0,txt:st.tail>=3?'へっちゃら！':'ドン！',col:'#ff8a80'});
@@ -628,15 +848,16 @@ function finish(){
   const dist=Math.max(0,F.x),st=F.st;
   const fromDist=Math.round(dist*MONEY_PER_M),fromCoins=F.coins*COIN_VAL,base=fromDist+fromCoins;
   const total=Math.round(base*st.mult);
-  const rec=dist>S.best,oldBest=S.best,tier=b=>b>=1000?3:b>=800?2:b>=400?1:0;
-  S.money+=total;S.flights++;if(rec)S.best=dist;save();
+  const rec=dist>S.best,oldBest=S.best,tier=b=>b>=2000?4:b>=1000?3:b>=800?2:b>=400?1:0;
+  S.money+=total;S.flights++;if(rec)S.best=dist;if(S.best>=MAIL_AT)S.mailGot=true;save();
   mode='result';
   $('hud').hidden=true;$('rocketBtn').hidden=true;setHint('');
   $('rDist').textContent=dist.toFixed(1);
   $('rNew').hidden=!rec;
   const nt=tier(Math.max(oldBest,dist));
   $('rUnlock').hidden=nt<=tier(oldBest);
-  if(nt>tier(oldBest))$('rUnlock').firstElementChild.textContent=nt===3?'🎉 1000m とっぱ！ かたち3つ・パーツ5つ・パーツわく4つが ふえた！':nt===2?'✈ さらに つよい かたちが 3つ ふえた！（800m）':'✈ あたらしい かたちが 3つ ふえた！（400m）';
+  if(nt>tier(oldBest))$('rUnlock').lastElementChild.textContent=nt===4?'メニューの「メール」を ひらいてみよう':'こうさくしつで えらべるよ';
+  if(nt>tier(oldBest))$('rUnlock').firstElementChild.textContent=nt===4?'✉️ 2000m とっぱ！ ちょうかみひこうき かいはつだん から メールが とどいた！':nt===3?'🎉 1000m とっぱ！ かたち3つ・パーツ5つ・パーツわく4つが ふえた！':nt===2?'✈ さらに つよい かたちが 3つ ふえた！（800m）':'✈ あたらしい かたちが 3つ ふえた！（400m）';
   let h=`<div class="rl"><span>きょり ${dist.toFixed(1)}m ×${MONEY_PER_M}</span><span>+${fromDist}</span></div>
   <div class="rl"><span>コイン ${F.coins}こ</span><span>+${fromCoins}</span></div>`;
   if(st.mult>1)h+=`<div class="rl"><span>💰 ボーナス</span><span>×${st.mult.toFixed(2)}</span></div>`;
@@ -688,7 +909,7 @@ $('quitBtn').addEventListener('click',()=>{
 });
 
 /* ---------- がめん ---------- */
-const OVS=['ovMenu','ovWs','ovShop','ovRes'];
+const OVS=['ovMenu','ovWs','ovShop','ovRes','ovMail','ovDev'];
 function showOnly(id){OVS.forEach(o=>$(o).hidden=o!==id);}
 function toMenu(){
   mode='menu';F=null;$('hud').hidden=true;$('rocketBtn').hidden=true;setHint('');
@@ -703,7 +924,9 @@ function renderMenu(){
   const p=curPlane();
   $('mMoney').textContent=S.money;$('mBest').textContent=Math.floor(S.best)+'m';
   $('mFlights').textContent=S.flights;$('mSlots').textContent=S.slots+'/'+maxSlots();
-  $('mPred').textContent='よそう きょり やく '+fmtM(predict(p));
+  $('mPred').textContent='よそう きょり やく '+fmtM(predict(p))+'（かぜや とりで かわる）';
+  if(S.best>=MAIL_AT&&!S.mailGot){S.mailGot=true;save();}
+  $('mailBtn').hidden=!S.mailGot;$('mailDot').hidden=S.mailRead;$('devBtn').hidden=!S.mailRead;
   $('mName').textContent=p.name;
   drawPreview($('mPv'),p);
   const hg=$('hangar');hg.innerHTML='';
@@ -728,7 +951,9 @@ function renderWs(){
   drawPreview($('wPv'),draft);
   $('wName').value=draft.name;
   const sh=$('wShape');sh.innerHTML='';
+  if(SHAPES[draft.shape].dev)sh.append(chip('🛠️ かいはつき（かいはつ で かえられる）',true,()=>{},true));
   for(const k in SHAPES){
+    if(SHAPES[k].dev)continue;
     const op=shapeOpen(k);
     sh.append(chip(op?SHAPES[k].name:`🔒 ${SHAPES[k].name} <small>${SHAPES[k].need}mで</small>`,draft.shape===k,()=>{draft.shape=k;touch();},!op));
   }
@@ -797,11 +1022,108 @@ $('wBack').onclick=()=>{
   if(draftDirty)ask('ほぞんしないで もどる？',toMenu);else toMenu();
 };
 
+/* メール・かいはつ */
+const MAIL_AT=2000;
+const MAIL_TEXT=`はじめまして！
+わたしたちは「ちょうかみひこうき かいはつだん」です。
+
+2000mを こえる かみひこうきの うわさを きいて、メールを おくりました。
+せかいの せんとうきの かたちを けんきゅうしている チームです。
+
+ぜひ、きょうりょく させてください！
+
+メニューに「かいはつ」を ついかしました。
+・ほんものの せんとうき 40しゅるいを ベースに できます
+・ふつうでは つくれない とくべつパーツ 20しゅるいを つけられます
+・つけるばしょは 5か所：みぎはね・ひだりはね・まえ・うしろ・まんなか
+
+あなたの かみひこうきと、わたしたちの ぎじゅつで、もっと とおくへ とばしましょう！
+
+ちょうかみひこうき かいはつだん より`;
+$('mailBtn').onclick=()=>{$('mailBody').textContent=MAIL_TEXT;showOnly('ovMail');};
+$('mailClose').onclick=()=>{const first=!S.mailRead;S.mailRead=true;save();toMenu();if(first)toast('メニューに「かいはつ」が ふえたよ！');};
+
+let dd=null,ddDirty=false,dSel='rw';
+const DEV_IDS=DEV_LIST.map(x=>x[0]);
+function openDev(){
+  dd=JSON.parse(JSON.stringify(curPlane()));
+  if(!SHAPES[dd.shape].dev)dd.shape='f22';
+  dd.dev=dd.dev||{};dd.dev.mounts=dd.dev.mounts||{};
+  ddDirty=false;dSel='rw';
+  const g=$('dBase');g.innerHTML='';
+  for(const id of DEV_IDS){
+    const b=document.createElement('button');b.className='hg';b.dataset.id=id;
+    const c=document.createElement('canvas');const sp=document.createElement('span');sp.textContent=SHAPES[id].name.split(' ')[0];
+    b.append(c,sp);g.append(b);
+    b.onclick=()=>{dd.shape=id;ddDirty=true;renderDev();};
+  }
+  showOnly('ovDev');
+  for(const b of g.children)drawPreview(b.firstChild,Object.assign({},dd,{shape:b.dataset.id,parts:[],dev:null}));
+  renderDev();
+}
+function renderDev(){
+  $('dMoney').textContent=S.money;
+  const sh=SHAPES[dd.shape];
+  drawPreview($('dPv'),dd);
+  $('dName').value=dd.name;
+  for(const b of $('dBase').children)b.classList.toggle('on',b.dataset.id===dd.shape);
+  $('dBaseNote').textContent=sh.name+'：'+sh.desc;
+  const st=planeStats(dd),pd=predict(dd),now=predict(curPlane()),diff=pd-now;
+  $('dPred').innerHTML=`よそう きょり ${fmtM(pd)} <small>${Math.abs(diff)<.05?'':(diff>0?'▲ +'+fmtM(diff):'▼ '+fmtM(-diff))+'（いまの ひこうきと くらべて）'}</small>`;
+  const bar=(n,v,mx)=>`<div class="bar"><span>${n}</span><i><b style="width:${clamp(v/mx*100,4,100)}%"></b></i></div>`;
+  $('dStats').innerHTML=bar('ながく とぶ',st.glide,40)+bar('はやさ',st.launchV,30)+bar('あんてい',st.stab,5)+bar('パワー',st.propF*(st.propT>0)*st.propT/4+st.jetF*st.jetT/6+st.rockets*3+st.ionF*st.ionT/4,60);
+  // とりつける ばしょ
+  const mw=$('dMounts');mw.innerHTML='';
+  for(const mt of MOUNTS){
+    const x=DPARTS.find(d=>d.id===dd.dev.mounts[mt.id]);
+    const b=document.createElement('button');b.className='mt'+(x?' full':'')+(dSel===mt.id?' on':'');
+    b.innerHTML=x?`<b>${x.ic}</b>${mt.name}`:`<b>＋</b>${mt.name}`;
+    b.onclick=()=>{dSel=mt.id;renderDev();};mw.append(b);
+  }
+  const mn=MOUNTS.find(m=>m.id===dSel).name;
+  const pk=$('dPick');pk.innerHTML='';
+  const avail=DPARTS.filter(x=>S.dparts[x.id]&&x.allow.includes(dSel));
+  $('dPickNote').textContent=`「${mn}」に つけられる パーツ`+(avail.length?'':'（もっている パーツが ない。したの ショップで かおう）');
+  if(dd.dev.mounts[dSel])pk.append(chip('✖ はずす',false,()=>{delete dd.dev.mounts[dSel];ddDirty=true;renderDev();}));
+  for(const x of avail)pk.append(chip(`${x.ic} ${x.name}`,dd.dev.mounts[dSel]===x.id,()=>{dd.dev.mounts[dSel]=x.id;ddDirty=true;renderDev();}));
+  // ショップ
+  const sp=$('dShop');sp.innerHTML='';
+  const mname=id=>MOUNTS.find(m=>m.id===id).name;
+  for(const x of DPARTS){
+    const where=x.allow.length===5?'どこでも':x.allow.map(mname).join('・');
+    let btn;
+    if(S.dparts[x.id]){btn=document.createElement('button');btn.className='btn';btn.disabled=true;btn.textContent='もっている';}
+    else btn=buyBtn(x.cost,()=>{S.dparts[x.id]=1;toast(x.name+' を てにいれた！');},null,renderDev);
+    sp.append(itemRow(x.ic,x.name,'',x.desc+'［'+where+'］',btn));
+  }
+}
+$('dName').addEventListener('input',e=>{dd.name=e.target.value;ddDirty=true;});
+function cleanDev(){
+  dd.name=(dd.name||'').trim().slice(0,12)||'ななしの ひこうき';
+  for(const mt of MOUNTS){const x=DPARTS.find(d=>d.id===dd.dev.mounts[mt.id]);if(!x||!x.allow.includes(mt.id)||!S.dparts[x.id])delete dd.dev.mounts[mt.id];}
+}
+$('dSave').onclick=()=>{
+  cleanDev();
+  const i=S.planes.findIndex(p=>p.id===dd.id);
+  if(i>=0)S.planes[i]=JSON.parse(JSON.stringify(dd));else S.planes.push(JSON.parse(JSON.stringify(dd)));
+  S.cur=dd.id;save();ddDirty=false;toast('「'+dd.name+'」を ほぞんしたよ！');renderDev();
+};
+$('dSaveNew').onclick=()=>{
+  if(S.planes.length>=12){toast('ハンガーが いっぱい（12きまで）');return;}
+  cleanDev();
+  const p=JSON.parse(JSON.stringify(dd));p.id=S.nextId++;
+  if(S.planes.some(q=>q.name===p.name))p.name=p.name.slice(0,10)+'２';
+  S.planes.push(p);S.cur=p.id;dd=JSON.parse(JSON.stringify(p));save();ddDirty=false;
+  toast('「'+p.name+'」を あたらしく ほぞん！');renderDev();
+};
+$('dBack').onclick=()=>{if(ddDirty)ask('ほぞんしないで もどる？',toMenu);else toMenu();};
+$('devBtn').onclick=openDev;
+
 /* ショップ */
-function buyBtn(cost,fn,label){
+function buyBtn(cost,fn,label,after){
   const b=document.createElement('button');b.className='btn';
   if(cost==null){b.textContent=label||'MAX';b.disabled=true;}
-  else{b.innerHTML=`<i class="coin-ic"></i>${cost}`;b.disabled=S.money<cost;b.onclick=()=>{if(S.money<cost)return;S.money-=cost;fn();save();renderShop();};}
+  else{b.innerHTML=`<i class="coin-ic"></i>${cost}`;b.disabled=S.money<cost;b.onclick=()=>{if(S.money<cost)return;S.money-=cost;fn();save();(after||renderShop)();};}
   return b;
 }
 function itemRow(ic,name,lvTxt,desc,btn){
@@ -1166,8 +1488,8 @@ function frame(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;tNow+=dt;
   if((mode==='fly'||mode==='landing')&&F){
     genWorld(F.x+200);
-    // ながい ひこうは だんだん はやおくり（さいだい 4ばい）
-    const ts=mode==='fly'&&!F.landed?clamp(1+(F.t-4)*.15,1,4):1;
+    // ながい ひこうは だんだん はやおくり（さいだい 8ばい）
+    const ts=mode==='fly'&&!F.landed?clamp(1+(F.t-4)*.15,1,8):1;
     const n=Math.ceil(dt*ts*240);for(let i=0;i<n;i++)step(dt*ts/n);
     $('hFF').textContent=ts>1.2?'▶▶ ×'+ts.toFixed(1):'';
     if(!F.landed){trail.push([F.x,F.y]);if(trail.length>40)trail.shift();}
