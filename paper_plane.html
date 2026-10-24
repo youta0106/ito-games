@@ -821,7 +821,7 @@ function flyStep(st,f,dt,ctl,extraAy){
   f.kick*=Math.exp(-dt*1.6);
   f.alpha+=(tgt-f.alpha)*Math.min(1,dt*2.6*st.stab);
   const a=f.alpha,aa=Math.abs(a);
-  const CL=aa<st.stall?5.5*a:Math.sign(a)*5.5*st.stall*Math.max(.35,1-(aa-st.stall)*4);
+  const CL=aa<st.stall?5.5*a:Math.sign(a)*5.5*st.stall*Math.max(.6,1-(aa-st.stall)*3);
   const q=AERO_K*v*v;
   const L=clamp(q*st.lift*CL,-40,40),D=q*(st.cd0+st.cdi*CL*CL);
   const c=Math.cos(gam),s=Math.sin(gam);
@@ -1018,18 +1018,23 @@ function step(dt){
     if(F.ionLeft>0&&Math.random()<.3)parts.push({x:F.x-Math.cos(th)*.8,y:F.y-Math.sin(th)*.8,vx:-Math.cos(th)*2,vy:-Math.sin(th)*2,t:0,col:'rgba(120,190,255,.8)',glow:1});
     const SM=stageM();
     F.wx=SM.wind+SM.gust*(vnoise(F.t*.4,21)-.5)*2*Math.min(1,F.t/2);
-    F.wind=0;
+    let wT=0;
     for(const t of world.thermals){
       // きりゅうの パーツは「つかまえる はば」と「かぜの つよさ」を ふやす
       const hw=t.w/2*(1+(st.thermalMul-1)*.6);
       if(Math.abs(F.x-t.x)<hw&&F.y<t.top){
-        F.wind=Math.max(F.wind,Math.min(5,t.str*THERMAL_K*(1+(st.thermalMul-1)*.25))*(1-F.y/t.top));
+        const dxr=(F.x-t.x)/hw,edge=1-dxr*dxr; // はしに いくほど よわい（きゅうに かわらない）
+        wT=Math.max(wT,Math.min(5,t.str*THERMAL_K*(1+(st.thermalMul-1)*.25))*(1-F.y/t.top)*edge);
         if(!F.thermalMsg){F.thermalMsg=true;floats.push({x:F.x,y:F.y+3,t:0,txt:'じょうしょうきりゅう！',col:'#bff4ff'});}
       }
     }
+    F.wind=(F.wind||0)+(wT-(F.wind||0))*Math.min(1,dt*3); // かぜの へんかも なめらかに
+    // ながい ひこうは つかれて ゆっくり おりてくる（きゅうに おちない）
+    if(F.t>420){ay-=Math.min(4,(F.t-420)/12);F.wind*=Math.max(0,1-(F.t-420)/60);}
     // かぜの ゆらぎ
     ay+=(vnoise(F.t*.9,5)-.5)*2.4*SM.turb*Math.min(1,F.t/2)/(1+st.gyro*.8);
     F.alpha+=(vnoise(F.t*4,9)-.5)*.0012*SM.turb*dt*60/st.stab;
+    if(F.hitLeft>0){const k=Math.pow(F.hitK,dt/.35);F.vx*=k;F.vy*=k;F.hitLeft-=dt;}
     flyStep(st,F,dt,ctl,ay);
     F.maxY=Math.max(F.maxY,F.y);
     // かいはつパーツ：ワープ・ラッキーコイン・ミサイル・きゅうじょう
@@ -1046,7 +1051,7 @@ function step(dt){
       }
     }
     if(st.rescue>=.5&&!F.rescued&&F.t>2&&F.y<3&&F.vy<-.5){F.rescued=true;F.rocketT=1.6;floats.push({x:F.x,y:F.y+3,t:0,txt:'きゅうじょう！',col:'#ff9ad1'});}
-    if(F.t>600)F.y=0; // ながすぎる ひこうは ここで おわり
+    if(F.t>900)F.y=0; // いじょうに ながい ひこうの あんぜんそうち（ふつうは とどかない）
     // コイン
     for(const k of world.coins){
       if(k.got)continue;
@@ -1059,8 +1064,8 @@ function step(dt){
       if(Math.hypot(b.x-F.x,b.y-F.y)<1.3){
         b.hit=true;
         if(st.birdImm>=.5){floats.push({x:F.x,y:F.y+2,t:0,txt:'バリア！',col:'#9bd8ff'});continue;}
-        const keep=Math.min(.97,.55+.12*st.tail+.07*st.gyro);
-        F.vx*=keep;F.vy*=keep;F.kick=-.22*(1-.28*st.tail)/(1+.5*st.gyro);
+        const keep=Math.min(.97,.8+.05*st.tail+.04*st.gyro); // ぶつかっても かんぜんには おちない
+        F.hitK=keep;F.hitLeft=.35;F.kick=-.07*(1-.28*st.tail)/(1+.5*st.gyro); // げんそくは .35びょうかけて
         floats.push({x:F.x,y:F.y+2,t:0,txt:st.tail>=3?'へっちゃら！':'ドン！',col:'#ff8a80'});
         for(let i=0;i<8;i++)parts.push({x:b.x,y:b.y,vx:(Math.random()-.5)*6,vy:(Math.random()-.2)*5,t:0,col:'#f4f4f4'});
       }
@@ -1826,6 +1831,18 @@ function drawAimGuide(){
   cx.fillText(Math.round(aim.ang*180/Math.PI)+'° ・ ちから '+Math.round(aim.pow*100)+'%',sx+18,sy+34);
 }
 let flash=0,nextFlash=3;
+// とりが ちかづくと「！」を だす（よけられるように）
+function drawBirdWarn(){
+  if(!F||mode!=='fly'||F.landed||!world)return;
+  for(const b of world.birds){
+    const dx=b.x-F.x;
+    if(b.hit||dx<2||dx>28||Math.abs(b.y-F.y)>7)continue;
+    const [sx,sy]=W2S(b.x,b.y);
+    cx.save();cx.font='800 15px "M PLUS Rounded 1c",sans-serif';cx.textAlign='center';
+    cx.fillStyle=`rgba(255,70,60,${.55+.45*Math.sin(tNow*14)})`;cx.strokeStyle='rgba(0,0,0,.6)';cx.lineWidth=3;
+    cx.strokeText('！',sx,sy-18);cx.fillText('！',sx,sy-18);cx.restore();
+  }
+}
 function drawWeather(dt){
   const T=TH();if(!T.fx)return;
   if(T.fx==='snow'){
@@ -1892,6 +1909,7 @@ function frame(now){
     drawFlyer(.3,th+1.3+Math.sin(tNow*2)*.05,.15,curPlane());
   }
   drawFx(dt);
+  drawBirdWarn();
   drawWeather(dt);
   requestAnimationFrame(frame);
 }
