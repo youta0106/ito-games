@@ -81,12 +81,6 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
 .bar{display:grid;grid-template-columns:72px 1fr;align-items:center;gap:8px;font-size:12px;font-weight:800;text-align:left}
 .bar i{display:block;height:10px;border-radius:5px;background:rgba(0,0,0,.35);overflow:hidden}
 .bar i b{display:block;height:100%;background:var(--good);border-radius:5px;transition:width .2s}
-.bars.two{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}
-.bars.two .bar{grid-template-columns:64px 1fr;font-size:11px}
-.bars.two .bar.tr i b{background:var(--sun)}
-.bars .bsec{grid-column:1/-1;font-size:11px;font-weight:800;color:var(--muted);text-align:left;margin-top:2px}
-.elem{grid-column:1/-1;display:flex;align-items:center;gap:8px;text-align:left;padding:6px 10px;border-radius:10px;background:rgba(255,255,255,.07);font-size:12px;line-height:1.4}
-.elem b{font-size:22px}
 .slots{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%}
 .mlist{align-self:stretch;display:flex;flex-direction:column;gap:8px}
 .mi{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;text-align:left;align-items:center;padding:10px 12px;border-radius:10px;border:2px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);font-family:var(--body);cursor:pointer}
@@ -120,6 +114,9 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
 .fold b{font-size:14px}.fold p{margin:2px 0 0;font-size:11px;color:var(--muted);line-height:1.4}
 .fold .btn{font-size:13px;padding:8px 10px;display:flex;align-items:center;gap:4px;white-space:nowrap}
 .fold .btn .coin-ic{width:13px;height:13px}
+.traits{align-self:stretch;text-align:left;font-size:12px;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center}
+.traits p{flex-basis:100%;margin:0;font-size:11px;color:var(--muted);line-height:1.4}
+.tr{display:inline-block;font-size:12px;font-weight:800;border-radius:999px;padding:2px 8px;background:rgba(255,210,63,.14);border:1px solid rgba(255,210,63,.4);color:var(--sun);white-space:nowrap}
 .rk{display:inline-block;font-family:var(--display);font-size:12px;color:#16202e;border-radius:6px;padding:0 6px;margin-right:6px;vertical-align:1px}
 .wtabs .tab{font-size:12px;padding:9px 2px}
 .devgrid{max-height:34vh;overflow-y:auto;padding:4px;touch-action:pan-y}
@@ -198,7 +195,6 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
         <button class="btn ghost" id="wsBtn">✂️ こうさく</button>
         <button class="btn ghost" id="shopBtn">🛒 ショップ</button>
       </div>
-      <div class="row"><button class="btn ghost" id="craftBtn">🧑‍🎨 おりかた しょくにん</button></div>
       <div class="row">
         <button class="btn ghost" id="mailBtn" hidden>✉️ メール <span class="dot" id="mailDot">●</span></button>
         <button class="btn ghost" id="stageBtn" hidden>🌍 せかいりょこう</button>
@@ -215,7 +211,7 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
         <li><b>1000m</b>では あたらしい パーツ5つと パーツわく4つも ふえる</li>
         <li><b>2000m</b>を こえると かいはつだん から メールが とどくよ…？</li>
         <li><b>3000m</b>を こえると…？</li>
-        <li><b>おりかた しょくにん</b>に おかねを はらうと あたらしい かたちを おしえてくれる（60しゅるい）</li>
+        <li><b>ショップ</b>では「せっけいず」（あたらしい かたち 60しゅるい）も うっているよ</li>
       </ul>
     </div>
   </div>
@@ -227,12 +223,13 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       <canvas class="pv" id="wPv"></canvas>
       <label class="field">なまえ <input id="wName" maxlength="12" autocomplete="off" placeholder="なまえをつけよう"></label>
       <div class="sec">かたち</div>
-      <div class="tabs wtabs" id="wShapeTabs" hidden><button class="tab on" id="wTabNormal">ふつう</button><button class="tab" id="wTabFold" hidden>おりかた</button><button class="tab" id="wTabReal">ほんもの 40</button><button class="tab" id="wTabOrig">オリジナル 30</button></div>
+      <div class="tabs wtabs" id="wShapeTabs" hidden><button class="tab on" id="wTabNormal">ふつう</button><button class="tab" id="wTabFold" hidden>せっけいず</button><button class="tab" id="wTabReal">ほんもの 40</button><button class="tab" id="wTabOrig">オリジナル 30</button></div>
       <div class="chips" id="wShape"></div>
       <div class="hangar devgrid" id="wBase" hidden></div>
       <p class="note" id="wBaseNote"></p>
       <div class="pred" id="wPred"></div>
-      <div class="bars two" id="wStats"></div>
+      <div class="bars" id="wStats"></div>
+      <div class="traits" id="wTraits"></div>
       <div class="sec">いろ</div>
       <div class="sw" id="wBody"></div>
       <div class="sec">もよう</div>
@@ -250,9 +247,6 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
         <div class="mounts" id="wMounts"></div>
         <p class="note" id="wPickNote"></p>
         <div class="chips" id="wPick"></div>
-        <div class="sec">とくべつパーツ ショップ（20しゅるい）</div>
-        <p class="note">ふつうでは つくれない パーツ。はねは 2つ おなじパーツで ボーナス！</p>
-        <div class="shop" id="wDShop"></div>
       </div>
       <div class="row">
         <button class="btn" id="wSave">💾 ほぞん</button>
@@ -274,6 +268,14 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       <div class="shop" id="sSlots"></div>
       <div class="sec">きょうかパーツ</div>
       <div class="shop" id="sParts"></div>
+      <div class="sec">📐 せっけいず（あたらしい かたち 60しゅるい）</div>
+      <p class="note" id="sBpCount"></p>
+      <div class="tabs ctabs" id="sBpTabs"></div>
+      <div class="quote" id="sBpQuote"></div>
+      <div class="folds" id="sBpList"></div>
+      <div class="sec">🛠️ とくべつパーツ（20しゅるい）</div>
+      <p class="note">ふつうでは つくれない パーツ。こうさくの「とりつけ（5か所）」に つける。はねは 2つ おなじパーツで ボーナス！</p>
+      <div class="shop" id="sDParts"></div>
       <div class="sec">しせつ</div>
       <div class="shop" id="sFac"></div>
       <button class="btn ghost" id="sBack">もどる</button>
@@ -290,19 +292,6 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
         <div class="mb" id="mailBody"></div>
       </div>
       <button class="btn" id="mailClose">とじる</button>
-    </div>
-  </div>
-
-  <!-- おりかた しょくにん -->
-  <div class="ov" id="ovCraft" hidden>
-    <div class="card wide">
-      <h2>🧑‍🎨 おりかた しょくにん</h2>
-      <div class="wallet"><i class="coin-ic"></i><span id="cMoney">0</span></div>
-      <p class="sub" id="cCount"></p>
-      <div class="tabs ctabs" id="cTabs"></div>
-      <div class="quote" id="cQuote"></div>
-      <div class="folds" id="cList"></div>
-      <button class="btn ghost" id="cBack">もどる</button>
     </div>
   </div>
 
@@ -467,7 +456,7 @@ function devGeom(P){
 }
 DEV_LIST.forEach(([id,name,desc,arch,P],i)=>{
   const a=DEV_ARCH[arch],v=1+(((i*37)%11)-5)/100,g=devGeom(P);
-  SHAPES[id]={name,desc,lift:a.lift*v,cd0:a.cd0,cdi:a.cdi,stab:a.stab,launch:a.launch*(2-v),rough:.6,need:2000,dev:true,arch,poly:g.poly,mp:g.mp};
+  SHAPES[id]={name,desc,lift:a.lift*v,cd0:a.cd0,cdi:a.cdi,stab:a.stab,launch:a.launch*(2-v),rough:.6,need:2000,dev:true,poly:g.poly,mp:g.mp};
 });
 /* ---------- オリジナルの すごい かたち 30しゅるい（かいはつで えらべる） ---------- */
 // はんぶん（みぎがわ）：はなさきの つぎから しっぽ（x=0）まで。nose を かえると はなさきの いちを かえられる
@@ -522,16 +511,16 @@ function origGeom(half,noseP){
 }
 ORIG_LIST.forEach(([id,name,desc,arch,half,nose],i)=>{
   const a=DEV_ARCH[arch],v=1+(((i*53)%11)-5)/100,g=origGeom(half,nose);
-  SHAPES[id]={name,desc,lift:a.lift*v,cd0:a.cd0,cdi:a.cdi,stab:a.stab,launch:a.launch*(2-v),rough:.6,need:2000,dev:true,orig:true,arch,poly:g.poly,mp:g.mp,ay0:(nose||[0,-1])[1],ay1:half[half.length-1][1]-.02};
+  SHAPES[id]={name,desc,lift:a.lift*v,cd0:a.cd0,cdi:a.cdi,stab:a.stab,launch:a.launch*(2-v),rough:.6,need:2000,dev:true,orig:true,poly:g.poly,mp:g.mp,ay0:(nose||[0,-1])[1],ay1:half[half.length-1][1]-.02};
 });
-/* ---------- おりかた しょくにん：60しゅるいの おりかた（ランクE〜S・おかねで おしえてもらう） ---------- */
+/* ---------- せっけいず：60しゅるいの かたち（ランクE〜S・ショップで かう） ---------- */
 const RANKS=[
-  {id:'E',label:'みならい',price:150,col:'#8a93a3',quote:'まずは きほんの おりかたじゃ。ゆっくり おぼえるんじゃよ。',f:{lift:1,cd:1,stab:1,launch:1,rough:1}},
-  {id:'D',label:'いちにんまえ',price:800,col:'#5fae3f',quote:'ふむ、すじが いいのう。すこし むずかしいぞ？',f:{lift:1.05,cd:.96,stab:1.05,launch:1.05,rough:.95}},
-  {id:'C',label:'ベテラン',price:4000,col:'#4a7dff',quote:'ここからが ほんばんじゃ。ていねいに おるんじゃぞ。',f:{lift:1.1,cd:.92,stab:1.1,launch:1.12,rough:.9}},
-  {id:'B',label:'たつじん',price:20000,col:'#9b6bff',quote:'ほほう、よく ここまで きたな。とっておきを みせよう。',f:{lift:1.15,cd:.85,stab:1.2,launch:1.27,rough:.78}},
-  {id:'A',label:'めいじん',price:100000,col:'#ff9a2e',quote:'わしの とっておきじゃ。たいせつに つかうんじゃぞ…',f:{lift:1.2,cd:.76,stab:1.3,launch:1.42,rough:.65}},
-  {id:'S',label:'でんせつ',price:500000,col:'#ffd23f',quote:'これが ひでんの おりかた。だれにも ひみつ じゃぞ。',f:{lift:1.3,cd:.68,stab:1.5,launch:1.6,rough:.5}},
+  {id:'E',label:'みならい',price:150,col:'#8a93a3',quote:'きほんの せっけいず。まずは ここから！',f:{lift:1,cd:1,stab:1,launch:1,rough:1}},
+  {id:'D',label:'いちにんまえ',price:800,col:'#5fae3f',quote:'すこし むずかしい せっけいず。',f:{lift:1.05,cd:.96,stab:1.05,launch:1.05,rough:.95}},
+  {id:'C',label:'ベテラン',price:4000,col:'#4a7dff',quote:'ほんかくてきな せっけいず。',f:{lift:1.1,cd:.92,stab:1.1,launch:1.12,rough:.9}},
+  {id:'B',label:'たつじん',price:20000,col:'#9b6bff',quote:'だいぶ つよい せっけいず！',f:{lift:1.15,cd:.85,stab:1.2,launch:1.27,rough:.78}},
+  {id:'A',label:'めいじん',price:100000,col:'#ff9a2e',quote:'とっておきの せっけいず。',f:{lift:1.2,cd:.76,stab:1.3,launch:1.42,rough:.65}},
+  {id:'S',label:'でんせつ',price:500000,col:'#ffd23f',quote:'ひでん あつかいの せっけいず！',f:{lift:1.3,cd:.68,stab:1.5,launch:1.6,rough:.5}},
 ];
 const FOLD_ARCH={
   dart:{lift:1.0,cd0:.045,cdi:.10,stab:1.0,launch:1.12},
@@ -626,56 +615,56 @@ const FOLD_IDS=FOLD_LIST.map(x=>x[0]),RANK_IDS=RANKS.map(r=>r.id);
 FOLD_LIST.forEach(([id,name,rk,desc,arch,P],i)=>{
   const a=FOLD_ARCH[arch],ri=RANK_IDS.indexOf(rk),rf=RANKS[ri].f,v=1+(((i*41)%11)-5)/100;
   const half=Array.isArray(P[0])?P:foldHalf(P),g=origGeom(half,[0,-1]);
-  SHAPES[id]={name,desc,lift:a.lift*rf.lift*v,cd0:a.cd0*rf.cd,cdi:a.cdi*rf.cd,stab:a.stab*rf.stab,launch:a.launch*rf.launch*(2-v),rough:rf.rough,fold:true,rank:rk,arch,
+  SHAPES[id]={name,desc,lift:a.lift*rf.lift*v,cd0:a.cd0*rf.cd,cdi:a.cdi*rf.cd,stab:a.stab*rf.stab,launch:a.launch*rf.launch*(2-v),rough:rf.rough,fold:true,rank:rk,
     price:Math.round(RANKS[ri].price*(1+(i%10)*.12)/10)*10,poly:g.poly,mp:g.mp,ay0:-1,ay1:half[half.length-1][1]-.02};
 });
-/* ---------- ぞくせい と とくせい：ひこうき ごとの こせい ---------- */
-// ぞくせい：ひとつの とくせいが のびる。せかいりょこう（3000m）の あと、とくいな ステージでは ぜんぶの とくせいが 1わり アップ＆おかね ×1.2
-const ELEMS={
-  fire: {ic:'🔥',name:'ほのお',trait:'therm',desc:'きりゅうで ぐんぐん のぼる',fav:'desert'},
-  water:{ic:'💧',name:'みず',  trait:'coin', desc:'コインを ひきよせる',fav:'sea'},
-  wind: {ic:'🌪️',name:'かぜ',  trait:'wind', desc:'かぜに ながされにくい',fav:'storm'},
-  ice:  {ic:'❄️',name:'こおり',trait:'slide',desc:'ちゃくりく してから よく すべる',fav:'snow'},
-  leaf: {ic:'🌿',name:'しぜん',trait:'tough',desc:'とりに ぶつかっても へっちゃら',fav:'meadow'},
-  light:{ic:'✨',name:'ひかり',trait:'ctrl', desc:'うごかしやすい。どこでも おかね ×1.1',fav:null},
-};
-// とくせい：かたちから きまる（ほかの ひこうきと くらべて 0.8〜1.2、ぞくせいで +0.25）
-const TRAITS=[
-  {id:'wind', name:'かぜ'},{id:'therm',name:'きりゅう'},{id:'ctrl',name:'そうじゅう'},
-  {id:'tough',name:'がんじょう'},{id:'slide',name:'すべり'},{id:'coin',name:'コイン'},
-];
-const BASE_EL={normal:'leaf',glider:'wind',jet:'fire',delta:'ice',ika:'water',swallow:'wind',condor:'leaf',stealth:'light',falcon:'wind',albatross:'water',phantom:'ice',comet:'fire',phoenix:'fire',dragon:'light'};
-const ARCH_EL={stealth:'light',agile:'wind',speed:'fire',swing:'wind',attack:'leaf',prop:'fire',early:'water',glide:'leaf',sprint:'fire',tank:'ice',trick:'water',dart:'wind'};
-const NAME_EL=[
-  ['fire',/ほのお|フェニックス|ドラゴン|コメット|ロケット|サン|たいよう|あさひ|マグマ|ひのとり/],
-  ['water',/うみ|マンタ|かもめ|クラゲ|とびうお|リバイアサン|イカ|イルカ|しずく|ペリカン|アホウドリ|みず|なみ/],
-  ['ice',/こおり|ゆき|スノー|アイス|ペンギン|クリスタル|ほうせき|ダイヤ|ミラージュ/],
-  ['leaf',/もみじ|はっぱ|リーフ|クローバー|ちょう|バタフライ|ムササビ|つる|ハート|はな/],
-  ['light',/ひかり|オーロラ|スター|ほし|ゴッド|かみの|てんし|エンジェル|ゴールド|でんせつ|ひでん|ペガサス|ムゲン/],
-  ['wind',/かぜ|ウインド|とび|ツバメ|ハヤブサ|しゅりけん|ブーメラン|トーネード|タイフーン|ストーム/],
-];
-(()=>{
-  const ids=Object.keys(SHAPES),geo={};
-  for(const id of ids){
-    const P=SHAPES[id].poly;let a=0,sp=0,y0=9,y1=-9;
-    P.forEach(([x,y],i)=>{const [u,v]=P[(i+1)%P.length];a+=x*v-u*y;sp=Math.max(sp,Math.abs(x));y0=Math.min(y0,y);y1=Math.max(y1,y);});
-    a=Math.abs(a)/2;const len=y1-y0;
-    geo[id]={wind:len/(sp+.2),therm:sp,ctrl:1/a,tough:a,slide:len/Math.pow(P.length,.3),coin:sp*len};
-  }
-  // ほかの ひこうきと くらべた じゅんい で きめる（ぜんぶ ばらばらに なる）
-  const pct={};
-  for(const t of TRAITS){const v=ids.map(id=>geo[id][t.id]).sort((a,b)=>a-b);pct[t.id]=x=>v.indexOf(x)/(v.length-1);}
-  ids.forEach((id,i)=>{
-    const sh=SHAPES[id],nm=sh.name+sh.desc;
-    sh.el=BASE_EL[id]||(NAME_EL.find(([,re])=>re.test(nm))||[ARCH_EL[sh.arch]||'leaf'])[0];
-    sh.tr={};
-    TRAITS.forEach((t,k)=>{sh.tr[t.id]=+(.8+.4*pct[t.id](geo[id][t.id])+(hash(i*7+k)-.5)*.08+(ELEMS[sh.el].trait===t.id?.25:0)).toFixed(2);});
-    // おなじ タイプの せんとうき・おりかたも、かたちで すこしずつ ちがう とびかたに（はばが ひろいほど ていこうが すくない、ながいほど あんてい）
-    if(sh.arch){sh.cdi*=1-.12*(pct.therm(geo[id].therm)-.5);sh.stab*=1+.14*(pct.wind(geo[id].wind)-.5);}
-  });
-})();
-const elemOf=sh=>ELEMS[sh.el];
 const foldCount=()=>FOLD_IDS.filter(id=>S.folds&&S.folds[id]).length;
+
+/* ---------- ぞくせい：ひこうきの かたち ごとの とくちょう ---------- */
+// fx：wind かぜの えいきょう へる / turb らんりゅう へる / therm きりゅうの ちから / grav かるさ / drag ていこう へる / stab あんてい / launch なげる はやさ / magnet コイン / money おかね / ctrl そうじゅうさ / birdR とりに あたりにくい / birdSoft とりの ダメージ へる
+const TRAITS={
+  windy:{ic:'🌬️',name:'かぜにつよい',desc:'かぜの えいきょうが 35% へる',fx:{wind:.35}},
+  turb:{ic:'🌀',name:'ゆれにくい',desc:'らんりゅうの ゆれが 40% へる',fx:{turb:.4}},
+  thermal:{ic:'🔥',name:'きりゅうのり',desc:'きりゅうの ちからを 35% おおく うける',fx:{therm:.35}},
+  light:{ic:'🪶',name:'かるい',desc:'からだが 6% かるい',fx:{grav:.06}},
+  longrun:{ic:'🕊️',name:'ロングラン',desc:'くうきの ていこうが 5% へる',fx:{drag:.05}},
+  stable:{ic:'🧭',name:'あんてい',desc:'ぐらつきにくい',fx:{stab:.4}},
+  dash:{ic:'⚡',name:'ダッシュ',desc:'なげる はやさが 6% 上がる',fx:{launch:.06}},
+  coin:{ic:'🧲',name:'コインずき',desc:'コインを すこし とおくから ひろう',fx:{magnet:2}},
+  money:{ic:'💰',name:'おかねもち',desc:'もらえる おかねが 12% ふえる',fx:{money:.12}},
+  ctrl:{ic:'🎯',name:'そうじゅうさ',desc:'そうじゅうかんが 30% よく きく',fx:{ctrl:.3}},
+  birdR:{ic:'🦅',name:'とりよけ',desc:'とりに あたりにくい',fx:{birdR:.3}},
+  birdsoft:{ic:'🛡️',name:'がんじょう',desc:'とりに ぶつかっても ダメージが はんぶん',fx:{birdSoft:.5}},
+};
+const BASIC_TRAITS={
+  normal:['stable'],glider:['longrun','thermal'],jet:['dash'],delta:['windy'],ika:['birdsoft','stable'],
+  swallow:['dash','windy'],condor:['thermal','longrun'],stealth:['turb','birdR'],
+  falcon:['dash','windy'],albatross:['thermal','longrun','light'],phantom:['turb','stable','windy'],
+  comet:['dash','light'],phoenix:['thermal','longrun','money'],dragon:['windy','birdsoft','stable','coin'],
+};
+const TRAIT_POOL={
+  stealth:['turb','birdR','stable','windy'],agile:['ctrl','dash','birdR','coin'],speed:['dash','windy','longrun','birdR'],
+  swing:['windy','stable','thermal'],attack:['birdsoft','stable','money'],prop:['light','thermal','coin','money'],
+  early:['windy','birdsoft','stable'],glide:['thermal','longrun','light','money'],sprint:['dash','windy','longrun'],
+  tank:['stable','birdsoft','turb','birdR'],trick:['ctrl','coin','dash','money'],dart:['dash','longrun','windy'],
+};
+(function assignTraits(){
+  const archOf={};
+  DEV_LIST.forEach(x=>archOf[x[0]]=x[3]);ORIG_LIST.forEach(x=>archOf[x[0]]=x[3]);FOLD_LIST.forEach(x=>archOf[x[0]]=x[4]);
+  const nOf=id=>{const sh=SHAPES[id];if(sh.fold)return [1,1,2,2,3,3][RANK_IDS.indexOf(sh.rank)];const h=[...id].reduce((a,c)=>a+c.charCodeAt(0),0);return h%3===0?3:2;};
+  for(const id in SHAPES){
+    if(BASIC_TRAITS[id]){SHAPES[id].traits=BASIC_TRAITS[id];continue;}
+    const pool=TRAIT_POOL[archOf[id]]||TRAIT_POOL.agile,h=[...id].reduce((a,c)=>a+c.charCodeAt(0),0),n=Math.min(nOf(id),pool.length);
+    const out=[];for(let j=0;out.length<n&&j<20;j++){const t=pool[(h+j*2+(j>>1))%pool.length];if(!out.includes(t))out.push(t);}
+    SHAPES[id].traits=out;
+  }
+})();
+function traitFx(shape){
+  const a={wind:0,turb:0,therm:0,grav:0,drag:0,stab:0,launch:0,magnet:0,money:0,ctrl:0,birdR:0,birdSoft:0};
+  for(const t of (SHAPES[shape]&&SHAPES[shape].traits)||[])for(const k in TRAITS[t].fx)a[k]+=TRAITS[t].fx[k];
+  return a;
+}
+const traitHTML=(shape,names)=>((SHAPES[shape]&&SHAPES[shape].traits)||[]).map(t=>`<span class="tr">${TRAITS[t].ic}${names?TRAITS[t].name:''}</span>`).join('');
 // とりつける ばしょ（5か所）。はねは 2つで 1つぶんより おおきい
 const MOUNTS=[
   {id:'rw',name:'みぎはね',w:.6},{id:'lw',name:'ひだりはね',w:.6},
@@ -851,11 +840,12 @@ function planeStats(p){
   st.magnet+=da.magnet;st.mult+=da.money;st.thermalMul*=1+da.thermal;st.ctrl+=da.ctrl;
   st.rockets+=da.rockets;st.jetT=Math.max(st.jetT,da.jetT);st.jetF+=da.jetF;
   st.ionT=Math.max(st.ionT,da.ionT);st.ionF+=da.ionF;st.solarF=da.solarF;st.solarT=da.solarF?45:0;
-  // ぞくせい と とくせい
-  const el=elemOf(sh),fav=!!el.fav&&S.best>=STAGE_NEED&&stageId()===el.fav,fb=fav?1.1:1,tr=sh.tr;
-  st.windRes=tr.wind*fb;st.thermalMul*=tr.therm*fb;st.ctrl*=tr.ctrl*fb;st.tough=tr.tough*fb;st.slideMul=tr.slide*fb;st.magnet*=tr.coin*fb;
-  st.elMoney=(sh.el==='light'?1.1:1)*(fav?1.2:1);st.fav=fav;
   st.birdImm=da.bird;st.missiles=da.missiles;st.rescue=da.rescue;st.warp=da.warp;st.lucky=da.lucky;
+  // ぞくせい
+  const tr=traitFx(p.shape);
+  st.cd0*=1-tr.drag;st.cdi*=1-tr.drag;st.grav*=1-tr.grav;st.stab+=tr.stab;st.launchV*=1+tr.launch;
+  st.magnet+=tr.magnet;st.mult+=tr.money;st.thermalMul*=1+tr.therm;st.ctrl*=1+tr.ctrl;
+  st.windRes=tr.wind;st.turbRes=tr.turb;st.birdR=tr.birdR;st.birdSoft=tr.birdSoft;
   const CL=5.5*.09;
   st.glide=st.lift*CL/(st.cd0+st.cdi*CL*CL);
   st.vTrim=Math.sqrt(st.grav/(AERO_K*st.lift*CL));
@@ -1073,7 +1063,7 @@ function step(dt){
     }
     if(F.ionLeft>0&&Math.random()<.3)parts.push({x:F.x-Math.cos(th)*.8,y:F.y-Math.sin(th)*.8,vx:-Math.cos(th)*2,vy:-Math.sin(th)*2,t:0,col:'rgba(120,190,255,.8)',glow:1});
     const SM=stageM();
-    F.wx=(SM.wind<0?SM.wind/st.windRes:SM.wind)+SM.gust*(vnoise(F.t*.4,21)-.5)*2*Math.min(1,F.t/2)/st.windRes; // むかいかぜと ゆらぎは かぜに つよいほど よわく
+    F.wx=(SM.wind+SM.gust*(vnoise(F.t*.4,21)-.5)*2*Math.min(1,F.t/2))*(1-st.windRes);
     let wT=0;
     for(const t of world.thermals){
       // きりゅうの パーツは「つかまえる はば」と「かぜの つよさ」を ふやす
@@ -1088,8 +1078,8 @@ function step(dt){
     // ながい ひこうは つかれて ゆっくり おりてくる（きゅうに おちない）
     if(F.t>420){ay-=Math.min(4,(F.t-420)/12);F.wind*=Math.max(0,1-(F.t-420)/60);}
     // かぜの ゆらぎ
-    ay+=(vnoise(F.t*.9,5)-.5)*2.4*SM.turb*Math.min(1,F.t/2)/(1+st.gyro*.8)/st.windRes;
-    F.alpha+=(vnoise(F.t*4,9)-.5)*.0012*SM.turb*dt*60/st.stab;
+    ay+=(vnoise(F.t*.9,5)-.5)*2.4*SM.turb*Math.min(1,F.t/2)/((1+st.gyro*.8)*(1+st.turbRes));
+    F.alpha+=(vnoise(F.t*4,9)-.5)*.0012*SM.turb*dt*60/st.stab/(1+st.turbRes);
     if(F.hitLeft>0){const k=Math.pow(F.hitK,dt/.35);F.vx*=k;F.vy*=k;F.hitLeft-=dt;}
     flyStep(st,F,dt,ctl,ay);
     F.maxY=Math.max(F.maxY,F.y);
@@ -1117,18 +1107,18 @@ function step(dt){
     // とり
     for(const b of world.birds){
       if(b.hit)continue;
-      if(Math.hypot(b.x-F.x,b.y-F.y)<1.3){
+      if(Math.hypot(b.x-F.x,b.y-F.y)<1.3*(1-st.birdR)){
         b.hit=true;
         if(st.birdImm>=.5){floats.push({x:F.x,y:F.y+2,t:0,txt:'バリア！',col:'#9bd8ff'});continue;}
-        const keep=Math.min(.97,.8+.05*st.tail+.04*st.gyro+.12*(st.tough-1)); // ぶつかっても かんぜんには おちない
-        F.hitK=keep;F.hitLeft=.35;F.kick=-.07*(1-.28*st.tail)/(1+.5*st.gyro)/st.tough; // げんそくは .35びょうかけて
+        const keep0=Math.min(.97,.8+.05*st.tail+.04*st.gyro),keep=keep0+(1-keep0)*st.birdSoft; // ぶつかっても かんぜんには おちない
+        F.hitK=keep;F.hitLeft=.35;F.kick=-.07*(1-.28*st.tail)/(1+.5*st.gyro); // げんそくは .35びょうかけて
         floats.push({x:F.x,y:F.y+2,t:0,txt:st.tail>=3?'へっちゃら！':'ドン！',col:'#ff8a80'});
         for(let i=0;i<8;i++)parts.push({x:b.x,y:b.y,vx:(Math.random()-.5)*6,vy:(Math.random()-.2)*5,t:0,col:'#f4f4f4'});
       }
     }
     if(F.x>=MILES[F.mi]){floats.push({x:F.x,y:F.y+1.5,t:0,txt:MILES[F.mi]+'m とっぱ！',col:'#fff'});F.mi++;}
     if(F.y<=0){
-      F.y=0;F.landed=true;F.vy=0;F.vx=SM.water?0:slideV(F.vx)*SM.slide*st.slideMul;F.rocketT=0;F.propLeft=0;F.jetLeft=0;F.ionLeft=0;updRocket();
+      F.y=0;F.landed=true;F.vy=0;F.vx=SM.water?0:slideV(F.vx)*SM.slide;F.rocketT=0;F.propLeft=0;F.jetLeft=0;F.ionLeft=0;updRocket();
       if(SM.water){floats.push({x:F.x,y:2,t:0,txt:'ざぶん！',col:'#bfe6ff'});for(let i=0;i<18;i++)parts.push({x:F.x,y:0,vx:(Math.random()-.5)*5,vy:Math.random()*6,t:0,col:i%2?'rgba(190,230,255,.9)':'rgba(255,255,255,.9)',r:2+Math.random()*2.5});}
       else for(let i=0;i<14;i++)parts.push({x:F.x,y:0,vx:(Math.random()-.3)*4,vy:Math.random()*3,t:0,col:TH().grass?(i%2?'rgba(160,130,90,.7)':'rgba(120,170,70,.8)'):(i%2?'rgba(230,205,150,.8)':'rgba(255,255,255,.85)'),r:2+Math.random()*2.5});
     }
@@ -1142,7 +1132,7 @@ function finish(){
   if(!F||mode==='result')return;
   const dist=Math.max(0,F.x),st=F.st;
   const fromDist=Math.round(dist*MONEY_PER_M),fromCoins=F.coins*COIN_VAL,base=fromDist+fromCoins;
-  const SMf=stageM(),total=Math.round(base*st.mult*st.elMoney*SMf.money);
+  const SMf=stageM(),total=Math.round(base*st.mult*SMf.money);
   const rec=dist>S.best,oldBest=S.best,tier=b=>b>=3000?5:b>=2000?4:b>=1000?3:b>=800?2:b>=400?1:0;
   S.money+=total;S.flights++;if(rec)S.best=dist;const sid=stageId();if(dist>(S.stageBest[sid]||0))S.stageBest[sid]=dist;checkMails();save();
   mode='result';
@@ -1156,7 +1146,6 @@ function finish(){
   let h=`<div class="rl"><span>きょり ${dist.toFixed(1)}m ×${MONEY_PER_M}</span><span>+${fromDist}</span></div>
   <div class="rl"><span>コイン ${F.coins}こ</span><span>+${fromCoins}</span></div>`;
   if(st.mult>1)h+=`<div class="rl"><span>💰 ボーナス</span><span>×${st.mult.toFixed(2)}</span></div>`;
-  if(st.elMoney>1){const el=elemOf(SHAPES[F.p.shape]);h+=`<div class="rl"><span>${el.ic} ${st.fav?'とくい ステージ！':el.name+' ぞくせい'}</span><span>×${st.elMoney.toFixed(2)}</span></div>`;}
   if(SMf.money>1)h+=`<div class="rl"><span>${TH().ic} ${TH().name} ステージボーナス</span><span>×${SMf.money.toFixed(1)}</span></div>`;
   h+=`<div class="rl"><span>いちばん たかく</span><span>${F.maxY.toFixed(1)}m</span></div>`;
   h+=`<div class="rl tot"><span>もらった おかね</span><span>+${total}</span></div>`;
@@ -1206,7 +1195,7 @@ $('quitBtn').addEventListener('click',()=>{
 });
 
 /* ---------- がめん ---------- */
-const OVS=['ovMenu','ovWs','ovShop','ovRes','ovMail','ovStage','ovCraft'];
+const OVS=['ovMenu','ovWs','ovShop','ovRes','ovMail','ovStage'];
 function showOnly(id){OVS.forEach(o=>$(o).hidden=o!==id);}
 function toMenu(){
   mode='menu';F=null;$('hud').hidden=true;$('rocketBtn').hidden=true;setHint('');
@@ -1226,7 +1215,6 @@ function renderMenu(){
   const gotAny=MAILS.some(m=>S[m.got]);
   $('mailBtn').hidden=!gotAny;$('mailDot').hidden=!MAILS.some(m=>S[m.got]&&!S[m.read]);
   $('stageBtn').hidden=!S.tourRead;
-  $('craftBtn').innerHTML=`🧑‍🎨 おりかた しょくにん <small>${foldCount()}/${FOLD_IDS.length}</small>`;
   $('mStage').textContent=S.tourRead?`ステージ：${TH().ic} ${TH().name}`:'';
   $('mName').textContent=p.name;
   drawPreview($('mPv'),p);
@@ -1241,7 +1229,7 @@ function renderMenu(){
 $('goBtn').onclick=startAim;
 $('rAgain').onclick=startAim;
 $('rMenu').onclick=toMenu;
-$('shopBtn').onclick=()=>{renderShop();showOnly('ovShop');};
+$('shopBtn').onclick=()=>{showOnly('ovShop');renderShop();};
 $('sBack').onclick=toMenu;
 
 /* こうさくしつ */
@@ -1255,7 +1243,7 @@ function renderWs(){
   for(const k in SHAPES){
     if(SHAPES[k].dev||SHAPES[k].fold)continue;
     const op=shapeOpen(k);
-    sh.append(chip(op?elemOf(SHAPES[k]).ic+' '+SHAPES[k].name:`🔒 ${SHAPES[k].name} <small>${SHAPES[k].need}mで</small>`,draft.shape===k,()=>{draft.shape=k;touch();},!op));
+    sh.append(chip(op?SHAPES[k].name:`🔒 ${SHAPES[k].name} <small>${SHAPES[k].need}mで</small>`,draft.shape===k,()=>{draft.shape=k;touch();},!op));
   }
   // かいはつ（ほんもの・オリジナル）
   const dv=devOpen(),nf=foldCount(),shp=SHAPES[draft.shape];
@@ -1268,22 +1256,20 @@ function renderWs(){
   if(wGridTab!==wTab){wGridTab=wTab;buildWsGrid();}
   $('wBase').hidden=wTab==='normal';
   for(const b of $('wBase').children)b.classList.toggle('on',b.dataset.id===draft.shape);
-  $('wBaseNote').textContent=(shp.dev||shp.fold)?elemOf(shp).ic+' '+shp.name+'：'+shp.desc+(shp.fold?'（ランク'+shp.rank+'）':''):wTab==='real'||wTab==='orig'?'ここから えらぶと とくべつパーツも つけられるよ':dv?'「ほんもの」「オリジナル」の タブで せんとうきの かたちも えらべるよ':nf?'「おりかた」の タブで おぼえた おりかたを えらべるよ':'';
+  $('wBaseNote').textContent=(shp.dev||shp.fold)?shp.name+'：'+shp.desc+(shp.fold?'（ランク'+shp.rank+'）':''):wTab==='real'||wTab==='orig'?'ここから えらぶと とくべつパーツも つけられるよ':dv?'「ほんもの」「オリジナル」の タブで せんとうきの かたちも えらべるよ':nf?'「せっけいず」の タブで かった せっけいずの かたちを えらべるよ':'';
   $('wDevBox').hidden=!(dv&&shp.dev);
   if(dv&&shp.dev)renderWsDev();
   const st=planeStats(draft),pd=predict(draft),now=predict(curPlane());
   const diff=pd-now;
   $('wPred').innerHTML=`よそう きょり ${fmtM(pd)} <small>${Math.abs(diff)<.05?'':(diff>0?'▲ +':'▼ ')+(diff>0?fmtM(diff):fmtM(-diff))+'（いまの ひこうきと くらべて）'}</small>`;
   const bar=(n,v,mx)=>`<div class="bar"><span>${n}</span><i><b style="width:${clamp(v/mx*100,4,100)}%"></b></i></div>`;
-  const shd=SHAPES[draft.shape],el=elemOf(shd),fav=el.fav?STAGES[el.fav]:null;
-  const tbar=(n,v)=>`<div class="bar tr"><span>${n}</span><i><b style="width:${clamp((v-.6)/1*100,4,100)}%"></b></i></div>`;
-  $('wStats').innerHTML=`<p class="note" style="grid-column:1/-1">${shd.desc}</p>`
-    +`<div class="elem"><b>${el.ic}</b><div><strong>${el.name} ぞくせい</strong>：${el.desc}<br><small>${fav?'とくい：'+fav.ic+' '+fav.name+'（せかいりょこうで とくせい 1わり アップ・おかね ×1.2）':'とくいな ばしょは ないけど、どこでも おかね ×1.1'}</small></div></div>`
-    +`<div class="bsec">とびかた</div>`
-    +bar('ながく とぶ',st.glide,14)+bar('はやさ',st.launchV,25)+bar('うく ちから',st.lift,2.2)+bar('すべすべ',.5/st.cd0,6)
-    +bar('かるさ',9.8-st.grav+1,5.5)+bar('あんてい',st.stab,3.8)+bar('パワー',st.propF*(st.propT>0)*st.propT/4+st.jetF*st.jetT/6+st.rockets*3+st.ionF*st.ionT/4,60)
-    +`<div class="bsec">とくせい（かたちと ぞくせいで きまる）</div>`
-    +TRAITS.map(t=>tbar(t.name,shd.tr[t.id])).join('');
+  $('wStats').innerHTML=`<p class="note">${SHAPES[draft.shape].desc}</p>`
+    +bar('はやさ',st.launchV,26)+bar('のびる',st.glide,40)+bar('かるさ',(9.8-st.grav)*10+4,12)+bar('あんてい',st.stab,4.5)
+    +bar('パワー',st.propF*(st.propT>0)*st.propT/4+st.jetF*st.jetT/6+st.rockets*3+st.ionF*st.ionT/4,60)
+    +bar('ぼうふう',st.windRes*100+st.gyro*10+(st.turbRes*50),60)+bar('きりゅう',(st.thermalMul-1)*100,150)
+    +bar('とりよけ',(st.birdR*60+st.birdSoft*40+(st.birdImm>=.5?100:0)+st.tail*6+st.gyro*8),100)
+    +bar('コイン',(st.magnet-1)*10,80)+bar('おかね',(st.mult-1)*100,150);
+  $('wTraits').innerHTML=((SHAPES[draft.shape].traits||[]).length?'<b>ぞくせい</b> ':'')+(SHAPES[draft.shape].traits||[]).map(t=>`<span class="tr" title="${TRAITS[t].desc}">${TRAITS[t].ic}${TRAITS[t].name}</span>`).join('')+((SHAPES[draft.shape].traits||[]).map(t=>`<p>${TRAITS[t].ic} ${TRAITS[t].desc}</p>`).join(''));
   const sw=(el,key)=>{el.innerHTML='';for(const col of COLORS){const b=document.createElement('button');b.className='swc'+(draft[key]===col?' on':'');b.style.background=col;b.setAttribute('aria-label','いろ '+col);b.onclick=()=>{draft[key]=col;touch();};el.append(b);}};
   sw($('wBody'),'body');sw($('wAccent'),'accent');
   const pt=$('wPat');pt.innerHTML='';
@@ -1426,34 +1412,6 @@ $('mailClose').onclick=()=>{
   toMenu();if(first)toast(m.toast);
 };
 
-/* おりかた しょくにん */
-let cRank='E';
-function openCraft(){showOnly('ovCraft');renderCraft();}
-function renderCraft(){
-  $('cMoney').textContent=S.money;
-  $('cCount').textContent=`おぼえた おりかた ${foldCount()} / ${FOLD_IDS.length}`;
-  const tb=$('cTabs');tb.innerHTML='';
-  for(const r of RANKS){
-    const ids=FOLD_IDS.filter(id=>SHAPES[id].rank===r.id),got=ids.filter(id=>S.folds[id]).length;
-    const b=document.createElement('button');b.className='tab'+(cRank===r.id?' on':'');
-    b.innerHTML=`${r.id}<small>${got}/${ids.length}</small>`;b.onclick=()=>{cRank=r.id;renderCraft();};tb.append(b);
-  }
-  const rk=RANKS.find(r=>r.id===cRank);
-  $('cQuote').innerHTML=`<span class="rk" style="background:${rk.col}">ランク${rk.id}</span><b>${rk.label}</b><br>「${rk.quote}」`;
-  const l=$('cList');l.innerHTML='';
-  for(const id of FOLD_IDS.filter(id=>SHAPES[id].rank===cRank)){
-    const sh=SHAPES[id],d=document.createElement('div');d.className='fold';
-    const c=document.createElement('canvas');
-    const info=document.createElement('div');info.innerHTML=`<b>${elemOf(sh).ic} ${sh.name}</b><p>${sh.desc}（${elemOf(sh).name} ぞくせい）</p>`;
-    let btn;
-    if(S.folds[id]){btn=document.createElement('button');btn.className='btn';btn.disabled=true;btn.textContent='✔ おぼえた';}
-    else btn=buyBtn(sh.price,()=>{S.folds[id]=1;toast('「'+sh.name+'」を おしえてもらった！こうさくで つかえるよ');},null,renderCraft);
-    d.append(c,info,btn);l.append(d);
-    drawPreview(c,{shape:id,body:'#ffffff',accent:'#4a7dff',pattern:'none',parts:[],dev:null});
-  }
-}
-$('craftBtn').onclick=openCraft;
-$('cBack').onclick=toMenu;
 
 /* せかいりょこう */
 function openStage(){renderStage();showOnly('ovStage');}
@@ -1503,20 +1461,50 @@ function renderWsDev(){
   const mn=MOUNTS.find(m=>m.id===wSel).name;
   const pk=$('wPick');pk.innerHTML='';
   const avail=DPARTS.filter(x=>S.dparts[x.id]&&x.allow.includes(wSel));
-  $('wPickNote').textContent=`「${mn}」に つけられる パーツ`+(avail.length?'':'（もっている パーツが ない。したの ショップで かおう）');
+  $('wPickNote').textContent=`「${mn}」に つけられる パーツ`+(avail.length?'':'（もっている パーツが ない。ショップの「とくべつパーツ」で かおう）');
   if(draft.dev.mounts[wSel])pk.append(chip('✖ はずす',false,()=>{delete draft.dev.mounts[wSel];touch();}));
   for(const x of avail)pk.append(chip(`${x.ic} ${x.name}`,draft.dev.mounts[wSel]===x.id,()=>{draft.dev.mounts[wSel]=x.id;touch();}));
-  const sp=$('wDShop');sp.innerHTML='';
+}
+
+/* ショップ：せっけいず・とくべつパーツ */
+let bpRank='E';
+function renderShopBP(){
+  $('sBpCount').textContent=`もっている せっけいず ${foldCount()} / ${FOLD_IDS.length}（かうと こうさくの「せっけいず」タブで つかえる）`;
+  const tb=$('sBpTabs');tb.innerHTML='';
+  for(const r of RANKS){
+    const ids=FOLD_IDS.filter(id=>SHAPES[id].rank===r.id),got=ids.filter(id=>S.folds[id]).length;
+    const b=document.createElement('button');b.className='tab'+(bpRank===r.id?' on':'');
+    b.innerHTML=`${r.id}<small>${got}/${ids.length}</small>`;b.onclick=()=>{bpRank=r.id;renderShop();};tb.append(b);
+  }
+  const rk=RANKS.find(r=>r.id===bpRank);
+  $('sBpQuote').innerHTML=`<span class="rk" style="background:${rk.col}">ランク${rk.id}</span><b>${rk.label}</b>　${rk.quote}`;
+  const l=$('sBpList');l.innerHTML='';
+  for(const id of FOLD_IDS.filter(id=>SHAPES[id].rank===bpRank)){
+    const sh=SHAPES[id],d=document.createElement('div');d.className='fold';
+    const c=document.createElement('canvas');
+    const info=document.createElement('div');info.innerHTML=`<b>${sh.name}</b><p>${sh.desc}</p><p>${traitHTML(id,true)}</p>`;
+    let btn;
+    if(S.folds[id]){btn=document.createElement('button');btn.className='btn';btn.disabled=true;btn.textContent='✔ もっている';}
+    else btn=buyBtn(sh.price,()=>{S.folds[id]=1;toast('「'+sh.name+'」の せっけいずを かった！こうさくで つかえるよ');});
+    d.append(c,info,btn);l.append(d);
+    drawPreview(c,{shape:id,body:'#ffffff',accent:'#4a7dff',pattern:'none',parts:[],dev:null});
+  }
+}
+function renderShopDP(){
+  const sp=$('sDParts');sp.innerHTML='';
+  if(!devOpen()){
+    const b=document.createElement('button');b.className='btn';b.disabled=true;b.textContent='🔒 2000m';
+    sp.append(itemRow('❓','？？？','','ベストが 2000m を こえて メールを よむと ならぶよ',b));return;
+  }
   const mname=id=>MOUNTS.find(m=>m.id===id).name;
   for(const x of DPARTS){
     const where=x.allow.length===5?'どこでも':x.allow.map(mname).join('・');
     let btn;
     if(S.dparts[x.id]){btn=document.createElement('button');btn.className='btn';btn.disabled=true;btn.textContent='もっている';}
-    else btn=buyBtn(x.cost,()=>{S.dparts[x.id]=1;toast(x.name+' を てにいれた！');},null,renderWs);
+    else btn=buyBtn(x.cost,()=>{S.dparts[x.id]=1;toast(x.name+' を かった！こうさくで つけよう');});
     sp.append(itemRow(x.ic,x.name,'',x.desc+'［'+where+'］',btn));
   }
 }
-
 /* ショップ */
 function buyBtn(cost,fn,label,after){
   const b=document.createElement('button');b.className='btn';
@@ -1543,6 +1531,7 @@ function renderShop(){
     const lv=S.parts[x.id]||0,cost=lv<PART_MAX?partCost(x,lv):null;
     sp.append(itemRow(x.ic,x.name,lv?stars(lv,PART_MAX):'',x.desc,buyBtn(cost,()=>{S.parts[x.id]=lv+1;toast(lv?x.name+' を レベル'+(lv+1)+'に！':x.name+' を かった！こうさくしつで つけよう');})));
   }
+  renderShopBP();renderShopDP();
   const sf=$('sFac');sf.innerHTML='';
   for(const f of FACS){
     const lv=S.fac[f.id],mx=f.cost.length;
