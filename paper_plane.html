@@ -103,6 +103,8 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
 .tab.on{color:#3a2200;background:var(--sun)}
 .tab:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
 .dtabs{grid-template-columns:repeat(2,1fr)}
+.wtabs{grid-template-columns:repeat(3,1fr)}
+.wtabs .tab{font-size:12px;padding:9px 2px}
 .devgrid{max-height:34vh;overflow-y:auto;padding:4px;touch-action:pan-y}
 .mounts{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%}
 .mt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:64px;padding:6px 2px;border-radius:10px;border:2px dashed var(--line);background:rgba(255,255,255,.04);color:var(--ink);font-family:var(--body);font-size:10px;cursor:pointer;min-width:0}
@@ -181,7 +183,6 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       </div>
       <div class="row">
         <button class="btn ghost" id="mailBtn" hidden>✉️ メール <span class="dot" id="mailDot">●</span></button>
-        <button class="btn ghost" id="devBtn" hidden>🛠️ かいはつ</button>
         <button class="btn ghost" id="stageBtn" hidden>🌍 せかいりょこう</button>
       </div>
       <div class="sec">ハンガー（ほぞんした ひこうき）</div>
@@ -207,7 +208,10 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       <canvas class="pv" id="wPv"></canvas>
       <label class="field">なまえ <input id="wName" maxlength="12" autocomplete="off" placeholder="なまえをつけよう"></label>
       <div class="sec">かたち</div>
+      <div class="tabs wtabs" id="wShapeTabs" hidden><button class="tab on" id="wTabNormal">ふつうの かたち</button><button class="tab" id="wTabReal">ほんもの 40</button><button class="tab" id="wTabOrig">オリジナル 30</button></div>
       <div class="chips" id="wShape"></div>
+      <div class="hangar devgrid" id="wBase" hidden></div>
+      <p class="note" id="wBaseNote"></p>
       <div class="pred" id="wPred"></div>
       <div class="bars" id="wStats"></div>
       <div class="sec">いろ</div>
@@ -222,6 +226,15 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       <div class="chips" id="wParts"></div>
       <div class="sec">くみあわせ ボーナス</div>
       <div class="combos" id="wCombo"></div>
+      <div id="wDevBox" hidden>
+        <div class="sec">🛠️ とくべつ とりつけ（5か所）</div>
+        <div class="mounts" id="wMounts"></div>
+        <p class="note" id="wPickNote"></p>
+        <div class="chips" id="wPick"></div>
+        <div class="sec">とくべつパーツ ショップ（20しゅるい）</div>
+        <p class="note">ふつうでは つくれない パーツ。はねは 2つ おなじパーツで ボーナス！</p>
+        <div class="shop" id="wDShop"></div>
+      </div>
       <div class="row">
         <button class="btn" id="wSave">💾 ほぞん</button>
         <button class="btn ghost" id="wSaveNew">＋ べつに ほぞん</button>
@@ -268,35 +281,6 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       <p class="sub">ばしょを えらぶと かぜ・とり・きりゅうが かわるよ。むずかしい ばしょほど おかねが たくさん もらえる！</p>
       <div class="stages" id="stageList"></div>
       <button class="btn ghost" id="stageBack">もどる</button>
-    </div>
-  </div>
-
-  <!-- かいはつ -->
-  <div class="ov" id="ovDev" hidden>
-    <div class="card wide">
-      <h2>🛠️ かいはつ</h2>
-      <p class="sub">ちょうかみひこうき かいはつだん</p>
-      <div class="wallet"><i class="coin-ic"></i><span id="dMoney">0</span></div>
-      <canvas class="pv" id="dPv"></canvas>
-      <label class="field">なまえ <input id="dName" maxlength="12" autocomplete="off" placeholder="なまえをつけよう"></label>
-      <div class="pred" id="dPred"></div>
-      <div class="bars" id="dStats"></div>
-      <div class="sec">ベースの かたち（ほんもの 40 ＋ オリジナル 30）</div>
-      <div class="tabs dtabs"><button class="tab on" id="dTabReal">ほんものの せんとうき</button><button class="tab" id="dTabOrig">オリジナル 30</button></div>
-      <div class="hangar devgrid" id="dBase"></div>
-      <p class="note" id="dBaseNote"></p>
-      <div class="sec">とりつける ばしょ（5か所）</div>
-      <div class="mounts" id="dMounts"></div>
-      <p class="note" id="dPickNote"></p>
-      <div class="chips" id="dPick"></div>
-      <div class="sec">とくべつパーツ ショップ（20しゅるい）</div>
-      <p class="note">ふつうでは つくれない パーツ。はねは 2つ おなじパーツで ボーナス！</p>
-      <div class="shop" id="dShop"></div>
-      <div class="row">
-        <button class="btn" id="dSave">💾 ほぞん</button>
-        <button class="btn ghost" id="dSaveNew">＋ べつに ほぞん</button>
-      </div>
-      <button class="btn ghost sm" id="dBack">もどる</button>
     </div>
   </div>
 
@@ -1028,7 +1012,7 @@ $('quitBtn').addEventListener('click',()=>{
 });
 
 /* ---------- がめん ---------- */
-const OVS=['ovMenu','ovWs','ovShop','ovRes','ovMail','ovDev','ovStage'];
+const OVS=['ovMenu','ovWs','ovShop','ovRes','ovMail','ovStage'];
 function showOnly(id){OVS.forEach(o=>$(o).hidden=o!==id);}
 function toMenu(){
   mode='menu';F=null;$('hud').hidden=true;$('rocketBtn').hidden=true;setHint('');
@@ -1047,7 +1031,7 @@ function renderMenu(){
   checkMails();save();
   const gotAny=MAILS.some(m=>S[m.got]);
   $('mailBtn').hidden=!gotAny;$('mailDot').hidden=!MAILS.some(m=>S[m.got]&&!S[m.read]);
-  $('devBtn').hidden=!S.mailRead;$('stageBtn').hidden=!S.tourRead;
+  $('stageBtn').hidden=!S.tourRead;
   $('mStage').textContent=S.tourRead?`ステージ：${TH().ic} ${TH().name}`:'';
   $('mName').textContent=p.name;
   drawPreview($('mPv'),p);
@@ -1067,23 +1051,34 @@ $('sBack').onclick=toMenu;
 
 /* こうさくしつ */
 let draft=null,draftDirty=false;
-$('wsBtn').onclick=()=>{draft=JSON.parse(JSON.stringify(curPlane()));draft.parts=activeParts(draft);draftDirty=false;renderWs();showOnly('ovWs');};
+$('wsBtn').onclick=()=>{draft=JSON.parse(JSON.stringify(curPlane()));draft.parts=activeParts(draft);draftDirty=false;wTab=devOpen()?wsTabFor(draft.shape):'normal';wSel='rw';wGridTab=null;showOnly('ovWs');renderWs();};
 function chip(label,on,fn,dis){const b=document.createElement('button');b.className='chip'+(on?' on':'');b.innerHTML=label;b.disabled=!!dis;b.onclick=fn;return b;}
 function renderWs(){
   drawPreview($('wPv'),draft);
   $('wName').value=draft.name;
   const sh=$('wShape');sh.innerHTML='';
-  if(SHAPES[draft.shape].dev)sh.append(chip('🛠️ かいはつき（かいはつ で かえられる）',true,()=>{},true));
   for(const k in SHAPES){
     if(SHAPES[k].dev)continue;
     const op=shapeOpen(k);
     sh.append(chip(op?SHAPES[k].name:`🔒 ${SHAPES[k].name} <small>${SHAPES[k].need}mで</small>`,draft.shape===k,()=>{draft.shape=k;touch();},!op));
   }
+  // かいはつ（ほんもの・オリジナル）
+  const dv=devOpen(),shp=SHAPES[draft.shape];
+  $('wShapeTabs').hidden=!dv;
+  if(!dv)wTab='normal';
+  for(const [id,t] of [['wTabNormal','normal'],['wTabReal','real'],['wTabOrig','orig']])$(id).classList.toggle('on',wTab===t);
+  sh.hidden=wTab!=='normal';
+  if(wGridTab!==wTab){wGridTab=wTab;buildWsGrid();}
+  $('wBase').hidden=wTab==='normal';
+  for(const b of $('wBase').children)b.classList.toggle('on',b.dataset.id===draft.shape);
+  $('wBaseNote').textContent=!dv?'':wTab!=='normal'?(shp.dev?shp.name+'：'+shp.desc:'ここから えらぶと とくべつパーツも つけられるよ'):(shp.dev?shp.name+'：'+shp.desc:'「ほんもの」「オリジナル」の タブで せんとうきの かたちも えらべるよ');
+  $('wDevBox').hidden=!(dv&&shp.dev);
+  if(dv&&shp.dev)renderWsDev();
   const st=planeStats(draft),pd=predict(draft),now=predict(curPlane());
   const diff=pd-now;
   $('wPred').innerHTML=`よそう きょり ${fmtM(pd)} <small>${Math.abs(diff)<.05?'':(diff>0?'▲ +':'▼ ')+(diff>0?fmtM(diff):fmtM(-diff))+'（いまの ひこうきと くらべて）'}</small>`;
   const bar=(n,v,mx)=>`<div class="bar"><span>${n}</span><i><b style="width:${clamp(v/mx*100,4,100)}%"></b></i></div>`;
-  $('wStats').innerHTML=`<p class="note">${SHAPES[draft.shape].desc}</p>`+bar('ながく とぶ',st.glide,14)+bar('かるさ',9.8-st.grav+1,5.5)+bar('パワー',st.propF*(st.propT>0)*st.propT/4+st.jetF*st.jetT/6+st.rockets*3,60)+bar('あんてい',st.stab,3.8);
+  $('wStats').innerHTML=`<p class="note">${SHAPES[draft.shape].desc}</p>`+bar('ながく とぶ',st.glide,14)+bar('かるさ',9.8-st.grav+1,5.5)+bar('パワー',st.propF*(st.propT>0)*st.propT/4+st.jetF*st.jetT/6+st.rockets*3+st.ionF*st.ionT/4,60)+bar('あんてい',st.stab,3.8);
   const sw=(el,key)=>{el.innerHTML='';for(const col of COLORS){const b=document.createElement('button');b.className='swc'+(draft[key]===col?' on':'');b.style.background=col;b.setAttribute('aria-label','いろ '+col);b.onclick=()=>{draft[key]=col;touch();};el.append(b);}};
   sw($('wBody'),'body');sw($('wAccent'),'accent');
   const pt=$('wPat');pt.innerHTML='';
@@ -1121,7 +1116,13 @@ function renderWs(){
 }
 function touch(){draftDirty=true;renderWs();}
 $('wName').addEventListener('input',e=>{draft.name=e.target.value;draftDirty=true;});
-function cleanName(){draft.name=(draft.name||'').trim().slice(0,12)||'ななしの ひこうき';}
+function cleanName(){
+  draft.name=(draft.name||'').trim().slice(0,12)||'ななしの ひこうき';
+  if(draft.dev){
+    if(!SHAPES[draft.shape].dev)delete draft.dev;
+    else for(const mt of MOUNTS){const x=DPARTS.find(d=>d.id===(draft.dev.mounts||{})[mt.id]);if(!x||!x.allow.includes(mt.id)||!S.dparts[x.id])delete draft.dev.mounts[mt.id];}
+  }
+}
 $('wSave').onclick=()=>{
   cleanName();
   const i=S.planes.findIndex(p=>p.id===draft.id);
@@ -1154,7 +1155,7 @@ const MAIL_TEXT=`はじめまして！
 
 ぜひ、きょうりょく させてください！
 
-メニューに「かいはつ」を ついかしました。
+「こうさく」に かいはつの どうぐを ついかしました。
 ・ほんものの せんとうき 40しゅるいを ベースに できます
 ・わたしたちが かんがえた オリジナルの かたち 30しゅるいも ようい しました
 ・ふつうでは つくれない とくべつパーツ 20しゅるいを つけられます
@@ -1181,7 +1182,7 @@ const TOUR_TEXT=`3000m…！ ほんとうに すごい きろくです。
 
 せかい かんこう きょうかい より`;
 const MAILS=[
-  {id:'dev',at:2000,got:'mailGot',read:'mailRead',from:'ちょうかみひこうき かいはつだん',subj:'【きょうりょく の おねがい】',body:MAIL_TEXT,toast:'メニューに「かいはつ」が ふえたよ！'},
+  {id:'dev',at:2000,got:'mailGot',read:'mailRead',from:'ちょうかみひこうき かいはつだん',subj:'【きょうりょく の おねがい】',body:MAIL_TEXT,toast:'「こうさく」に かいはつの どうぐが ふえたよ！'},
   {id:'tour',at:3000,got:'tourGot',read:'tourRead',from:'せかい かんこう きょうかい',subj:'【せかいりょこう の ごあんない】',body:TOUR_TEXT,toast:'メニューに「せかいりょこう」が ふえたよ！'},
 ];
 function checkMails(){for(const m of MAILS)if(S.best>=m.at&&!S[m.got])S[m.got]=true;}
@@ -1235,89 +1236,50 @@ function renderStage(){
 $('stageBtn').onclick=openStage;
 $('stageBack').onclick=toMenu;
 
-let dd=null,ddDirty=false,dSel='rw';
+/* こうさくしつ：かいはつの どうぐ（2000m の メールを よんだ あと） */
 const REAL_IDS=DEV_LIST.map(x=>x[0]),ORIG_IDS=ORIG_LIST.map(x=>x[0]);
-let dTab='real';
-function buildDevGrid(){
-  const g=$('dBase');g.innerHTML='';
-  for(const id of (dTab==='orig'?ORIG_IDS:REAL_IDS)){
+let wTab='normal',wSel='rw',wGridTab=null;
+const devOpen=()=>!!S.mailRead;
+const wsTabFor=shape=>SHAPES[shape].orig?'orig':SHAPES[shape].dev?'real':'normal';
+function buildWsGrid(){
+  const g=$('wBase');g.innerHTML='';
+  if(wTab==='normal')return;
+  for(const id of (wTab==='orig'?ORIG_IDS:REAL_IDS)){
     const b=document.createElement('button');b.className='hg';b.dataset.id=id;
     const c=document.createElement('canvas');const sp=document.createElement('span');sp.textContent=SHAPES[id].name.split(' ')[0];
     b.append(c,sp);g.append(b);
-    b.onclick=()=>{dd.shape=id;ddDirty=true;renderDev();};
+    b.onclick=()=>{draft.shape=id;draft.dev=draft.dev||{};draft.dev.mounts=draft.dev.mounts||{};touch();};
   }
-  for(const b of g.children)drawPreview(b.firstChild,Object.assign({},dd,{shape:b.dataset.id,parts:[],dev:null}));
-  $('dTabReal').classList.toggle('on',dTab==='real');$('dTabOrig').classList.toggle('on',dTab==='orig');
+  for(const b of g.children)drawPreview(b.firstChild,Object.assign({},draft,{shape:b.dataset.id,parts:[],dev:null}));
 }
-$('dTabReal').onclick=()=>{dTab='real';buildDevGrid();renderDev();};
-$('dTabOrig').onclick=()=>{dTab='orig';buildDevGrid();renderDev();};
-function openDev(){
-  dd=JSON.parse(JSON.stringify(curPlane()));
-  if(!SHAPES[dd.shape].dev)dd.shape='f22';
-  dd.dev=dd.dev||{};dd.dev.mounts=dd.dev.mounts||{};
-  ddDirty=false;dSel='rw';
-  dTab=SHAPES[dd.shape].orig?'orig':'real';
-  showOnly('ovDev');
-  buildDevGrid();
-  renderDev();
-}
-function renderDev(){
-  $('dMoney').textContent=S.money;
-  const sh=SHAPES[dd.shape];
-  drawPreview($('dPv'),dd);
-  $('dName').value=dd.name;
-  for(const b of $('dBase').children)b.classList.toggle('on',b.dataset.id===dd.shape);
-  $('dBaseNote').textContent=sh.name+'：'+sh.desc;
-  const st=planeStats(dd),pd=predict(dd),now=predict(curPlane()),diff=pd-now;
-  $('dPred').innerHTML=`よそう きょり ${fmtM(pd)} <small>${Math.abs(diff)<.05?'':(diff>0?'▲ +'+fmtM(diff):'▼ '+fmtM(-diff))+'（いまの ひこうきと くらべて）'}</small>`;
-  const bar=(n,v,mx)=>`<div class="bar"><span>${n}</span><i><b style="width:${clamp(v/mx*100,4,100)}%"></b></i></div>`;
-  $('dStats').innerHTML=bar('ながく とぶ',st.glide,40)+bar('はやさ',st.launchV,30)+bar('あんてい',st.stab,5)+bar('パワー',st.propF*(st.propT>0)*st.propT/4+st.jetF*st.jetT/6+st.rockets*3+st.ionF*st.ionT/4,60);
-  // とりつける ばしょ
-  const mw=$('dMounts');mw.innerHTML='';
+$('wTabNormal').onclick=()=>{wTab='normal';renderWs();};
+$('wTabReal').onclick=()=>{wTab='real';renderWs();};
+$('wTabOrig').onclick=()=>{wTab='orig';renderWs();};
+function renderWsDev(){
+  draft.dev=draft.dev||{};draft.dev.mounts=draft.dev.mounts||{};
+  const mw=$('wMounts');mw.innerHTML='';
   for(const mt of MOUNTS){
-    const x=DPARTS.find(d=>d.id===dd.dev.mounts[mt.id]);
-    const b=document.createElement('button');b.className='mt'+(x?' full':'')+(dSel===mt.id?' on':'');
+    const x=DPARTS.find(d=>d.id===draft.dev.mounts[mt.id]);
+    const b=document.createElement('button');b.className='mt'+(x?' full':'')+(wSel===mt.id?' on':'');
     b.innerHTML=x?`<b>${x.ic}</b>${mt.name}`:`<b>＋</b>${mt.name}`;
-    b.onclick=()=>{dSel=mt.id;renderDev();};mw.append(b);
+    b.onclick=()=>{wSel=mt.id;renderWs();};mw.append(b);
   }
-  const mn=MOUNTS.find(m=>m.id===dSel).name;
-  const pk=$('dPick');pk.innerHTML='';
-  const avail=DPARTS.filter(x=>S.dparts[x.id]&&x.allow.includes(dSel));
-  $('dPickNote').textContent=`「${mn}」に つけられる パーツ`+(avail.length?'':'（もっている パーツが ない。したの ショップで かおう）');
-  if(dd.dev.mounts[dSel])pk.append(chip('✖ はずす',false,()=>{delete dd.dev.mounts[dSel];ddDirty=true;renderDev();}));
-  for(const x of avail)pk.append(chip(`${x.ic} ${x.name}`,dd.dev.mounts[dSel]===x.id,()=>{dd.dev.mounts[dSel]=x.id;ddDirty=true;renderDev();}));
-  // ショップ
-  const sp=$('dShop');sp.innerHTML='';
+  const mn=MOUNTS.find(m=>m.id===wSel).name;
+  const pk=$('wPick');pk.innerHTML='';
+  const avail=DPARTS.filter(x=>S.dparts[x.id]&&x.allow.includes(wSel));
+  $('wPickNote').textContent=`「${mn}」に つけられる パーツ`+(avail.length?'':'（もっている パーツが ない。したの ショップで かおう）');
+  if(draft.dev.mounts[wSel])pk.append(chip('✖ はずす',false,()=>{delete draft.dev.mounts[wSel];touch();}));
+  for(const x of avail)pk.append(chip(`${x.ic} ${x.name}`,draft.dev.mounts[wSel]===x.id,()=>{draft.dev.mounts[wSel]=x.id;touch();}));
+  const sp=$('wDShop');sp.innerHTML='';
   const mname=id=>MOUNTS.find(m=>m.id===id).name;
   for(const x of DPARTS){
     const where=x.allow.length===5?'どこでも':x.allow.map(mname).join('・');
     let btn;
     if(S.dparts[x.id]){btn=document.createElement('button');btn.className='btn';btn.disabled=true;btn.textContent='もっている';}
-    else btn=buyBtn(x.cost,()=>{S.dparts[x.id]=1;toast(x.name+' を てにいれた！');},null,renderDev);
+    else btn=buyBtn(x.cost,()=>{S.dparts[x.id]=1;toast(x.name+' を てにいれた！');},null,renderWs);
     sp.append(itemRow(x.ic,x.name,'',x.desc+'［'+where+'］',btn));
   }
 }
-$('dName').addEventListener('input',e=>{dd.name=e.target.value;ddDirty=true;});
-function cleanDev(){
-  dd.name=(dd.name||'').trim().slice(0,12)||'ななしの ひこうき';
-  for(const mt of MOUNTS){const x=DPARTS.find(d=>d.id===dd.dev.mounts[mt.id]);if(!x||!x.allow.includes(mt.id)||!S.dparts[x.id])delete dd.dev.mounts[mt.id];}
-}
-$('dSave').onclick=()=>{
-  cleanDev();
-  const i=S.planes.findIndex(p=>p.id===dd.id);
-  if(i>=0)S.planes[i]=JSON.parse(JSON.stringify(dd));else S.planes.push(JSON.parse(JSON.stringify(dd)));
-  S.cur=dd.id;save();ddDirty=false;toast('「'+dd.name+'」を ほぞんしたよ！');renderDev();
-};
-$('dSaveNew').onclick=()=>{
-  if(S.planes.length>=12){toast('ハンガーが いっぱい（12きまで）');return;}
-  cleanDev();
-  const p=JSON.parse(JSON.stringify(dd));p.id=S.nextId++;
-  if(S.planes.some(q=>q.name===p.name))p.name=p.name.slice(0,10)+'２';
-  S.planes.push(p);S.cur=p.id;dd=JSON.parse(JSON.stringify(p));save();ddDirty=false;
-  toast('「'+p.name+'」を あたらしく ほぞん！');renderDev();
-};
-$('dBack').onclick=()=>{if(ddDirty)ask('ほぞんしないで もどる？',toMenu);else toMenu();};
-$('devBtn').onclick=openDev;
 
 /* ショップ */
 function buyBtn(cost,fn,label,after){
