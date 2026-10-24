@@ -103,7 +103,18 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
 .tab.on{color:#3a2200;background:var(--sun)}
 .tab:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
 .dtabs{grid-template-columns:repeat(2,1fr)}
-.wtabs{grid-template-columns:repeat(3,1fr)}
+.wtabs{grid-template-columns:repeat(auto-fit,minmax(70px,1fr))}
+.ctabs{grid-template-columns:repeat(6,1fr);gap:4px}
+.ctabs .tab{font-size:12px;padding:8px 0;line-height:1.25}
+.ctabs .tab small{display:block;font-size:9px;opacity:.8}
+.quote{align-self:stretch;text-align:left;font-size:12px;line-height:1.6;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.06);border-left:4px solid var(--sun)}
+.folds{display:flex;flex-direction:column;gap:8px;width:100%}
+.fold{display:grid;grid-template-columns:60px 1fr auto;gap:10px;align-items:center;text-align:left;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.06)}
+.fold canvas{display:block;width:60px;height:48px;border-radius:8px;background:linear-gradient(#8fd0ff,#d8f1ff)}
+.fold b{font-size:14px}.fold p{margin:2px 0 0;font-size:11px;color:var(--muted);line-height:1.4}
+.fold .btn{font-size:13px;padding:8px 10px;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.fold .btn .coin-ic{width:13px;height:13px}
+.rk{display:inline-block;font-family:var(--display);font-size:12px;color:#16202e;border-radius:6px;padding:0 6px;margin-right:6px;vertical-align:1px}
 .wtabs .tab{font-size:12px;padding:9px 2px}
 .devgrid{max-height:34vh;overflow-y:auto;padding:4px;touch-action:pan-y}
 .mounts{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%}
@@ -181,6 +192,7 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
         <button class="btn ghost" id="wsBtn">✂️ こうさく</button>
         <button class="btn ghost" id="shopBtn">🛒 ショップ</button>
       </div>
+      <div class="row"><button class="btn ghost" id="craftBtn">🧑‍🎨 おりかた しょくにん</button></div>
       <div class="row">
         <button class="btn ghost" id="mailBtn" hidden>✉️ メール <span class="dot" id="mailDot">●</span></button>
         <button class="btn ghost" id="stageBtn" hidden>🌍 せかいりょこう</button>
@@ -197,6 +209,7 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
         <li><b>1000m</b>では あたらしい パーツ5つと パーツわく4つも ふえる</li>
         <li><b>2000m</b>を こえると かいはつだん から メールが とどくよ…？</li>
         <li><b>3000m</b>を こえると…？</li>
+        <li><b>おりかた しょくにん</b>に おかねを はらうと あたらしい かたちを おしえてくれる（60しゅるい）</li>
       </ul>
     </div>
   </div>
@@ -208,7 +221,7 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       <canvas class="pv" id="wPv"></canvas>
       <label class="field">なまえ <input id="wName" maxlength="12" autocomplete="off" placeholder="なまえをつけよう"></label>
       <div class="sec">かたち</div>
-      <div class="tabs wtabs" id="wShapeTabs" hidden><button class="tab on" id="wTabNormal">ふつうの かたち</button><button class="tab" id="wTabReal">ほんもの 40</button><button class="tab" id="wTabOrig">オリジナル 30</button></div>
+      <div class="tabs wtabs" id="wShapeTabs" hidden><button class="tab on" id="wTabNormal">ふつう</button><button class="tab" id="wTabFold" hidden>おりかた</button><button class="tab" id="wTabReal">ほんもの 40</button><button class="tab" id="wTabOrig">オリジナル 30</button></div>
       <div class="chips" id="wShape"></div>
       <div class="hangar devgrid" id="wBase" hidden></div>
       <p class="note" id="wBaseNote"></p>
@@ -271,6 +284,19 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
         <div class="mb" id="mailBody"></div>
       </div>
       <button class="btn" id="mailClose">とじる</button>
+    </div>
+  </div>
+
+  <!-- おりかた しょくにん -->
+  <div class="ov" id="ovCraft" hidden>
+    <div class="card wide">
+      <h2>🧑‍🎨 おりかた しょくにん</h2>
+      <div class="wallet"><i class="coin-ic"></i><span id="cMoney">0</span></div>
+      <p class="sub" id="cCount"></p>
+      <div class="tabs ctabs" id="cTabs"></div>
+      <div class="quote" id="cQuote"></div>
+      <div class="folds" id="cList"></div>
+      <button class="btn ghost" id="cBack">もどる</button>
     </div>
   </div>
 
@@ -492,6 +518,112 @@ ORIG_LIST.forEach(([id,name,desc,arch,half,nose],i)=>{
   const a=DEV_ARCH[arch],v=1+(((i*53)%11)-5)/100,g=origGeom(half,nose);
   SHAPES[id]={name,desc,lift:a.lift*v,cd0:a.cd0,cdi:a.cdi,stab:a.stab,launch:a.launch*(2-v),rough:.6,need:2000,dev:true,orig:true,poly:g.poly,mp:g.mp,ay0:(nose||[0,-1])[1],ay1:half[half.length-1][1]-.02};
 });
+/* ---------- おりかた しょくにん：60しゅるいの おりかた（ランクE〜S・おかねで おしえてもらう） ---------- */
+const RANKS=[
+  {id:'E',label:'みならい',price:150,col:'#8a93a3',quote:'まずは きほんの おりかたじゃ。ゆっくり おぼえるんじゃよ。',f:{lift:1,cd:1,stab:1,launch:1,rough:1}},
+  {id:'D',label:'いちにんまえ',price:800,col:'#5fae3f',quote:'ふむ、すじが いいのう。すこし むずかしいぞ？',f:{lift:1.05,cd:.96,stab:1.05,launch:1.05,rough:.95}},
+  {id:'C',label:'ベテラン',price:4000,col:'#4a7dff',quote:'ここからが ほんばんじゃ。ていねいに おるんじゃぞ。',f:{lift:1.1,cd:.92,stab:1.1,launch:1.12,rough:.9}},
+  {id:'B',label:'たつじん',price:20000,col:'#9b6bff',quote:'ほほう、よく ここまで きたな。とっておきを みせよう。',f:{lift:1.15,cd:.85,stab:1.2,launch:1.27,rough:.78}},
+  {id:'A',label:'めいじん',price:100000,col:'#ff9a2e',quote:'わしの とっておきじゃ。たいせつに つかうんじゃぞ…',f:{lift:1.2,cd:.76,stab:1.3,launch:1.42,rough:.65}},
+  {id:'S',label:'でんせつ',price:500000,col:'#ffd23f',quote:'これが ひでんの おりかた。だれにも ひみつ じゃぞ。',f:{lift:1.3,cd:.68,stab:1.5,launch:1.6,rough:.5}},
+];
+const FOLD_ARCH={
+  dart:{lift:1.0,cd0:.045,cdi:.10,stab:1.0,launch:1.12},
+  glide:{lift:1.3,cd0:.055,cdi:.07,stab:.95,launch:.92},
+  tank:{lift:1.15,cd0:.06,cdi:.085,stab:1.7,launch:1.0},
+  trick:{lift:1.1,cd0:.05,cdi:.09,stab:1.2,launch:1.08},
+};
+// [はば, つばさ ねもと(まえ), はし x, はし(まえ), はし(うしろ), ねもと(うしろ), しっぽ y, ヘコミ[x,y]|0, びよく[x,ねもと,はし]|0, カナード[x,ねもと,はし]|0]
+const FOLD_LIST=[
+// ランクE（みならい）
+['f_dart','ダーツおり','E','まっすぐ とぶ きほん','dart',[.06,-.7,.5,.55,.8,.8,.95]],
+['f_yajiri','やじりおり','E','やじりの かたち','dart',[.07,-.6,.8,.6,.85,.65,.95]],
+['f_hirata','ひらたおり','E','はばが ひろい','glide',[.08,-.2,.95,.3,.7,.7,.9]],
+['f_naga','ながおり','E','ほそながい','glide',[.05,-.9,.35,.5,.9,.9,.98]],
+['f_mijika','みじかおり','E','ずんぐり','tank',[.12,-.4,.7,.5,.8,.8,.88]],
+['f_futo','ふとっちょおり','E','どっしり','tank',[.22,-.5,.75,.45,.85,.8,.95]],
+['f_hoso','ほそおり','E','ほそくて はやい','dart',[.04,-.8,.6,.6,.75,.7,.97]],
+['f_sankaku','さんかくおり','E','ただの さんかく','trick',[.07,-.75,.9,.8,.9,.9,.95]],
+['f_kakubari','かくばりおり','E','かくばった はね','tank',[.08,-.3,.8,-.3,.3,.3,.9]],
+['f_maru','まるばねおり','E','まるい はね','glide',[.08,-.5,.9,.15,.55,.6,.92,[.62,-.38]]],
+// ランクD（いちにんまえ）
+['f_wdelta','ダブルデルタおり','D','ふたつの かどの はね','dart',[.07,-.8,.85,.55,.8,.8,.95,[.35,-.2]]],
+['f_hiro','ひろがりおり','D','おおきく ひろがる','glide',[.07,-.4,1,.4,.7,.7,.92]],
+['f_tsubame','つばめおり','D','しっぽが ふたつ','dart',[.07,-.7,.85,.5,.95,.5,.97]],
+['f_kamome','かもめおり','D','うみとり の はね','glide',[.07,-.5,.95,-.05,.3,.5,.95,[.55,-.45]]],
+['f_hayabusa','はやぶさおり','D','するどく はやい','dart',[.06,-.85,.7,.4,.7,.78,.96,[.3,-.4]]],
+['f_miniglide','ミニグライダー','D','ふわっと ちいさい','glide',[.06,-.3,1,.15,.55,.55,.9]],
+['f_sori','そりおり','D','そった はね','trick',[.07,-.6,.85,.45,.75,.6,.95,[.6,-.2]]],
+['f_futae','ふたえおり','D','にじゅうの おりめ','tank',[.1,-.6,.8,.5,.85,.8,.95,[.4,-.1]]],
+['f_kirimomi','きりもみおり','D','くるくる','trick',[.06,-.7,.9,0,.5,.75,.95]],
+['f_uchiwa','うちわおり','D','うちわの かたち','glide',[.08,-.55,.85,.2,.7,.7,.95,[.78,-.15]]],
+// ランクC（ベテラン）
+['f_winglet','ウイングレットおり','C','はねの さきが たつ','dart',[.07,-.75,.7,.5,.85,.8,.96,0,[.3,.7,.75]]],
+['f_canard','カナードおり','C','まえばねつき','trick',[.07,-.3,.8,.35,.8,.8,.95,0,0,[.3,-.75,-.6]]],
+['f_tail','テールおり','C','しっぽつき','tank',[.08,-.6,.8,.45,.8,.65,.98,0,[.35,.65,.8]]],
+['f_kawasemi','かわせみ','C','みずに ダイブ','dart',[.06,-.85,.65,.45,.8,.75,.98,[.3,-.4],[.28,.7,.8]]],
+['f_tobi','とび','C','たかく ゆうゆう','glide',[.07,-.5,1,.1,.5,.6,.95,[.6,-.3],[.3,.6,.75]]],
+['f_swallowtail','スワローテール','C','ふかい きれこみ','dart',[.07,-.7,.8,.5,.95,.45,.97,0,[.4,.6,.8]]],
+['f_step','ステップウイング','C','だんの ある はね','trick',[.07,-.6,.85,.3,.8,.65,.95,[.45,-.5]]],
+['f_hishi','ひしがたおり','C','ひしがた','tank',[.1,-.5,.85,.3,.6,.6,.95,[.85,-.1]]],
+['f_yoroi','よろいおり','C','かたい まもり','tank',[.14,-.5,.75,.4,.85,.8,.95,[.4,-.45],[.3,.7,.8]]],
+['f_kabuto','かぶとおり','C','かぶとの かたち','trick',[.12,-.4,.8,.45,.85,.75,.95,0,[.35,.7,.8],[.3,-.7,-.55]]],
+// ランクB（たつじん）
+['f_twintail','ツインテールおり','B','ふたつの しっぽ','trick',[.07,-.6,.85,.4,.85,.7,.97,[.4,-.35],[.45,.65,.8]]],
+['f_diamond','ダイヤモンドおり','B','ひし形の たつじん','tank',[.08,-.6,.9,.2,.7,.7,.95,[.7,-.25],[.3,.7,.8]]],
+['f_butterfly','バタフライおり','B','ちょうの ように','glide',[.07,-.55,1,-.1,.5,.65,.95,[.7,-.5],0,[.35,-.9,-.75]]],
+['f_jet','ジェットおり','B','ジェットき ふう','dart',[.07,-.8,.6,.5,.8,.8,.97,0,[.3,.7,.78],[.28,-.7,-.55]]],
+['f_stealth','ステルスおり','B','ひらたい ステルス','tank',[.1,-.5,.95,.5,.8,.7,.93,[.5,-.05]]],
+['f_longrun','ロングランおり','B','どこまでも','glide',[.05,-.7,1,.3,.7,.7,.98,[.5,-.3],[.35,.7,.8]]],
+['f_zenshin','ぜんしんおり','B','まえに のびる はね','trick',[.07,-.2,.95,-.15,.35,.5,.95,0,[.35,.7,.8],[.3,-.6,-.45]]],
+['f_kazaguruma','かざぐるまおり','B','くるくる まわる','trick',[.07,-.65,.9,.35,.75,.55,.96,[.45,-.45],[.35,.75,.85]]],
+['f_tsuru','つるおり','B','おりづるの すがた','glide',[.05,-.9,1,.5,.75,.75,.98,[.35,-.5],[.25,.75,.85]]],
+['f_taka','たかおり','B','そらの おうじゃ','dart',[.07,-.7,.95,.3,.8,.6,.97,[.5,-.4],[.4,.7,.85],[.3,-.65,-.5]]],
+// ランクA（めいじん）
+['f_hawkeye','ホークアイ','A','するどい め','dart',[.08,-.85,.8,.45,.85,.7,.98,[.35,-.35],[.4,.65,.8],[.3,-.7,-.55]]],
+['f_condor','コンドルおり','A','おおぞらを ゆく','glide',[.07,-.6,1,.15,.7,.6,.98,[.65,-.3],[.35,.7,.85]]],
+['f_pelican','ペリカンおり','A','おおきな つばさ','glide',[.1,-.5,1,.1,.6,.6,.95,[.8,-.2],[.3,.7,.8],[.3,-.8,-.65]]],
+['f_wyvern','ワイバーン','A','りゅうの はね','trick',[.07,-.7,.95,.4,.9,.55,.98,[.5,-.4],[.5,.6,.8]]],
+['f_griffon','グリフォン','A','わしと しし','tank',[.12,-.6,.9,.3,.8,.65,.97,[.55,-.35],[.4,.65,.85],[.35,-.75,-.6]]],
+['f_pegasus','ペガサス','A','てんかける うま','glide',[.07,-.55,1,0,.6,.6,.98,[.6,-.35],[.4,.65,.85]]],
+['f_hurricane','ハリケーン','A','あらしの ように','dart',[.07,-.9,.85,.5,.85,.7,.98,[.3,-.5],[.45,.7,.88]]],
+['f_thunderbird','サンダーバード','A','かみなりを よぶ','trick',[.08,-.6,1,.2,.8,.5,.97,[.55,-.4],[.45,.55,.78],[.35,-.7,-.5]]],
+['f_unicorn','ユニコーン','A','いっぽんの つの','tank',[.06,-.75,.8,.4,.85,.75,.98,[.4,-.4],[.35,.7,.85],[.28,-.8,-.65]]],
+['f_leviathan','リバイアサン','A','うみの ぬし','glide',[.1,-.5,1,.1,.75,.65,.98,[.7,-.2],[.4,.7,.88],[.35,-.7,-.55]]],
+// ランクS（でんせつ）：ふつうの おりかたでは ない かたち
+['f_godwing','ゴッドウイング','S','かみの つばさ','glide',[[.1,-.8],[.5,-.7],[.55,-.55],[.8,-.5],[.85,-.35],[1,-.3],[1,-.1],[.9,-.05],[.95,.12],[.8,.2],[.82,.38],[.6,.42],[.3,.5],[.15,.65],[.2,.95],[0,.85]]],
+['f_galaxy','ギンガ','S','ぎんがの うずまき','trick',polar(7,.45)],
+['f_sonic','ソニックおり','S','おとを こえる','dart',[[.35,-.55],[.18,-.55],[.6,-.1],[.35,-.1],[.8,.5],[.2,.5],[.14,.95],[0,.85]]],
+['f_aurora','オーロラ','S','ゆらめく ひかり','glide',[[.2,-.8],[.5,-.55],[.7,-.65],[.95,-.3],[.75,-.1],[.95,.2],[.7,.3],[.8,.65],[.45,.5],[.3,.9],[0,.8]]],
+['f_giga','ギガウイング','S','きょだいな つばさ','glide',[[.08,-.9],[.95,-.45],[1,-.2],[.35,.05],[.2,.2],[.15,.9],[0,.95]]],
+['f_mirage','ミラージュ','S','まぼろしの はね','dart',[[.3,-.55],[.95,.35],[.75,.55],[.45,.4],[.25,.7],[.12,.95],[0,.85]]],
+['f_blackhole','ブラックホール','S','すべてを すいこむ','tank',polar(12,.82)],
+['f_risingsun','ライジングサン','S','のぼる あさひ','trick',polar(16,.7)],
+['f_mugen','ムゲン','S','おわりの ない ループ','tank',[[.4,-.9],[.75,-.6],[.7,-.25],[.15,-.05],[.7,.3],[.75,.65],[.4,.95],[0,1]]],
+['f_hiden','ひでんのおりかた','S','ししょうの ひみつ','trick',[[.12,-.7],[.4,-.55],[.35,-.3],[1,-.55],[.8,-.1],[.95,.3],[.55,.25],[.5,.7],[.2,.55],[.12,.95],[0,.8]]],
+];
+function foldHalf(P){
+  const [fw,rLE,sp,tLE,tTE,rTE,en,kink,tail,can]=P;
+  const cr0=can?Math.min(can[1],rLE-.18):rLE;
+  const h=[[+(fw*.6).toFixed(3),+((-1+cr0)/2).toFixed(3)]];
+  if(can){const cr=cr0,ct=Math.min(Math.max(can[2],cr-.04),cr+.1);h.push([fw,cr],[can[0],ct],[can[0],ct+.07],[fw,cr+.16]);}
+  h.push([fw,rLE]);
+  if(kink)h.push(kink);
+  h.push([sp,tLE],[sp,tTE],[fw,rTE]);
+  let last=rTE;
+  if(tail){const tr=Math.max(tail[1],rTE),tt=Math.max(tail[2],tr+.02);h.push([fw,tr],[tail[0],tt],[tail[0],tt+.08],[fw,tr+.2]);last=tr+.2;}
+  const e=Math.max(en,last+.01);
+  h.push([+(fw*.7).toFixed(3),e],[0,+(e-.02).toFixed(3)]);
+  return h;
+}
+const FOLD_IDS=FOLD_LIST.map(x=>x[0]),RANK_IDS=RANKS.map(r=>r.id);
+FOLD_LIST.forEach(([id,name,rk,desc,arch,P],i)=>{
+  const a=FOLD_ARCH[arch],ri=RANK_IDS.indexOf(rk),rf=RANKS[ri].f,v=1+(((i*41)%11)-5)/100;
+  const half=Array.isArray(P[0])?P:foldHalf(P),g=origGeom(half,[0,-1]);
+  SHAPES[id]={name,desc,lift:a.lift*rf.lift*v,cd0:a.cd0*rf.cd,cdi:a.cdi*rf.cd,stab:a.stab*rf.stab,launch:a.launch*rf.launch*(2-v),rough:rf.rough,fold:true,rank:rk,
+    price:Math.round(RANKS[ri].price*(1+(i%10)*.12)/10)*10,poly:g.poly,mp:g.mp,ay0:-1,ay1:half[half.length-1][1]-.02};
+});
+const foldCount=()=>FOLD_IDS.filter(id=>S.folds&&S.folds[id]).length;
 // とりつける ばしょ（5か所）。はねは 2つで 1つぶんより おおきい
 const MOUNTS=[
   {id:'rw',name:'みぎはね',w:.6},{id:'lw',name:'ひだりはね',w:.6},
@@ -616,7 +748,7 @@ const MONEY_PER_M=10,COIN_VAL=20;
 
 /* ---------- セーブ ---------- */
 const KEY='paperplane-v2';
-let S={money:0,best:0,flights:0,slots:0,parts:{},fac:{tower:0,arm:0},planes:[],cur:0,nextId:1,mailGot:false,mailRead:false,dparts:{},tourGot:false,tourRead:false,stage:'meadow',stageBest:{}};
+let S={money:0,best:0,flights:0,slots:0,parts:{},fac:{tower:0,arm:0},planes:[],cur:0,nextId:1,mailGot:false,mailRead:false,dparts:{},tourGot:false,tourRead:false,stage:'meadow',stageBest:{},folds:{}};
 function newPlane(name){return {id:S.nextId++,name,shape:'normal',body:'#ffffff',accent:'#4a7dff',pattern:'none',parts:[]}}
 try{
   const v=JSON.parse(localStorage.getItem(KEY)||'null');
@@ -626,7 +758,7 @@ try{
     if(o&&Array.isArray(o.planes)){S.planes=o.planes.map(p=>Object.assign(p,{parts:[]}));S.cur=o.cur;S.nextId=o.nextId||S.planes.length+1;}
   }
 }catch(e){}
-S.dparts=S.dparts||{};S.stageBest=S.stageBest||{};
+S.dparts=S.dparts||{};S.stageBest=S.stageBest||{};S.folds=S.folds||{};
 S.planes=S.planes.filter(p=>p&&SHAPES[p.shape]);
 if(!S.planes.length){const p=newPlane('はじめての ひこうき');S.planes.push(p);S.cur=p.id;}
 if(!S.planes.some(p=>p.id===S.cur))S.cur=S.planes[0].id;
@@ -1012,7 +1144,7 @@ $('quitBtn').addEventListener('click',()=>{
 });
 
 /* ---------- がめん ---------- */
-const OVS=['ovMenu','ovWs','ovShop','ovRes','ovMail','ovStage'];
+const OVS=['ovMenu','ovWs','ovShop','ovRes','ovMail','ovStage','ovCraft'];
 function showOnly(id){OVS.forEach(o=>$(o).hidden=o!==id);}
 function toMenu(){
   mode='menu';F=null;$('hud').hidden=true;$('rocketBtn').hidden=true;setHint('');
@@ -1032,6 +1164,7 @@ function renderMenu(){
   const gotAny=MAILS.some(m=>S[m.got]);
   $('mailBtn').hidden=!gotAny;$('mailDot').hidden=!MAILS.some(m=>S[m.got]&&!S[m.read]);
   $('stageBtn').hidden=!S.tourRead;
+  $('craftBtn').innerHTML=`🧑‍🎨 おりかた しょくにん <small>${foldCount()}/${FOLD_IDS.length}</small>`;
   $('mStage').textContent=S.tourRead?`ステージ：${TH().ic} ${TH().name}`:'';
   $('mName').textContent=p.name;
   drawPreview($('mPv'),p);
@@ -1051,27 +1184,29 @@ $('sBack').onclick=toMenu;
 
 /* こうさくしつ */
 let draft=null,draftDirty=false;
-$('wsBtn').onclick=()=>{draft=JSON.parse(JSON.stringify(curPlane()));draft.parts=activeParts(draft);draftDirty=false;wTab=devOpen()?wsTabFor(draft.shape):'normal';wSel='rw';wGridTab=null;showOnly('ovWs');renderWs();};
+$('wsBtn').onclick=()=>{draft=JSON.parse(JSON.stringify(curPlane()));draft.parts=activeParts(draft);draftDirty=false;wTab=(devOpen()||foldCount()>0)?wsTabFor(draft.shape):'normal';wSel='rw';wGridTab=null;showOnly('ovWs');renderWs();};
 function chip(label,on,fn,dis){const b=document.createElement('button');b.className='chip'+(on?' on':'');b.innerHTML=label;b.disabled=!!dis;b.onclick=fn;return b;}
 function renderWs(){
   drawPreview($('wPv'),draft);
   $('wName').value=draft.name;
   const sh=$('wShape');sh.innerHTML='';
   for(const k in SHAPES){
-    if(SHAPES[k].dev)continue;
+    if(SHAPES[k].dev||SHAPES[k].fold)continue;
     const op=shapeOpen(k);
     sh.append(chip(op?SHAPES[k].name:`🔒 ${SHAPES[k].name} <small>${SHAPES[k].need}mで</small>`,draft.shape===k,()=>{draft.shape=k;touch();},!op));
   }
   // かいはつ（ほんもの・オリジナル）
-  const dv=devOpen(),shp=SHAPES[draft.shape];
-  $('wShapeTabs').hidden=!dv;
-  if(!dv)wTab='normal';
-  for(const [id,t] of [['wTabNormal','normal'],['wTabReal','real'],['wTabOrig','orig']])$(id).classList.toggle('on',wTab===t);
+  const dv=devOpen(),nf=foldCount(),shp=SHAPES[draft.shape];
+  $('wShapeTabs').hidden=!(dv||nf>0);
+  $('wTabFold').hidden=nf===0;$('wTabReal').hidden=!dv;$('wTabOrig').hidden=!dv;
+  if(!dv&&(wTab==='real'||wTab==='orig'))wTab='normal';
+  if(nf===0&&wTab==='fold')wTab='normal';
+  for(const [id,t] of [['wTabNormal','normal'],['wTabFold','fold'],['wTabReal','real'],['wTabOrig','orig']])$(id).classList.toggle('on',wTab===t);
   sh.hidden=wTab!=='normal';
   if(wGridTab!==wTab){wGridTab=wTab;buildWsGrid();}
   $('wBase').hidden=wTab==='normal';
   for(const b of $('wBase').children)b.classList.toggle('on',b.dataset.id===draft.shape);
-  $('wBaseNote').textContent=!dv?'':wTab!=='normal'?(shp.dev?shp.name+'：'+shp.desc:'ここから えらぶと とくべつパーツも つけられるよ'):(shp.dev?shp.name+'：'+shp.desc:'「ほんもの」「オリジナル」の タブで せんとうきの かたちも えらべるよ');
+  $('wBaseNote').textContent=(shp.dev||shp.fold)?shp.name+'：'+shp.desc+(shp.fold?'（ランク'+shp.rank+'）':''):wTab==='real'||wTab==='orig'?'ここから えらぶと とくべつパーツも つけられるよ':dv?'「ほんもの」「オリジナル」の タブで せんとうきの かたちも えらべるよ':nf?'「おりかた」の タブで おぼえた おりかたを えらべるよ':'';
   $('wDevBox').hidden=!(dv&&shp.dev);
   if(dv&&shp.dev)renderWsDev();
   const st=planeStats(draft),pd=predict(draft),now=predict(curPlane());
@@ -1221,6 +1356,35 @@ $('mailClose').onclick=()=>{
   toMenu();if(first)toast(m.toast);
 };
 
+/* おりかた しょくにん */
+let cRank='E';
+function openCraft(){showOnly('ovCraft');renderCraft();}
+function renderCraft(){
+  $('cMoney').textContent=S.money;
+  $('cCount').textContent=`おぼえた おりかた ${foldCount()} / ${FOLD_IDS.length}`;
+  const tb=$('cTabs');tb.innerHTML='';
+  for(const r of RANKS){
+    const ids=FOLD_IDS.filter(id=>SHAPES[id].rank===r.id),got=ids.filter(id=>S.folds[id]).length;
+    const b=document.createElement('button');b.className='tab'+(cRank===r.id?' on':'');
+    b.innerHTML=`${r.id}<small>${got}/${ids.length}</small>`;b.onclick=()=>{cRank=r.id;renderCraft();};tb.append(b);
+  }
+  const rk=RANKS.find(r=>r.id===cRank);
+  $('cQuote').innerHTML=`<span class="rk" style="background:${rk.col}">ランク${rk.id}</span><b>${rk.label}</b><br>「${rk.quote}」`;
+  const l=$('cList');l.innerHTML='';
+  for(const id of FOLD_IDS.filter(id=>SHAPES[id].rank===cRank)){
+    const sh=SHAPES[id],d=document.createElement('div');d.className='fold';
+    const c=document.createElement('canvas');
+    const info=document.createElement('div');info.innerHTML=`<b>${sh.name}</b><p>${sh.desc}</p>`;
+    let btn;
+    if(S.folds[id]){btn=document.createElement('button');btn.className='btn';btn.disabled=true;btn.textContent='✔ おぼえた';}
+    else btn=buyBtn(sh.price,()=>{S.folds[id]=1;toast('「'+sh.name+'」を おしえてもらった！こうさくで つかえるよ');},null,renderCraft);
+    d.append(c,info,btn);l.append(d);
+    drawPreview(c,{shape:id,body:'#ffffff',accent:'#4a7dff',pattern:'none',parts:[],dev:null});
+  }
+}
+$('craftBtn').onclick=openCraft;
+$('cBack').onclick=toMenu;
+
 /* せかいりょこう */
 function openStage(){renderStage();showOnly('ovStage');}
 function renderStage(){
@@ -1240,19 +1404,21 @@ $('stageBack').onclick=toMenu;
 const REAL_IDS=DEV_LIST.map(x=>x[0]),ORIG_IDS=ORIG_LIST.map(x=>x[0]);
 let wTab='normal',wSel='rw',wGridTab=null;
 const devOpen=()=>!!S.mailRead;
-const wsTabFor=shape=>SHAPES[shape].orig?'orig':SHAPES[shape].dev?'real':'normal';
+const wsTabFor=shape=>SHAPES[shape].orig?'orig':SHAPES[shape].dev?'real':SHAPES[shape].fold?'fold':'normal';
 function buildWsGrid(){
   const g=$('wBase');g.innerHTML='';
   if(wTab==='normal')return;
-  for(const id of (wTab==='orig'?ORIG_IDS:REAL_IDS)){
+  const ids=wTab==='fold'?FOLD_IDS.filter(id=>S.folds[id]):wTab==='orig'?ORIG_IDS:REAL_IDS;
+  for(const id of ids){
     const b=document.createElement('button');b.className='hg';b.dataset.id=id;
     const c=document.createElement('canvas');const sp=document.createElement('span');sp.textContent=SHAPES[id].name.split(' ')[0];
     b.append(c,sp);g.append(b);
-    b.onclick=()=>{draft.shape=id;draft.dev=draft.dev||{};draft.dev.mounts=draft.dev.mounts||{};touch();};
+    b.onclick=()=>{draft.shape=id;if(SHAPES[id].dev){draft.dev=draft.dev||{};draft.dev.mounts=draft.dev.mounts||{};}touch();};
   }
   for(const b of g.children)drawPreview(b.firstChild,Object.assign({},draft,{shape:b.dataset.id,parts:[],dev:null}));
 }
 $('wTabNormal').onclick=()=>{wTab='normal';renderWs();};
+$('wTabFold').onclick=()=>{wTab='fold';renderWs();};
 $('wTabReal').onclick=()=>{wTab='real';renderWs();};
 $('wTabOrig').onclick=()=>{wTab='orig';renderWs();};
 function renderWsDev(){
