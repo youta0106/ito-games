@@ -114,6 +114,9 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
 .fold b{font-size:14px}.fold p{margin:2px 0 0;font-size:11px;color:var(--muted);line-height:1.4}
 .fold .btn{font-size:13px;padding:8px 10px;display:flex;align-items:center;gap:4px;white-space:nowrap}
 .fold .btn .coin-ic{width:13px;height:13px}
+.traits{align-self:stretch;text-align:left;font-size:12px;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center}
+.traits p{flex-basis:100%;margin:0;font-size:11px;color:var(--muted);line-height:1.4}
+.tr{display:inline-block;font-size:12px;font-weight:800;border-radius:999px;padding:2px 8px;background:rgba(255,210,63,.14);border:1px solid rgba(255,210,63,.4);color:var(--sun);white-space:nowrap}
 .rk{display:inline-block;font-family:var(--display);font-size:12px;color:#16202e;border-radius:6px;padding:0 6px;margin-right:6px;vertical-align:1px}
 .wtabs .tab{font-size:12px;padding:9px 2px}
 .devgrid{max-height:34vh;overflow-y:auto;padding:4px;touch-action:pan-y}
@@ -226,6 +229,7 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       <p class="note" id="wBaseNote"></p>
       <div class="pred" id="wPred"></div>
       <div class="bars" id="wStats"></div>
+      <div class="traits" id="wTraits"></div>
       <div class="sec">いろ</div>
       <div class="sw" id="wBody"></div>
       <div class="sec">もよう</div>
@@ -615,6 +619,52 @@ FOLD_LIST.forEach(([id,name,rk,desc,arch,P],i)=>{
     price:Math.round(RANKS[ri].price*(1+(i%10)*.12)/10)*10,poly:g.poly,mp:g.mp,ay0:-1,ay1:half[half.length-1][1]-.02};
 });
 const foldCount=()=>FOLD_IDS.filter(id=>S.folds&&S.folds[id]).length;
+
+/* ---------- ぞくせい：ひこうきの かたち ごとの とくちょう ---------- */
+// fx：wind かぜの えいきょう へる / turb らんりゅう へる / therm きりゅうの ちから / grav かるさ / drag ていこう へる / stab あんてい / launch なげる はやさ / magnet コイン / money おかね / ctrl そうじゅうさ / birdR とりに あたりにくい / birdSoft とりの ダメージ へる
+const TRAITS={
+  windy:{ic:'🌬️',name:'かぜにつよい',desc:'かぜの えいきょうが 35% へる',fx:{wind:.35}},
+  turb:{ic:'🌀',name:'ゆれにくい',desc:'らんりゅうの ゆれが 40% へる',fx:{turb:.4}},
+  thermal:{ic:'🔥',name:'きりゅうのり',desc:'きりゅうの ちからを 35% おおく うける',fx:{therm:.35}},
+  light:{ic:'🪶',name:'かるい',desc:'からだが 6% かるい',fx:{grav:.06}},
+  longrun:{ic:'🕊️',name:'ロングラン',desc:'くうきの ていこうが 5% へる',fx:{drag:.05}},
+  stable:{ic:'🧭',name:'あんてい',desc:'ぐらつきにくい',fx:{stab:.4}},
+  dash:{ic:'⚡',name:'ダッシュ',desc:'なげる はやさが 6% 上がる',fx:{launch:.06}},
+  coin:{ic:'🧲',name:'コインずき',desc:'コインを すこし とおくから ひろう',fx:{magnet:2}},
+  money:{ic:'💰',name:'おかねもち',desc:'もらえる おかねが 12% ふえる',fx:{money:.12}},
+  ctrl:{ic:'🎯',name:'そうじゅうさ',desc:'そうじゅうかんが 30% よく きく',fx:{ctrl:.3}},
+  birdR:{ic:'🦅',name:'とりよけ',desc:'とりに あたりにくい',fx:{birdR:.3}},
+  birdsoft:{ic:'🛡️',name:'がんじょう',desc:'とりに ぶつかっても ダメージが はんぶん',fx:{birdSoft:.5}},
+};
+const BASIC_TRAITS={
+  normal:['stable'],glider:['longrun','thermal'],jet:['dash'],delta:['windy'],ika:['birdsoft','stable'],
+  swallow:['dash','windy'],condor:['thermal','longrun'],stealth:['turb','birdR'],
+  falcon:['dash','windy'],albatross:['thermal','longrun','light'],phantom:['turb','stable','windy'],
+  comet:['dash','light'],phoenix:['thermal','longrun','money'],dragon:['windy','birdsoft','stable','coin'],
+};
+const TRAIT_POOL={
+  stealth:['turb','birdR','stable','windy'],agile:['ctrl','dash','birdR','coin'],speed:['dash','windy','longrun','birdR'],
+  swing:['windy','stable','thermal'],attack:['birdsoft','stable','money'],prop:['light','thermal','coin','money'],
+  early:['windy','birdsoft','stable'],glide:['thermal','longrun','light','money'],sprint:['dash','windy','longrun'],
+  tank:['stable','birdsoft','turb','birdR'],trick:['ctrl','coin','dash','money'],dart:['dash','longrun','windy'],
+};
+(function assignTraits(){
+  const archOf={};
+  DEV_LIST.forEach(x=>archOf[x[0]]=x[3]);ORIG_LIST.forEach(x=>archOf[x[0]]=x[3]);FOLD_LIST.forEach(x=>archOf[x[0]]=x[4]);
+  const nOf=id=>{const sh=SHAPES[id];if(sh.fold)return [1,1,2,2,3,3][RANK_IDS.indexOf(sh.rank)];const h=[...id].reduce((a,c)=>a+c.charCodeAt(0),0);return h%3===0?3:2;};
+  for(const id in SHAPES){
+    if(BASIC_TRAITS[id]){SHAPES[id].traits=BASIC_TRAITS[id];continue;}
+    const pool=TRAIT_POOL[archOf[id]]||TRAIT_POOL.agile,h=[...id].reduce((a,c)=>a+c.charCodeAt(0),0),n=Math.min(nOf(id),pool.length);
+    const out=[];for(let j=0;out.length<n&&j<20;j++){const t=pool[(h+j*2+(j>>1))%pool.length];if(!out.includes(t))out.push(t);}
+    SHAPES[id].traits=out;
+  }
+})();
+function traitFx(shape){
+  const a={wind:0,turb:0,therm:0,grav:0,drag:0,stab:0,launch:0,magnet:0,money:0,ctrl:0,birdR:0,birdSoft:0};
+  for(const t of (SHAPES[shape]&&SHAPES[shape].traits)||[])for(const k in TRAITS[t].fx)a[k]+=TRAITS[t].fx[k];
+  return a;
+}
+const traitHTML=(shape,names)=>((SHAPES[shape]&&SHAPES[shape].traits)||[]).map(t=>`<span class="tr">${TRAITS[t].ic}${names?TRAITS[t].name:''}</span>`).join('');
 // とりつける ばしょ（5か所）。はねは 2つで 1つぶんより おおきい
 const MOUNTS=[
   {id:'rw',name:'みぎはね',w:.6},{id:'lw',name:'ひだりはね',w:.6},
@@ -791,6 +841,11 @@ function planeStats(p){
   st.rockets+=da.rockets;st.jetT=Math.max(st.jetT,da.jetT);st.jetF+=da.jetF;
   st.ionT=Math.max(st.ionT,da.ionT);st.ionF+=da.ionF;st.solarF=da.solarF;st.solarT=da.solarF?45:0;
   st.birdImm=da.bird;st.missiles=da.missiles;st.rescue=da.rescue;st.warp=da.warp;st.lucky=da.lucky;
+  // ぞくせい
+  const tr=traitFx(p.shape);
+  st.cd0*=1-tr.drag;st.cdi*=1-tr.drag;st.grav*=1-tr.grav;st.stab+=tr.stab;st.launchV*=1+tr.launch;
+  st.magnet+=tr.magnet;st.mult+=tr.money;st.thermalMul*=1+tr.therm;st.ctrl*=1+tr.ctrl;
+  st.windRes=tr.wind;st.turbRes=tr.turb;st.birdR=tr.birdR;st.birdSoft=tr.birdSoft;
   const CL=5.5*.09;
   st.glide=st.lift*CL/(st.cd0+st.cdi*CL*CL);
   st.vTrim=Math.sqrt(st.grav/(AERO_K*st.lift*CL));
@@ -1008,7 +1063,7 @@ function step(dt){
     }
     if(F.ionLeft>0&&Math.random()<.3)parts.push({x:F.x-Math.cos(th)*.8,y:F.y-Math.sin(th)*.8,vx:-Math.cos(th)*2,vy:-Math.sin(th)*2,t:0,col:'rgba(120,190,255,.8)',glow:1});
     const SM=stageM();
-    F.wx=SM.wind+SM.gust*(vnoise(F.t*.4,21)-.5)*2*Math.min(1,F.t/2);
+    F.wx=(SM.wind+SM.gust*(vnoise(F.t*.4,21)-.5)*2*Math.min(1,F.t/2))*(1-st.windRes);
     let wT=0;
     for(const t of world.thermals){
       // きりゅうの パーツは「つかまえる はば」と「かぜの つよさ」を ふやす
@@ -1023,8 +1078,8 @@ function step(dt){
     // ながい ひこうは つかれて ゆっくり おりてくる（きゅうに おちない）
     if(F.t>420){ay-=Math.min(4,(F.t-420)/12);F.wind*=Math.max(0,1-(F.t-420)/60);}
     // かぜの ゆらぎ
-    ay+=(vnoise(F.t*.9,5)-.5)*2.4*SM.turb*Math.min(1,F.t/2)/(1+st.gyro*.8);
-    F.alpha+=(vnoise(F.t*4,9)-.5)*.0012*SM.turb*dt*60/st.stab;
+    ay+=(vnoise(F.t*.9,5)-.5)*2.4*SM.turb*Math.min(1,F.t/2)/((1+st.gyro*.8)*(1+st.turbRes));
+    F.alpha+=(vnoise(F.t*4,9)-.5)*.0012*SM.turb*dt*60/st.stab/(1+st.turbRes);
     if(F.hitLeft>0){const k=Math.pow(F.hitK,dt/.35);F.vx*=k;F.vy*=k;F.hitLeft-=dt;}
     flyStep(st,F,dt,ctl,ay);
     F.maxY=Math.max(F.maxY,F.y);
@@ -1052,10 +1107,10 @@ function step(dt){
     // とり
     for(const b of world.birds){
       if(b.hit)continue;
-      if(Math.hypot(b.x-F.x,b.y-F.y)<1.3){
+      if(Math.hypot(b.x-F.x,b.y-F.y)<1.3*(1-st.birdR)){
         b.hit=true;
         if(st.birdImm>=.5){floats.push({x:F.x,y:F.y+2,t:0,txt:'バリア！',col:'#9bd8ff'});continue;}
-        const keep=Math.min(.97,.8+.05*st.tail+.04*st.gyro); // ぶつかっても かんぜんには おちない
+        const keep0=Math.min(.97,.8+.05*st.tail+.04*st.gyro),keep=keep0+(1-keep0)*st.birdSoft; // ぶつかっても かんぜんには おちない
         F.hitK=keep;F.hitLeft=.35;F.kick=-.07*(1-.28*st.tail)/(1+.5*st.gyro); // げんそくは .35びょうかけて
         floats.push({x:F.x,y:F.y+2,t:0,txt:st.tail>=3?'へっちゃら！':'ドン！',col:'#ff8a80'});
         for(let i=0;i<8;i++)parts.push({x:b.x,y:b.y,vx:(Math.random()-.5)*6,vy:(Math.random()-.2)*5,t:0,col:'#f4f4f4'});
@@ -1208,7 +1263,13 @@ function renderWs(){
   const diff=pd-now;
   $('wPred').innerHTML=`よそう きょり ${fmtM(pd)} <small>${Math.abs(diff)<.05?'':(diff>0?'▲ +':'▼ ')+(diff>0?fmtM(diff):fmtM(-diff))+'（いまの ひこうきと くらべて）'}</small>`;
   const bar=(n,v,mx)=>`<div class="bar"><span>${n}</span><i><b style="width:${clamp(v/mx*100,4,100)}%"></b></i></div>`;
-  $('wStats').innerHTML=`<p class="note">${SHAPES[draft.shape].desc}</p>`+bar('ながく とぶ',st.glide,14)+bar('かるさ',9.8-st.grav+1,5.5)+bar('パワー',st.propF*(st.propT>0)*st.propT/4+st.jetF*st.jetT/6+st.rockets*3+st.ionF*st.ionT/4,60)+bar('あんてい',st.stab,3.8);
+  $('wStats').innerHTML=`<p class="note">${SHAPES[draft.shape].desc}</p>`
+    +bar('はやさ',st.launchV,26)+bar('のびる',st.glide,40)+bar('かるさ',(9.8-st.grav)*10+4,12)+bar('あんてい',st.stab,4.5)
+    +bar('パワー',st.propF*(st.propT>0)*st.propT/4+st.jetF*st.jetT/6+st.rockets*3+st.ionF*st.ionT/4,60)
+    +bar('ぼうふう',st.windRes*100+st.gyro*10+(st.turbRes*50),60)+bar('きりゅう',(st.thermalMul-1)*100,150)
+    +bar('とりよけ',(st.birdR*60+st.birdSoft*40+(st.birdImm>=.5?100:0)+st.tail*6+st.gyro*8),100)
+    +bar('コイン',(st.magnet-1)*10,80)+bar('おかね',(st.mult-1)*100,150);
+  $('wTraits').innerHTML=((SHAPES[draft.shape].traits||[]).length?'<b>ぞくせい</b> ':'')+(SHAPES[draft.shape].traits||[]).map(t=>`<span class="tr" title="${TRAITS[t].desc}">${TRAITS[t].ic}${TRAITS[t].name}</span>`).join('')+((SHAPES[draft.shape].traits||[]).map(t=>`<p>${TRAITS[t].ic} ${TRAITS[t].desc}</p>`).join(''));
   const sw=(el,key)=>{el.innerHTML='';for(const col of COLORS){const b=document.createElement('button');b.className='swc'+(draft[key]===col?' on':'');b.style.background=col;b.setAttribute('aria-label','いろ '+col);b.onclick=()=>{draft[key]=col;touch();};el.append(b);}};
   sw($('wBody'),'body');sw($('wAccent'),'accent');
   const pt=$('wPat');pt.innerHTML='';
@@ -1421,7 +1482,7 @@ function renderShopBP(){
   for(const id of FOLD_IDS.filter(id=>SHAPES[id].rank===bpRank)){
     const sh=SHAPES[id],d=document.createElement('div');d.className='fold';
     const c=document.createElement('canvas');
-    const info=document.createElement('div');info.innerHTML=`<b>${sh.name}</b><p>${sh.desc}</p>`;
+    const info=document.createElement('div');info.innerHTML=`<b>${sh.name}</b><p>${sh.desc}</p><p>${traitHTML(id,true)}</p>`;
     let btn;
     if(S.folds[id]){btn=document.createElement('button');btn.className='btn';btn.disabled=true;btn.textContent='✔ もっている';}
     else btn=buyBtn(sh.price,()=>{S.folds[id]=1;toast('「'+sh.name+'」の せっけいずを かった！こうさくで つかえるよ');});
