@@ -98,6 +98,11 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
 .mh{align-self:stretch;text-align:left;font-size:12px;display:flex;flex-direction:column;gap:2px;padding-bottom:8px;border-bottom:1px solid var(--line)}
 .mh span{display:inline-block;min-width:78px;color:var(--muted)}
 .mb{align-self:stretch;text-align:left;font-size:13px;line-height:1.75;white-space:pre-wrap}
+.tabs{display:grid;gap:6px;width:100%;padding:4px;border-radius:12px;background:rgba(0,0,0,.25)}
+.tab{font-family:var(--body);font-weight:800;font-size:13px;color:var(--muted);background:transparent;border:none;border-radius:9px;padding:9px 6px;cursor:pointer}
+.tab.on{color:#3a2200;background:var(--sun)}
+.tab:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+.dtabs{grid-template-columns:repeat(2,1fr)}
 .devgrid{max-height:34vh;overflow-y:auto;padding:4px;touch-action:pan-y}
 .mounts{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%}
 .mt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:64px;padding:6px 2px;border-radius:10px;border:2px dashed var(--line);background:rgba(255,255,255,.04);color:var(--ink);font-family:var(--body);font-size:10px;cursor:pointer;min-width:0}
@@ -276,7 +281,8 @@ html,body{margin:0;height:100%;background:var(--night);color:var(--ink);overflow
       <label class="field">なまえ <input id="dName" maxlength="12" autocomplete="off" placeholder="なまえをつけよう"></label>
       <div class="pred" id="dPred"></div>
       <div class="bars" id="dStats"></div>
-      <div class="sec">ベースの せんとうき（40しゅるい）</div>
+      <div class="sec">ベースの かたち（ほんもの 40 ＋ オリジナル 30）</div>
+      <div class="tabs dtabs"><button class="tab on" id="dTabReal">ほんものの せんとうき</button><button class="tab" id="dTabOrig">オリジナル 30</button></div>
       <div class="hangar devgrid" id="dBase"></div>
       <p class="note" id="dBaseNote"></p>
       <div class="sec">とりつける ばしょ（5か所）</div>
@@ -446,6 +452,61 @@ function devGeom(P){
 DEV_LIST.forEach(([id,name,desc,arch,P],i)=>{
   const a=DEV_ARCH[arch],v=1+(((i*37)%11)-5)/100,g=devGeom(P);
   SHAPES[id]={name,desc,lift:a.lift*v,cd0:a.cd0,cdi:a.cdi,stab:a.stab,launch:a.launch*(2-v),rough:.6,need:2000,dev:true,poly:g.poly,mp:g.mp};
+});
+/* ---------- オリジナルの すごい かたち 30しゅるい（かいはつで えらべる） ---------- */
+// はんぶん（みぎがわ）：はなさきの つぎから しっぽ（x=0）まで。nose を かえると はなさきの いちを かえられる
+const polar=(n,inner)=>{const h=[];for(let i=1;i<=n;i++){const r=i%2?inner:1,a=(-90+180*i/n)*Math.PI/180;h.push([+(r*Math.cos(a)).toFixed(3),+(r*Math.sin(a)).toFixed(3)]);}return h;};
+const circ=()=>{const h=[];for(let i=1;i<=10;i++){const a=(-90+18*i)*Math.PI/180;h.push([+Math.cos(a).toFixed(3),+Math.sin(a).toFixed(3)]);}return h;};
+Object.assign(DEV_ARCH,{
+  glide:{lift:1.7,cd0:.022,cdi:.045,stab:1.7,launch:1.3},
+  sprint:{lift:1.3,cd0:.016,cdi:.06,stab:1.6,launch:1.85},
+  tank:{lift:1.7,cd0:.028,cdi:.045,stab:2.7,launch:1.35},
+  trick:{lift:1.5,cd0:.024,cdi:.052,stab:1.5,launch:1.5},
+});
+const ORIG_LIST=[
+['o_star','スター','とがった 5つの かど','trick',polar(5,.42)],
+['o_heart','ハート','あいで とぶ','tank',[[.3,-.55],[.65,-.2],[.95,.1],[1,.4],[.85,.72],[.55,.8],[.25,.62],[0,.35]]],
+['o_clover','クローバー','しあわせを はこぶ','tank',[[.2,-.92],[.26,-.66],[.22,-.45],[.55,-.4],[.98,-.25],[1,.05],[.7,.15],[.3,.1],[.28,.35],[.3,.7],[.18,.95],[0,.85]]],
+['o_shuriken','しゅりけん','くるくる すすむ','sprint',polar(4,.3)],
+['o_boomerang','ブーメラン','もどって きそうな かたち','glide',[[.5,-.5],[1,.25],[.92,.5],[.45,-.05],[0,.12]]],
+['o_maple','もみじ','ひらひら ながく','glide',[[.15,-.62],[.36,-.7],[.3,-.38],[.68,-.5],[.6,-.12],[.98,.05],[.62,.25],[.4,.28],[.1,.5],[.06,.98],[0,1]]],
+['o_butterfly','ちょうちょ','ふわふわ うく','glide',[[.08,-.65],[.5,-.95],[.98,-.7],[1,-.2],[.5,0],[.9,.4],[.7,.85],[.3,.5],[.08,.6],[0,.95]]],
+['o_dragonfly','とんぼ','4まいの はね','trick',[[.06,-.8],[.08,-.5],[.95,-.55],[.95,-.33],[.1,-.2],[.12,-.05],[.9,.05],[.88,.27],[.08,.2],[.05,.9],[0,1]]],
+['o_manta','マンタ','うみの そらを およぐ','glide',[[.2,-.9],[.12,-.7],[.55,-.45],[1,-.05],[.9,.15],[.4,.15],[.08,.2],[.04,.95],[0,1]]],
+['o_fish','さかな','すいすい ゆれない','tank',[[.2,-.85],[.42,-.45],[.46,0],[.3,.4],[.12,.52],[.55,.95],[.45,1],[0,.75]]],
+['o_gull','かもめ','うみかぜに のる','glide',[[.1,-.7],[.45,-.55],[1,-.15],[.9,-.05],[.45,-.3],[.12,-.1],[.1,.5],[0,.8]]],
+['o_owl','ふくろう','しずかで あんてい','tank',[[.2,-.85],[.3,-.6],[.6,-.5],[1,-.2],[1,.15],[.75,.55],[.4,.6],[.3,.95],[0,1]]],
+['o_eagle','ワシ','ゆびの ような はねさき','glide',[[.1,-.75],[.4,-.5],[1,-.35],[1,-.2],[.9,-.2],[.97,-.05],[.85,-.04],[.9,.1],[.75,.1],[.5,.2],[.15,.25],[.2,.85],[0,.9]]],
+['o_ufo','UFO','そらに うかぶ えんばん','tank',circ()],
+['o_diamond','ダイヤ','かたくて はやい','sprint',[[.7,-.15],[0,.85]]],
+['o_spear','ヤリ','まっすぐ つらぬく','sprint',[[.2,-.78],[.08,-.62],[.07,.55],[.3,.85],[.07,.8],[0,1]]],
+['o_sword','つるぎ','ざんげきの ように','sprint',[[.08,-.9],[.1,.2],[.55,.28],[.55,.42],[.1,.46],[.07,.8],[.14,.84],[.14,.96],[0,1]]],
+['o_arrow','やじるし','いちばん はやい','sprint',[[.6,-.3],[.2,-.3],[.2,.55],[.55,.95],[.15,.8],[0,.85]]],
+['o_bolt','いなずま','ビリビリ ぶっとぶ','sprint',[[.3,-.55],[.8,-.45],[.45,-.2],[1,-.1],[.4,.3],[.55,.35],[.2,.75],[0,1]]],
+['o_crescent','みかづき','ぜんしんの つばさ','trick',[[.15,-.55],[.5,-.2],[1,-.95],[.97,-.7],[.55,0],[.2,.1],[.12,.9],[0,1]],[0,-.6]],
+['o_ptera','プテラ','きょうりゅうの じだいから','glide',[[.1,-.82],[.14,-.55],[1,.05],[.88,.5],[.35,.38],[.1,.45],[.08,.95],[0,1]]],
+['o_bat','コウモリ','よるの ハンター','trick',[[.1,-.8],[.25,-.55],[.8,-.6],[1,-.3],[.82,-.1],[.7,.3],[.55,.05],[.4,.45],[.25,.15],[.1,.35],[.06,.8],[0,.9]]],
+['o_squirrel','ムササビ','マントで かっくう','glide',[[.2,-.8],[.25,-.55],[1,-.4],[.95,.25],[.4,.45],[.2,.45],[.28,.9],[.1,1],[0,1]]],
+['o_jelly','クラゲ','ふわふわ しょくしゅ','tank',[[.45,-.9],[.8,-.55],[.9,-.1],[.7,.1],[.62,.5],[.5,.15],[.38,.9],[.28,.2],[.15,1],[.08,.2],[0,.5]]],
+['o_flyfish','とびうお','うみから とびだす','trick',[[.15,-.85],[.25,-.5],[.95,-.25],[.9,-.1],[.3,.1],[.15,.4],[.4,.85],[.3,1],[0,.7]]],
+['o_rocket','ロケット','うちゅうへ GO！','sprint',[[.18,-.8],[.26,-.45],[.26,.45],[.7,.95],[.3,.85],[0,.9]]],
+['o_shuttle','シャトル','うちゅうを とぶ はね','tank',[[.14,-.8],[.14,-.2],[.95,.55],[.95,.9],[.18,.8],[.1,.95],[0,.95]]],
+['o_cross','クロスウイング','じゅうじの つばさ','tank',[[.2,-.7],[.2,-.2],[.95,-.2],[.95,.2],[.2,.2],[.2,.7],[0,.7]]],
+['o_gem','ほうせき','きらきら かがやく','stealth',[[.4,-.65],[.9,-.3],[.8,.3],[.35,.85],[0,.95]]],
+['o_twin','ツインテール','ふたつの しっぽ','trick',[[.15,-.8],[.2,-.4],[1,-.25],[1,0],[.4,.08],[.4,.95],[.28,.95],[.2,.4],[0,.35]]],
+];
+function origGeom(half,noseP){
+  const nose=noseP||[0,-1],right=half.slice(0,-1);
+  const poly=[nose].concat(half,right.slice().reverse().map(([x,y])=>[-x,y]));
+  let minY=nose[1],maxY=nose[1],maxX=0;for(const [x,y] of poly){minY=Math.min(minY,y);maxY=Math.max(maxY,y);maxX=Math.max(maxX,Math.abs(x));}
+  const wx=.62*maxX,ys=[],line=[nose].concat(half);
+  for(let i=0;i<line.length-1;i++){const a=line[i],b=line[i+1];if(a[0]!==b[0]&&(a[0]-wx)*(b[0]-wx)<=0)ys.push(a[1]+(b[1]-a[1])*(wx-a[0])/(b[0]-a[0]));}
+  const wy=ys.length?(Math.min(...ys)+Math.max(...ys))/2:0;
+  return {poly,mp:{rw:[wx,wy],lw:[-wx,wy],fr:[0,nose[1]+.3],rr:[0,maxY-.12],md:[0,(minY+maxY)/2]}};
+}
+ORIG_LIST.forEach(([id,name,desc,arch,half,nose],i)=>{
+  const a=DEV_ARCH[arch],v=1+(((i*53)%11)-5)/100,g=origGeom(half,nose);
+  SHAPES[id]={name,desc,lift:a.lift*v,cd0:a.cd0,cdi:a.cdi,stab:a.stab,launch:a.launch*(2-v),rough:.6,need:2000,dev:true,orig:true,poly:g.poly,mp:g.mp,ay0:(nose||[0,-1])[1],ay1:half[half.length-1][1]-.02};
 });
 // とりつける ばしょ（5か所）。はねは 2つで 1つぶんより おおきい
 const MOUNTS=[
@@ -677,6 +738,7 @@ function star(c,x,y,r){c.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*
 // 上から見た ひこうき（単位座標。はなさき が -y）。呼ぶ前に scale しておく
 function drawPlaneUnit(c,p,lw){
   const sh=SHAPES[p.shape],on=activeParts(p);
+  const y0=sh.ay0!==undefined?sh.ay0:-1,y1=sh.ay1!==undefined?sh.ay1:.95; // ちゅうしんの おりめの はじまりと おわり
   c.lineJoin='round';
   c.save();
   if(on.includes('bigwing'))c.scale(1.28,1);
@@ -706,14 +768,14 @@ function drawPlaneUnit(c,p,lw){
   c.lineWidth=lw*1.2;
   for(const s of[1,-1]){
     c.strokeStyle=s<0?'rgba(255,255,255,.5)':'rgba(0,0,0,.18)';
-    c.beginPath();c.moveTo(0,-1);c.lineTo(s*.16,.95);c.stroke();
+    c.beginPath();c.moveTo(0,y0);c.lineTo(s*.16*(y1-y0)/1.95,y1);c.stroke();
   }
   c.restore();
   polyPath(c,sh.poly);
   c.lineWidth=lw;c.strokeStyle=on.includes('gold')?'#e8b10c':'rgba(0,0,0,.4)';
   if(on.includes('gold'))c.lineWidth=lw*2.2;
   c.stroke();
-  c.beginPath();c.moveTo(0,-1);c.lineTo(0,.95);c.strokeStyle='rgba(0,0,0,.3)';c.lineWidth=lw;c.stroke();
+  c.beginPath();c.moveTo(0,y0);c.lineTo(0,y1);c.strokeStyle='rgba(0,0,0,.3)';c.lineWidth=lw;c.stroke();
   // パーツ
   if(on.includes('winglet')){
     let tip=sh.poly[0];for(const q of sh.poly)if(q[0]>tip[0])tip=q;
@@ -1094,6 +1156,7 @@ const MAIL_TEXT=`はじめまして！
 
 メニューに「かいはつ」を ついかしました。
 ・ほんものの せんとうき 40しゅるいを ベースに できます
+・わたしたちが かんがえた オリジナルの かたち 30しゅるいも ようい しました
 ・ふつうでは つくれない とくべつパーツ 20しゅるいを つけられます
 ・つけるばしょは 5か所：みぎはね・ひだりはね・まえ・うしろ・まんなか
 
@@ -1173,21 +1236,29 @@ $('stageBtn').onclick=openStage;
 $('stageBack').onclick=toMenu;
 
 let dd=null,ddDirty=false,dSel='rw';
-const DEV_IDS=DEV_LIST.map(x=>x[0]);
-function openDev(){
-  dd=JSON.parse(JSON.stringify(curPlane()));
-  if(!SHAPES[dd.shape].dev)dd.shape='f22';
-  dd.dev=dd.dev||{};dd.dev.mounts=dd.dev.mounts||{};
-  ddDirty=false;dSel='rw';
+const REAL_IDS=DEV_LIST.map(x=>x[0]),ORIG_IDS=ORIG_LIST.map(x=>x[0]);
+let dTab='real';
+function buildDevGrid(){
   const g=$('dBase');g.innerHTML='';
-  for(const id of DEV_IDS){
+  for(const id of (dTab==='orig'?ORIG_IDS:REAL_IDS)){
     const b=document.createElement('button');b.className='hg';b.dataset.id=id;
     const c=document.createElement('canvas');const sp=document.createElement('span');sp.textContent=SHAPES[id].name.split(' ')[0];
     b.append(c,sp);g.append(b);
     b.onclick=()=>{dd.shape=id;ddDirty=true;renderDev();};
   }
-  showOnly('ovDev');
   for(const b of g.children)drawPreview(b.firstChild,Object.assign({},dd,{shape:b.dataset.id,parts:[],dev:null}));
+  $('dTabReal').classList.toggle('on',dTab==='real');$('dTabOrig').classList.toggle('on',dTab==='orig');
+}
+$('dTabReal').onclick=()=>{dTab='real';buildDevGrid();renderDev();};
+$('dTabOrig').onclick=()=>{dTab='orig';buildDevGrid();renderDev();};
+function openDev(){
+  dd=JSON.parse(JSON.stringify(curPlane()));
+  if(!SHAPES[dd.shape].dev)dd.shape='f22';
+  dd.dev=dd.dev||{};dd.dev.mounts=dd.dev.mounts||{};
+  ddDirty=false;dSel='rw';
+  dTab=SHAPES[dd.shape].orig?'orig':'real';
+  showOnly('ovDev');
+  buildDevGrid();
   renderDev();
 }
 function renderDev(){
