@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BAR 夜更け</title>
+<style>
+  :root {
+    --bg: #120c08;
+    --wood: #2a1a10;
+    --wood2: #3a2416;
+    --panel: rgba(255, 240, 220, 0.05);
+    --line: rgba(255, 220, 170, 0.15);
+    --text: #f1e6d6;
+    --sub: #b9a58c;
+    --amber: #e0a458;
+    --good: #8fd18b;
+    --bad: #e8786b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(ellipse at 50% -10%, #4a2c14 0%, var(--bg) 60%) fixed, var(--bg);
+    color: var(--text);
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .serif { font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", serif; }
+  #app { max-width: 520px; margin: 0 auto; padding: 8px 16px 20px; }
+  header { display: flex; align-items: center; gap: 8px; height: 40px; }
+  header h1 { font-size: 18px; margin: 0; color: var(--amber); letter-spacing: 2px; flex: 1; font-weight: 600; }
+  header .info { font-size: 12px; color: var(--sub); text-align: right; line-height: 1.3; }
+  .icon-btn { background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 8px; height: 32px; padding: 0 10px; font-size: 13px; cursor: pointer; }
+
+  #customer { display: flex; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; min-height: 72px; }
+  #avatar { font-size: 38px; width: 48px; text-align: center; }
+  #custBody { flex: 1; min-width: 0; }
+  #custName { font-size: 11px; color: var(--sub); }
+  #bubble { font-size: 14px; line-height: 1.4; margin: 2px 0 6px; }
+  #patience { height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+  #patienceBar { height: 100%; width: 100%; background: var(--amber); transition: background 0.3s; }
+
+  #stage { position: relative; display: flex; gap: 8px; margin-top: 8px; }
+  #order { width: 132px; flex-shrink: 0; background: #f3e9d8; color: #2b1d12; border-radius: 4px; padding: 8px; font-size: 12px; line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,0.4); transform: rotate(-1.5deg); align-self: flex-start; }
+  #order .ttl { font-size: 10px; color: #8a6d4f; border-bottom: 1px dashed #b8a283; margin-bottom: 4px; }
+  #order .nm { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  #order .rc { font-size: 11px; color: #5a4430; }
+  #glassWrap { flex: 1; position: relative; min-width: 0; }
+  #glassCanvas { width: 100%; height: 230px; display: block; }
+  #glassWrap.shake { animation: shake 0.9s ease-in-out; }
+  #glassWrap.stir { animation: stir 0.6s ease-in-out; }
+  @keyframes shake {
+    0%,100% { transform: translate(0,0) rotate(0); }
+    10%,30%,50%,70%,90% { transform: translate(-6px,-8px) rotate(-6deg); }
+    20%,40%,60%,80% { transform: translate(6px,4px) rotate(6deg); }
+  }
+  @keyframes stir {
+    0%,100% { transform: rotate(0); } 25% { transform: rotate(2deg); } 75% { transform: rotate(-2deg); }
+  }
+  #readout { position: absolute; left: 0; right: 0; top: 0; text-align: center; font-size: 12px; color: var(--amber); pointer-events: none; min-height: 16px; }
+  #toast { position: absolute; left: 50%; top: 40%; transform: translate(-50%,-50%); background: rgba(0,0,0,0.8); border: 1px solid var(--line); padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap; z-index: 5; }
+  #toast.show { opacity: 1; }
+
+  .row { display: flex; gap: 6px; margin-top: 8px; }
+  .row.scroll { overflow-x: auto; scrollbar-width: none; }
+  .row.scroll::-webkit-scrollbar { display: none; }
+  .label { font-size: 10px; color: var(--sub); margin: 8px 0 -4px; letter-spacing: 1px; }
+  .tbtn { flex: 1; background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 8px 4px; font-size: 13px; cursor: pointer; white-space: nowrap; font-family: inherit; }
+  .tbtn.on { background: rgba(224,164,88,0.22); border-color: var(--amber); color: #ffd9a6; }
+  .chip { flex: 0 0 auto; padding: 6px 10px; font-size: 12px; }
+
+  #shelf { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-top: 8px; background: linear-gradient(var(--wood2), var(--wood)); border-radius: 10px; padding: 6px; border: 1px solid var(--line); }
+  .bottle { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 0 3px; border-radius: 6px; cursor: pointer; touch-action: none; }
+  .bottle:active, .bottle.pouring { background: rgba(224,164,88,0.18); }
+  .bottle .b { position: relative; width: 16px; height: 26px; margin-top: 8px; border-radius: 4px 4px 3px 3px; border: 1px solid rgba(255,255,255,0.35); }
+  .bottle .b::before { content: ""; position: absolute; left: 4px; top: -9px; width: 6px; height: 9px; background: rgba(255,255,255,0.25); border-radius: 2px 2px 0 0; }
+  .bottle span { font-size: 9px; color: var(--sub); white-space: nowrap; letter-spacing: -0.5px; }
+
+  #serve { width: 100%; margin-top: 10px; padding: 12px; font-size: 16px; font-weight: 700; letter-spacing: 4px; background: linear-gradient(#e7b06a, #b97a35); color: #2a1709; border: none; border-radius: 10px; cursor: pointer; font-family: inherit; }
+
+  .overlay { position: fixed; inset: 0; background: rgba(8,5,3,0.88); display: none; align-items: center; justify-content: center; z-index: 20; padding: 16px; }
+  .overlay.show { display: flex; }
+  .card { background: linear-gradient(#2a1a10, #1a100a); border: 1px solid var(--line); border-radius: 14px; padding: 20px 18px; max-width: 440px; width: 100%; max-height: 92vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+  .card h2 { margin: 0 0 4px; color: var(--amber); font-size: 26px; letter-spacing: 4px; text-align: center; font-weight: 600; }
+  .card .lead { text-align: center; color: var(--sub); font-size: 13px; margin-bottom: 14px; }
+  .card ul { padding-left: 18px; font-size: 13px; line-height: 1.7; margin: 0 0 14px; }
+  .card .big { font-size: 34px; text-align: center; margin: 6px 0; }
+  .diff { display: block; width: 100%; margin-top: 8px; text-align: left; padding: 10px 12px; }
+  .diff b { font-size: 15px; }
+  .diff small { display: block; color: var(--sub); font-size: 11px; margin-top: 2px; }
+  .breakdown { width: 100%; border-collapse: collapse; font-size: 13px; margin: 10px 0; }
+  .breakdown td { padding: 4px 2px; border-bottom: 1px solid var(--line); }
+  .breakdown td:last-child { text-align: right; }
+  .score { font-size: 44px; text-align: center; color: var(--amber); font-weight: 700; line-height: 1; }
+  .score small { font-size: 16px; color: var(--sub); }
+  .say { text-align: center; font-size: 15px; margin: 10px 0; }
+  .money { display: flex; justify-content: space-around; font-size: 14px; margin: 8px 0 14px; }
+  .money b { color: var(--good); font-size: 18px; }
+  .primary { width: 100%; padding: 12px; font-size: 15px; font-weight: 700; background: linear-gradient(#e7b06a, #b97a35); color: #2a1709; border: none; border-radius: 10px; cursor: pointer; font-family: inherit; margin-top: 6px; }
+  .recipe { border-bottom: 1px solid var(--line); padding: 8px 0; font-size: 12px; line-height: 1.6; }
+  .recipe .rn { font-size: 15px; color: #ffd9a6; }
+  .recipe .meta { color: var(--sub); }
+  .tag { display: inline-block; font-size: 10px; padding: 0 6px; border: 1px solid var(--line); border-radius: 10px; margin-right: 3px; color: var(--sub); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1 class="serif">BAR 夜更け</h1>
+    <div class="info"><div id="hCust">-</div><div id="hSales">売上 ¥0</div></div>
+    <button class="icon-btn" id="bookBtn">📖 レシピ</button>
+    <button class="icon-btn" id="muteBtn">🔊</button>
+  </header>
+
+  <section id="customer">
+    <div id="avatar">🍸</div>
+    <div id="custBody">
+      <div id="custName">&nbsp;</div>
+      <div id="bubble" class="serif">&nbsp;</div>
+      <div id="patience"><div id="patienceBar"></div></div>
+    </div>
+  </section>
+
+  <div id="stage">
+    <div id="order"><div class="ttl">ORDER</div><div class="nm">-</div><div class="rc"></div></div>
+    <div id="glassWrap">
+      <canvas id="glassCanvas"></canvas>
+      <div id="readout"></div>
+    </div>
+    <div id="toast"></div>
+  </div>
+
+  <div class="label">グラス</div>
+  <div class="row" id="glassRow"></div>
+
+  <div id="shelf"></div>
+
+  <div class="row">
+    <button class="tbtn" id="iceBtn">🧊 氷</button>
+    <button class="tbtn" id="stirBtn">🥄 ステア</button>
+    <button class="tbtn" id="shakeBtn">🍸 シェイク</button>
+    <button class="tbtn" id="dumpBtn">🗑 捨てる</button>
+  </div>
+
+  <div class="label">飾り</div>
+  <div class="row scroll" id="garRow"></div>
+
+  <button id="serve" class="serif">提供する</button>
+</div>
+
+<div class="overlay" id="overlay"><div class="card" id="card"></div></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- データ ----------
+  const ING = {
+    gin:        { n: 'ジン',        c: [225, 238, 242, 0.40], r: 20 },
+    vodka:      { n: 'ウォッカ',    c: [235, 240, 245, 0.35], r: 20 },
+    rum:        { n: 'ラム',        c: [240, 235, 220, 0.40], r: 20 },
+    tequila:    { n: 'テキーラ',    c: [240, 232, 200, 0.45], r: 20 },
+    whisky:     { n: 'ウイスキー',  c: [196, 120, 40, 0.85], r: 20 },
+    cassis:     { n: 'カシス',      c: [110, 10, 50, 0.92], r: 20 },
+    campari:    { n: 'カンパリ',    c: [205, 25, 35, 0.88], r: 20 },
+    sweetv:     { n: 'Sベルモット', c: [120, 40, 25, 0.88], r: 20 },
+    dryv:       { n: 'Dベルモット', c: [235, 225, 170, 0.50], r: 20 },
+    cointreau:  { n: 'コアントロー', c: [245, 240, 225, 0.40], r: 20 },
+    tonic:      { n: 'トニック',    c: [220, 235, 245, 0.30], r: 40 },
+    soda:       { n: 'ソーダ',      c: [225, 240, 250, 0.22], r: 40 },
+    ginger:     { n: 'ジンジャー',  c: [230, 200, 120, 0.55], r: 40 },
+    orange:     { n: 'オレンジ',    c: [250, 150, 30, 0.92], r: 40 },
+    grapefruit: { n: 'グレフル',    c: [250, 190, 160, 0.80], r: 40 },
+    lime:       { n: 'ライム',      c: [200, 230, 140, 0.70], r: 15 },
+    syrup:      { n: 'シロップ',    c: [250, 245, 230, 0.55], r: 15 },
+  };
+  const STRONG = ['gin', 'vodka', 'rum', 'tequila', 'whisky', 'cassis', 'campari', 'sweetv', 'dryv', 'cointreau'];
+
+  const GLASSES = {
+    tumbler:  { n: 'タンブラー', cap: 240, bottom: 212, top: 52,  hw: t => 40 + 8 * t, stem: false },
+    rocks:    { n: 'ロック',     cap: 180, bottom: 212, top: 120, hw: t => 54 + 5 * t, stem: false },
+    cocktail: { n: 'カクテル',   cap: 100, bottom: 128, top: 44,  hw: t => 3 + 60 * t, stem: true },
+  };
+  const METHODS = { build: 'ビルド（注ぐだけ）', stir: 'ステア', shake: 'シェイク' };
+  const GARNISH = { none: 'なし', lime: 'ライム', lemon: 'レモン', orange: 'オレンジ', olive: 'オリーブ', cherry: 'チェリー', mint: 'ミント', salt: '塩（スノー）' };
+
+  const RECIPES = {
+    gintonic:    { n: 'ジン・トニック',       g: 'tumbler',  ice: true,  m: 'build', gar: 'lime',   ing: { gin: 45, tonic: 120 },                   tags: ['さっぱり', '苦め'],       p: 1000 },
+    moscow:      { n: 'モスコミュール',       g: 'tumbler',  ice: true,  m: 'build', gar: 'lime',   ing: { vodka: 45, lime: 10, ginger: 120 },      tags: ['さっぱり', 'ピリッと'],   p: 1100 },
+    cassisorange:{ n: 'カシスオレンジ',       g: 'tumbler',  ice: true,  m: 'build', gar: 'orange', ing: { cassis: 30, orange: 120 },               tags: ['甘い', 'フルーティ'],     p: 900 },
+    highball:    { n: 'ハイボール',           g: 'tumbler',  ice: true,  m: 'build', gar: 'lemon',  ing: { whisky: 40, soda: 120 },                 tags: ['さっぱり', 'ウイスキー'], p: 800 },
+    screw:       { n: 'スクリュードライバー', g: 'tumbler',  ice: true,  m: 'build', gar: 'orange', ing: { vodka: 45, orange: 120 },                tags: ['甘い', 'フルーティ'],     p: 1000 },
+    saltydog:    { n: 'ソルティ・ドッグ',     g: 'tumbler',  ice: true,  m: 'build', gar: 'salt',   ing: { vodka: 45, grapefruit: 120 },            tags: ['さっぱり', 'フルーティ'], p: 1100 },
+    camparisoda: { n: 'カンパリ・ソーダ',     g: 'tumbler',  ice: true,  m: 'build', gar: 'orange', ing: { campari: 45, soda: 120 },                tags: ['苦め', 'さっぱり'],       p: 1000 },
+    mojito:      { n: 'モヒート',             g: 'tumbler',  ice: true,  m: 'build', gar: 'mint',   ing: { rum: 45, lime: 15, syrup: 10, soda: 90 },tags: ['さっぱり', '甘い'],       p: 1300 },
+    negroni:     { n: 'ネグローニ',           g: 'rocks',    ice: true,  m: 'stir',  gar: 'orange', ing: { gin: 30, campari: 30, sweetv: 30 },      tags: ['苦め', '強い'],           p: 1400 },
+    martini:     { n: 'マティーニ',           g: 'cocktail', ice: false, m: 'stir',  gar: 'olive',  ing: { gin: 50, dryv: 10 },                     tags: ['強い', '辛口'],           p: 1500 },
+    manhattan:   { n: 'マンハッタン',         g: 'cocktail', ice: false, m: 'stir',  gar: 'cherry', ing: { whisky: 45, sweetv: 15 },                tags: ['強い', 'ウイスキー', '甘い'], p: 1500 },
+    margarita:   { n: 'マルガリータ',         g: 'cocktail', ice: false, m: 'shake', gar: 'salt',   ing: { tequila: 30, cointreau: 15, lime: 15 },  tags: ['酸っぱい', '強い'],       p: 1400 },
+    daiquiri:    { n: 'ダイキリ',             g: 'cocktail', ice: false, m: 'shake', gar: 'lime',   ing: { rum: 45, lime: 15, syrup: 10 },          tags: ['酸っぱい', 'フルーティ'], p: 1300 },
+  };
+  const TAG_WORD = { 'さっぱり': 'さっぱりした', '苦め': 'ほろ苦い', '甘い': '甘い', 'フルーティ': 'フルーティな', '強い': 'ガツンと強い', '辛口': 'キリッと辛口の', '酸っぱい': '酸味のきいた', 'ピリッと': 'ピリッとくる', 'ウイスキー': 'ウイスキーの' };
+
+  const CHARS = [
+    { e: '🧔', n: '常連の木村さん', hi: 'やあ、今日も来ちゃったよ。' },
+    { e: '👩‍💼', n: '残業帰りの女性', hi: 'やっと終わった…一杯だけ。' },
+    { e: '👨‍💼', n: '課長っぽい男性', hi: '最近、部下が飲みに付き合ってくれなくてね。' },
+    { e: '👵', n: '着物の婦人', hi: 'あら、素敵なお店ね。' },
+    { e: '🕵️', n: 'コートの男', hi: '……静かな店だな。' },
+    { e: '👩‍🎨', n: '画家の女性', hi: 'インスピレーションが欲しいの。' },
+    { e: '🧑‍💻', n: 'エンジニア', hi: 'リリースが無事終わったので祝杯です。' },
+    { e: '👫', n: '記念日のふたり', hi: '今日、付き合って3年なんです。' },
+    { e: '🎷', n: 'サックス奏者', hi: 'ライブ終わりでね。喉が渇いた。' },
+    { e: '👨‍🦳', n: '白髪の紳士', hi: '若い頃は、よくこういう店に来たものだ。' },
+  ];
+  const ORDER_FMT = ['{}を。', '{}をもらえる？', '{}、お願いします。', 'まずは{}かな。'];
+
+  const DIFFS = {
+    novice: { n: '見習い', d: '注文票にレシピ表示・注いだ量が数字で見える', marks: 10, readout: true, card: true },
+    pro:    { n: '一人前', d: 'グラスの目盛りだけが頼り。レシピは📖で確認', marks: 10, readout: false, card: false },
+    master: { n: '名人',   d: '目盛りなし。目分量の勝負', marks: 0, readout: false, card: false },
+  };
+  const NIGHT = 6;
+  const PATIENCE = 90;
+
+  // ---------- ユーティリティ ----------
+  const $ = id => document.getElementById(id);
+  const rand = a => a[Math.floor(Math.random() * a.length)];
+  const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const yen = v => '¥' + v.toLocaleString();
+  const rgba = c => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${c[3]})`;
+  let toastTimer = 0;
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1400);
+  }
+  function loadBest() { try { return JSON.parse(localStorage.getItem('bar_yofuke_best') || '{}'); } catch (e) { return {}; } }
+  function saveBest(b) { try { localStorage.setItem('bar_yofuke_best', JSON.stringify(b)); } catch (e) {} }
+
+  // ---------- 音 ----------
+  let ac = null, muted = false, pourNode = null;
+  function audio() {
+    if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+    if (ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  function noiseBuf(a) {
+    const b = a.createBuffer(1, a.sampleRate, a.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    return b;
+  }
+  function tone(freq, dur, vol, type = 'sine', delay = 0) {
+    const a = audio(); if (!a || muted) return;
+    const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + delay;
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function burst(dur, freq, vol, delay = 0) {
+    const a = audio(); if (!a || muted) return;
+    const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain(), t = a.currentTime + delay;
+    s.buffer = noiseBuf(a); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 2;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f).connect(g).connect(a.destination); s.start(t); s.stop(t + dur + 0.05);
+  }
+  const sfx = {
+    clink() { tone(2600, 0.25, 0.08); tone(3300, 0.2, 0.05, 'sine', 0.06); tone(2900, 0.2, 0.05, 'sine', 0.12); },
+    shake() { for (let i = 0; i < 8; i++) burst(0.08, 1800 + Math.random() * 1500, 0.25, i * 0.11); },
+    stir() { for (let i = 0; i < 4; i++) tone(3000 + i * 120, 0.08, 0.03, 'sine', i * 0.13); },
+    register() { tone(1320, 0.3, 0.1, 'triangle'); tone(1760, 0.5, 0.1, 'triangle', 0.12); },
+    sad() { tone(330, 0.4, 0.08, 'triangle'); tone(247, 0.6, 0.08, 'triangle', 0.2); },
+    bell() { tone(1568, 0.8, 0.06); tone(2093, 0.9, 0.04, 'sine', 0.05); },
+    pourStart() {
+      const a = audio(); if (!a || muted || pourNode) return;
+      const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+      s.buffer = noiseBuf(a); s.loop = true; f.type = 'bandpass'; f.frequency.value = 700; f.Q.value = 1.2;
+      g.gain.value = 0.0001; g.gain.exponentialRampToValueAtTime(0.12, a.currentTime + 0.05);
+      s.connect(f).connect(g).connect(a.destination); s.start();
+      pourNode = { s, f, g };
+    },
+    pourLevel(frac) { if (pourNode) pourNode.f.frequency.value = 600 + frac * 1400; },
+    pourStop() {
+      if (!pourNode || !ac) { pourNode = null; return; }
+      const { s, g } = pourNode; g.gain.setTargetAtTime(0.0001, ac.currentTime, 0.03); s.stop(ac.currentTime + 0.2); pourNode = null;
+    },
+  };
+
+  // ---------- 状態 ----------
+  let S = null;
+  function freshDrink() {
+    return { glass: null, layers: [], amounts: {}, ice: false, method: 'build', garnish: 'none', spilled: false };
+  }
+  let D = freshDrink();
+  let pouring = null, busy = false, active = false;
+
+  // ---------- グラス描画 ----------
+  const cv = $('glassCanvas'), ctx = cv.getContext('2d');
+  const W = 200, H = 230, CX = 100;
+  const rowCache = {};
+  function rows(key) {
+    if (rowCache[key]) return rowCache[key];
+    const g = GLASSES[key], list = [];
+    let total = 0;
+    for (let y = g.bottom - 1; y >= g.top; y--) {
+      const t = (g.bottom - y) / (g.bottom - g.top), hw = g.hw(t);
+      total += hw * hw;
+      list.push({ y, hw, cum: total, area: hw * hw });
+    }
+    const k = g.cap / total;
+    list.forEach(r => { r.cum *= k; r.mid = r.cum - r.area * k / 2; });
+    return (rowCache[key] = list);
+  }
+  function yForVol(key, v) {
+    const rs = rows(key);
+    for (const r of rs) if (r.cum >= v) return r;
+    return rs[rs.length - 1];
+  }
+  function totalVol() { return D.layers.reduce((s, l) => s + l.ml, 0); }
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1, w = cv.clientWidth;
+    cv.width = w * dpr; cv.height = 230 * dpr;
+    const s = Math.min(w / W, 1.25);
+    ctx.setTransform(s * dpr, 0, 0, s * dpr, (w - W * s) / 2 * dpr, (230 - H * s) * dpr);
+  }
+
+  function draw(time) {
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.restore();
+    if (!D.glass) {
+      ctx.fillStyle = 'rgba(241,230,214,0.45)'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('グラスを選んでください', CX, 120);
+      return;
+    }
+    const g = GLASSES[D.glass], rs = rows(D.glass), total = totalVol();
+    // 内側
+    ctx.fillStyle = 'rgba(255,255,255,0.045)';
+    for (const r of rs) ctx.fillRect(CX - r.hw, r.y, r.hw * 2, 1);
+    // 液体
+    let surface = null;
+    if (total > 0) {
+      const bounds = []; let acc = 0;
+      for (const l of D.layers) { acc += l.ml; bounds.push(acc); }
+      let li = 0;
+      for (const r of rs) {
+        if (r.mid > total) break;
+        while (li < bounds.length - 1 && r.mid > bounds[li]) li++;
+        ctx.fillStyle = rgba(D.layers[li].c);
+        ctx.fillRect(CX - r.hw, r.y, r.hw * 2, 1.2);
+        surface = r;
+      }
+      if (surface) {
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.fillRect(CX - surface.hw, surface.y, surface.hw * 2, 1);
+        // 炭酸の泡
+        const fizz = ['tonic', 'soda', 'ginger'].some(k => D.amounts[k] > 0);
+        if (fizz) {
+          ctx.fillStyle = 'rgba(255,255,255,0.4)';
+          for (let i = 0; i < 14; i++) {
+            const ph = ((time / 1000) * (0.4 + (i % 5) * 0.12) + i * 0.37) % 1;
+            const y = g.bottom - 4 - ph * (g.bottom - surface.y - 4);
+            const r = yForVol(D.glass, 0); const span = Math.max(4, (surface.hw + r.hw) / 2 - 6);
+            const x = CX + Math.sin(i * 7.3) * span;
+            ctx.fillRect(x, y, 1.5, 1.5);
+          }
+        }
+      }
+    }
+    // 氷
+    if (D.ice) drawIce(g);
+    // 注いでいる液
+    if (pouring) {
+      const sy = surface ? surface.y : g.bottom;
+      const c = ING[pouring].c;
+      ctx.strokeStyle = rgba([c[0], c[1], c[2], Math.max(0.6, c[3])]);
+      ctx.lineWidth = 3 + Math.sin(time / 40) * 0.8;
+      ctx.beginPath(); ctx.moveTo(CX - 14, 0); ctx.lineTo(CX - 14 + Math.sin(time / 60), sy); ctx.stroke();
+    }
+    // 輪郭
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    rs.forEach((r, i) => i ? ctx.lineTo(CX - r.hw - 1, r.y) : ctx.moveTo(CX - r.hw - 1, r.y + 1));
+    ctx.moveTo(CX + rs[0].hw + 1, rs[0].y + 1);
+    rs.forEach(r => ctx.lineTo(CX + r.hw + 1, r.y));
+    ctx.stroke();
+    // ハイライト
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    for (const r of rs) ctx.fillRect(CX - r.hw * 0.75, r.y, 3, 1);
+    if (g.stem) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.beginPath(); ctx.moveTo(CX - 4, g.bottom); ctx.lineTo(CX + 4, g.bottom); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(CX - 2, g.bottom, 4, 88);
+      ctx.beginPath(); ctx.ellipse(CX, 218, 34, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.stroke();
+    } else {
+      const hw0 = g.hw(0) + 1;
+      ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fillRect(CX - hw0, g.bottom, hw0 * 2, 9);
+      ctx.strokeRect(CX - hw0, g.bottom, hw0 * 2, 9);
+    }
+    // 目盛り
+    const step = DIFFS[S.diff].marks;
+    if (step) {
+      ctx.strokeStyle = 'rgba(224,164,88,0.75)'; ctx.fillStyle = 'rgba(224,164,88,0.85)'; ctx.lineWidth = 1;
+      ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
+      for (let v = step; v <= g.cap; v += step) {
+        const r = yForVol(D.glass, v), big = v % 30 === 0, x = CX + r.hw + 4;
+        ctx.beginPath(); ctx.moveTo(x, r.y + 0.5); ctx.lineTo(x + (big ? 8 : 4), r.y + 0.5); ctx.stroke();
+        if (big) ctx.fillText(v, x + 10, r.y + 3);
+      }
+    }
+    drawGarnish(g, rs);
+  }
+
+  function drawIce(g) {
+    const cubes = D.glass === 'cocktail'
+      ? [[-12, 26, 16, 0.3], [6, 20, 14, -0.2]]
+      : D.glass === 'rocks'
+        ? [[-24, 30, 30, 0.2], [10, 34, 30, -0.3], [-6, 62, 28, 0.5]]
+        : [[-20, 30, 26, 0.2], [8, 36, 26, -0.3], [-10, 64, 26, 0.6], [14, 72, 24, 0.1], [-16, 100, 24, -0.4]];
+    for (const [dx, dy, s, rot] of cubes) {
+      ctx.save(); ctx.translate(CX + dx, g.bottom - dy); ctx.rotate(rot);
+      ctx.fillStyle = 'rgba(230,245,255,0.22)'; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-s / 2, -s / 2, s, s, 4) : ctx.rect(-s / 2, -s / 2, s, s);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(-s / 2 + 3, -s / 2 + 3, s / 3, 2);
+      ctx.restore();
+    }
+  }
+
+  function drawGarnish(g, rs) {
+    const top = rs[rs.length - 1], rx = CX + top.hw, ry = top.y;
+    const gar = D.garnish;
+    if (gar === 'salt') {
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      for (let i = 0; i < 40; i++) {
+        const side = i % 2 ? 1 : -1, k = Math.floor(i / 2);
+        const r = rs[rs.length - 1 - (k % 6)];
+        ctx.fillRect(CX + side * (r.hw + 1) - 1 + Math.sin(i * 3) * 1.2, r.y - 1, 2, 2);
+      }
+      ctx.fillRect(CX - top.hw, ry - 2, top.hw * 2, 1.5);
+    } else if (gar === 'lime' || gar === 'lemon' || gar === 'orange') {
+      const col = { lime: ['#5aa83a', '#c8e89a'], lemon: ['#e6c83a', '#fbf0a0'], orange: ['#e8822a', '#ffc27a'] }[gar];
+      ctx.save(); ctx.translate(rx - 2, ry + 2);
+      ctx.fillStyle = col[0]; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = col[1]; ctx.beginPath(); ctx.arc(0, 0, 11.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = col[0]; ctx.lineWidth = 1;
+      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * 11, Math.sin(a) * 11); ctx.stroke(); }
+      ctx.restore();
+    } else if (gar === 'olive' || gar === 'cherry') {
+      const surf = totalVol() > 0 ? yForVol(D.glass, Math.min(totalVol(), g.cap) * 0.5) : rs[Math.floor(rs.length / 3)];
+      ctx.strokeStyle = '#d8c3a0'; ctx.lineWidth = 1.5;
+      if (gar === 'olive') {
+        ctx.beginPath(); ctx.moveTo(rx + 10, ry - 22); ctx.lineTo(CX, surf.y + 4); ctx.stroke();
+        ctx.fillStyle = '#7a9a3a'; ctx.beginPath(); ctx.ellipse(CX + 4, surf.y, 7, 5.5, -0.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#c0392b'; ctx.beginPath(); ctx.arc(CX + 1, surf.y + 1, 2, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.strokeStyle = '#6a8a2a'; ctx.beginPath(); ctx.moveTo(CX + 2, surf.y); ctx.quadraticCurveTo(CX + 10, surf.y - 30, CX + 22, surf.y - 40); ctx.stroke();
+        ctx.fillStyle = '#b3122a'; ctx.beginPath(); ctx.arc(CX, surf.y + 2, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(CX - 3, surf.y - 2, 2, 2);
+      }
+    } else if (gar === 'mint') {
+      ctx.fillStyle = '#3f9a4a';
+      for (const [dx, dy, a] of [[-8, -8, -0.6], [4, -12, 0.3], [12, -4, 0.9]]) {
+        ctx.save(); ctx.translate(CX + top.hw * 0.4 + dx, ry + dy); ctx.rotate(a);
+        ctx.beginPath(); ctx.ellipse(0, 0, 5, 10, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    }
+  }
+
+  // ---------- 操作 ----------
+  function addLiquid(key, ml) {
+    D.amounts[key] = (D.amounts[key] || 0) + ml;
+    const last = D.layers[D.layers.length - 1];
+    if (last && last.k === key) last.ml += ml;
+    else D.layers.push({ k: key, ml, c: ING[key].c.slice() });
+  }
+  function blend() {
+    const t = totalVol(); if (!t) return;
+    const c = [0, 0, 0, 0];
+    for (const l of D.layers) for (let i = 0; i < 4; i++) c[i] += l.c[i] * l.ml / t;
+    D.layers = [{ k: 'mix', ml: t, c }];
+  }
+  function startPour(key, el) {
+    if (!active || busy) return;
+    audio();
+    if (!D.glass) { toast('まずグラスを選んでください'); return; }
+    if (totalVol() >= GLASSES[D.glass].cap - 0.5) { toast('もう入りません'); return; }
+    pouring = key; el.classList.add('pouring'); sfx.pourStart();
+  }
+  function stopPour() {
+    if (!pouring) return;
+    pouring = null; sfx.pourStop();
+    document.querySelectorAll('.bottle.pouring').forEach(b => b.classList.remove('pouring'));
+    updateReadout();
+  }
+  function updateReadout() {
+    const r = $('readout');
+    if (!pouring) { r.textContent = DIFFS[S.diff].readout && totalVol() > 0 ? `合計 ${Math.round(totalVol())}ml` : ''; return; }
+    r.textContent = DIFFS[S.diff].readout
+      ? `${ING[pouring].n} ${Math.round(D.amounts[pouring] || 0)}ml ・ 合計 ${Math.round(totalVol())}ml`
+      : `${ING[pouring].n}を注いでいます…`;
+  }
+  function refreshTools() {
+    document.querySelectorAll('#glassRow .tbtn').forEach(b => b.classList.toggle('on', b.dataset.k === D.glass));
+    document.querySelectorAll('#garRow .tbtn').forEach(b => b.classList.toggle('on', b.dataset.k === D.garnish));
+    $('iceBtn').classList.toggle('on', D.ice);
+    $('stirBtn').classList.toggle('on', D.method === 'stir');
+    $('shakeBtn').classList.toggle('on', D.method === 'shake');
+    updateReadout();
+  }
+
+  function buildUI() {
+    const gr = $('glassRow');
+    for (const k in GLASSES) {
+      const b = document.createElement('button'); b.className = 'tbtn'; b.dataset.k = k; b.textContent = GLASSES[k].n;
+      b.onclick = () => {
+        if (!active || busy) return;
+        if (totalVol() > 0 && D.glass !== k) { toast('中身を捨ててから替えてください'); return; }
+        D.glass = k; sfx.clink(); refreshTools();
+      };
+      gr.appendChild(b);
+    }
+    const sh = $('shelf');
+    for (const k in ING) {
+      const el = document.createElement('div'); el.className = 'bottle';
+      const c = ING[k].c;
+      el.innerHTML = `<div class="b" style="background:${rgba([c[0], c[1], c[2], Math.max(0.55, c[3])])}"></div><span>${ING[k].n}</span>`;
+      el.addEventListener('pointerdown', e => { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (_) {} startPour(k, el); });
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => el.addEventListener(ev, stopPour));
+      el.addEventListener('contextmenu', e => e.preventDefault());
+      sh.appendChild(el);
+    }
+    const gar = $('garRow');
+    for (const k in GARNISH) {
+      const b = document.createElement('button'); b.className = 'tbtn chip'; b.dataset.k = k; b.textContent = GARNISH[k];
+      b.onclick = () => { if (!active || busy) return; D.garnish = k; refreshTools(); };
+      gar.appendChild(b);
+    }
+    $('iceBtn').onclick = () => {
+      if (!active || busy) return;
+      if (!D.glass) { toast('まずグラスを選んでください'); return; }
+      D.ice = !D.ice; if (D.ice) sfx.clink(); refreshTools();
+    };
+    const mix = (m, cls, ms, snd) => () => {
+      if (!active || busy) return;
+      if (totalVol() <= 0) { toast('先にお酒を注いでください'); return; }
+      busy = true; stopPour(); snd();
+      const w = $('glassWrap'); w.classList.add(cls);
+      setTimeout(() => { w.classList.remove(cls); blend(); D.method = m; busy = false; refreshTools(); }, ms);
+    };
+    $('stirBtn').onclick = mix('stir', 'stir', 600, sfx.stir);
+    $('shakeBtn').onclick = mix('shake', 'shake', 900, sfx.shake);
+    $('dumpBtn').onclick = () => { if (!active || busy) return; stopPour(); D = freshDrink(); refreshTools(); toast('グラスを片付けました'); };
+    $('serve').onclick = serve;
+    $('bookBtn').onclick = () => showBook();
+    $('muteBtn').onclick = () => { muted = !muted; $('muteBtn').textContent = muted ? '🔇' : '🔊'; if (muted) sfx.pourStop(); };
+    window.addEventListener('resize', resize);
+    window.addEventListener('blur', stopPour);
+  }
+
+  // ---------- 採点 ----------
+  function evaluate(rc) {
+    const keys = new Set([...Object.keys(rc.ing), ...Object.keys(D.amounts)]);
+    let err = 0, tgt = 0;
+    keys.forEach(k => { err += Math.abs((D.amounts[k] || 0) - (rc.ing[k] || 0)); tgt += rc.ing[k] || 0; });
+    const amt = Math.max(0, 1 - (err / tgt) * 2) * 60;
+    const glass = D.glass === rc.g ? 10 : 0;
+    const ice = D.ice === rc.ice ? 10 : 0;
+    let method = 0;
+    if (D.method === rc.m) method = 10;
+    else if (rc.m === 'build' && D.method === 'stir') method = 8;
+    else if (rc.m !== 'build' && D.method !== 'build') method = 3;
+    const gar = D.garnish === rc.gar ? 10 : D.garnish === 'none' ? 0 : 2;
+    const spill = D.spilled ? -10 : 0;
+    const score = Math.round(Math.max(0, Math.min(100, amt + glass + ice + method + gar + spill)));
+    let sp = 0, st = 0;
+    STRONG.forEach(k => { sp += D.amounts[k] || 0; st += rc.ing[k] || 0; });
+    return { score, amt: Math.round(amt), glass, ice, method, gar, spill, strength: st ? sp / st : 1, rc };
+  }
+
+  function serve() {
+    if (!active || busy) return;
+    stopPour();
+    if (!D.glass || totalVol() <= 0) { toast('まだ何も作っていません'); return; }
+    active = false;
+    const o = S.cur.order;
+    let res;
+    if (o.type === 'name') res = evaluate(RECIPES[o.recipe]);
+    else res = o.acceptable.map(k => evaluate(RECIPES[k])).sort((a, b) => b.score - a.score)[0];
+    // 何を作ったと判定されたか
+    const made = Object.keys(RECIPES).map(k => ({ k, score: evaluate(RECIPES[k]).score })).sort((a, b) => b.score - a.score)[0];
+    finishCustomer(res, made);
+  }
+
+  function finishCustomer(res, made) {
+    const p = res ? res.rc.p : 0;
+    const score = res ? res.score : 0;
+    const frac = Math.max(0, S.cur.patience / PATIENCE);
+    const sale = score >= 40 ? Math.round(p * score / 100 / 10) * 10 : 0;
+    const tip = score >= 85 ? Math.round(p * 0.5 * frac * (score - 80) / 20 / 10) * 10 : 0;
+    S.sales += sale; S.tips += tip;
+    S.log.push({ c: S.cur.c, name: res ? res.rc.n : '—', score, sale, tip, left: !res });
+    let say;
+    if (!res) say = '……もういいよ。（帰ってしまった）';
+    else if (score >= 90) say = rand(['……完璧だ。', 'この一杯のために来たんだ。', 'お見事。また来るよ。', '最高の夜になったわ。']);
+    else if (score >= 75) say = rand(['うん、美味しい。', 'いい腕してるね。', '落ち着く味だ。']);
+    else if (score >= 55) say = rand(['まあ、悪くない。', 'うーん、ちょっと惜しいね。']);
+    else if (score >= 40) say = rand(['……これ、本当に頼んだもの？', '飲めなくはない、かな。']);
+    else say = rand(['これはちょっと…お代は払えないな。', '……作り直しは結構です。']);
+    if (res && res.amt < 50 && score >= 40) {
+      if (res.strength > 1.15) say += ' 少し濃いね。';
+      else if (res.strength < 0.85) say += ' 少し薄いかな。';
+    }
+    if (res && S.cur.order.type === 'mood' && made && !S.cur.order.acceptable.includes(made.k) && made.score >= 70 && score < 60) {
+      say = '美味しいけど、今の気分じゃないな…。';
+    }
+    if (score >= 40) sfx.register(); else sfx.sad();
+    $('bubble').textContent = say;
+    $('hSales').textContent = '売上 ' + yen(S.sales + S.tips);
+
+    const rows = res ? `
+      <table class="breakdown">
+        <tr><td>分量</td><td>${res.amt} / 60</td></tr>
+        <tr><td>グラス（正解: ${GLASSES[res.rc.g].n}）</td><td>${res.glass} / 10</td></tr>
+        <tr><td>氷（正解: ${res.rc.ice ? 'あり' : 'なし'}）</td><td>${res.ice} / 10</td></tr>
+        <tr><td>技法（正解: ${METHODS[res.rc.m]}）</td><td>${res.method} / 10</td></tr>
+        <tr><td>飾り（正解: ${GARNISH[res.rc.gar]}）</td><td>${res.gar} / 10</td></tr>
+        ${res.spill ? '<tr><td>こぼした</td><td>-10</td></tr>' : ''}
+      </table>
+      <div style="font-size:11px;color:var(--sub)">あなたの一杯：${Object.entries(D.amounts).filter(([, v]) => v >= 1).map(([k, v]) => `${ING[k].n} ${Math.round(v)}ml`).join(' / ')}<br>
+      レシピ：${Object.entries(res.rc.ing).map(([k, v]) => `${ING[k].n} ${v}ml`).join(' / ')}</div>` : '';
+    showCard(`
+      <div class="lead">${S.cur.c.e} ${S.cur.c.n}${res ? ' ・ ' + res.rc.n : ''}</div>
+      <div class="score">${score}<small> 点</small></div>
+      <div class="say serif">「${say}」</div>
+      <div class="money"><div>お代 <b>${yen(sale)}</b></div><div>チップ <b>${yen(tip)}</b></div></div>
+      ${rows}
+      <button class="primary" id="nextBtn">${S.idx + 1 < NIGHT ? '次のお客さんへ' : '閉店する'}</button>`);
+    $('nextBtn').onclick = () => { hideCard(); S.idx + 1 < NIGHT ? nextCustomer() : endNight(); };
+  }
+
+  // ---------- 進行 ----------
+  function makeNight() {
+    const chars = shuffle(CHARS).slice(0, NIGHT);
+    const recs = shuffle(Object.keys(RECIPES));
+    return chars.map((c, i) => {
+      const rk = recs[i % recs.length];
+      if (i >= 2 && Math.random() < 0.45) {
+        const tags = shuffle(RECIPES[rk].tags).slice(0, Math.random() < 0.5 ? 1 : 2);
+        const acceptable = Object.keys(RECIPES).filter(k => tags.every(t => RECIPES[k].tags.includes(t)));
+        return { c, order: { type: 'mood', tags, acceptable, text: `今夜は${tags.map(t => TAG_WORD[t]).join('、')}やつを、お任せで。` } };
+      }
+      return { c, order: { type: 'name', recipe: rk, text: rand(ORDER_FMT).replace('{}', RECIPES[rk].n) } };
+    });
+  }
+
+  function startNight(diff) {
+    S = { diff, idx: -1, night: makeNight(), sales: 0, tips: 0, log: [], cur: null };
+    hideCard(); nextCustomer();
+  }
+
+  function nextCustomer() {
+    S.idx++;
+    const n = S.night[S.idx];
+    S.cur = { c: n.c, order: n.order, patience: PATIENCE };
+    D = freshDrink(); refreshTools();
+    $('avatar').textContent = n.c.e;
+    $('custName').textContent = n.c.n;
+    $('bubble').textContent = n.c.hi + ' ' + n.order.text;
+    $('hCust').textContent = `お客さん ${S.idx + 1} / ${NIGHT}`;
+    $('hSales').textContent = '売上 ' + yen(S.sales + S.tips);
+    const od = $('order');
+    if (n.order.type === 'name') {
+      const r = RECIPES[n.order.recipe];
+      od.innerHTML = `<div class="ttl">ORDER</div><div class="nm">${r.n}</div>` + (DIFFS[S.diff].card
+        ? `<div class="rc">${Object.entries(r.ing).map(([k, v]) => `${ING[k].n} ${v}ml`).join('<br>')}<br>―<br>${GLASSES[r.g].n} / 氷${r.ice ? 'あり' : 'なし'}<br>${METHODS[r.m]}<br>飾り: ${GARNISH[r.gar]}</div>`
+        : `<div class="rc">レシピは📖で確認</div>`);
+    } else {
+      od.innerHTML = `<div class="ttl">ORDER</div><div class="nm">おまかせ</div><div class="rc">${n.order.tags.map(t => `「${t}」`).join('')}<br>📖のタグを手がかりに選ぼう</div>`;
+    }
+    sfx.bell();
+    active = true;
+  }
+
+  function endNight() {
+    active = false;
+    const total = S.sales + S.tips;
+    const avg = S.log.reduce((s, l) => s + l.score, 0) / S.log.length;
+    const title = avg >= 90 ? '伝説のバーテンダー' : avg >= 80 ? '街いちばんの名店' : avg >= 65 ? '常連がつく店' : avg >= 45 ? 'まだまだ修行中' : '今夜は早じまい';
+    const best = loadBest(); const prev = best[S.diff] || 0; const isNew = total > prev;
+    if (isNew) { best[S.diff] = total; saveBest(best); }
+    $('avatar').textContent = '🌙'; $('custName').textContent = 'CLOSED';
+    $('bubble').textContent = '本日の営業は終了しました。';
+    showCard(`
+      <h2 class="serif">閉店</h2>
+      <div class="lead">${DIFFS[S.diff].n} ・ 平均 ${Math.round(avg)} 点</div>
+      <div class="big serif" style="color:#ffd9a6">${title}</div>
+      <table class="breakdown">
+        ${S.log.map(l => `<tr><td>${l.c.e} ${l.c.n}<br><span style="color:var(--sub);font-size:11px">${l.left ? '待ちきれず帰った' : l.name + '・' + l.score + '点'}</span></td><td>${yen(l.sale + l.tip)}</td></tr>`).join('')}
+      </table>
+      <div class="money"><div>売上 <b>${yen(S.sales)}</b></div><div>チップ <b>${yen(S.tips)}</b></div></div>
+      <div class="score">${yen(total)}</div>
+      <div class="lead" style="margin-top:6px">${isNew ? '🎉 自己ベスト更新！' : '自己ベスト ' + yen(prev)}</div>
+      <button class="primary" id="againBtn">もう一晩</button>
+      <button class="tbtn" id="topBtn" style="width:100%;margin-top:8px">タイトルへ</button>`);
+    $('againBtn').onclick = () => startNight(S.diff);
+    $('topBtn').onclick = showTitle;
+  }
+
+  // ---------- 画面 ----------
+  function showCard(html) { $('card').innerHTML = html; $('card').scrollTop = 0; $('overlay').classList.add('show'); }
+  function hideCard() { $('overlay').classList.remove('show'); }
+
+  function showTitle() {
+    active = false;
+    const best = loadBest();
+    showCard(`
+      <h2 class="serif">BAR 夜更け</h2>
+      <div class="lead serif">今夜も、一杯ずつ丁寧に。</div>
+      <ul>
+        <li>お客さんの注文どおりにカクテルを作るゲームです</li>
+        <li><b>ボトルを長押し</b>で注ぎ、離すと止まります</li>
+        <li>グラス・氷・ステア／シェイク・飾りまで揃えて<b>「提供する」</b></li>
+        <li>「おまかせ」の注文は、📖レシピ帳の味のタグから選びます</li>
+        <li>一晩 ${NIGHT} 人。待たせるほどチップが減ります</li>
+      </ul>
+      ${Object.entries(DIFFS).map(([k, d]) => `<button class="tbtn diff" data-k="${k}"><b>${d.n}</b>${best[k] ? `<span style="float:right;color:var(--good);font-size:12px">ベスト ${yen(best[k])}</span>` : ''}<small>${d.d}</small></button>`).join('')}
+    `);
+    document.querySelectorAll('.diff').forEach(b => b.onclick = () => { audio(); startNight(b.dataset.k); });
+  }
+
+  function showBook() {
+    if ($('overlay').classList.contains('show')) return; // 結果画面などの上では開かない
+    showCard(`
+      <h2 class="serif" style="font-size:20px">レシピ帳</h2>
+      <div class="lead">開いている間もお客さんは待っています</div>
+      ${Object.values(RECIPES).map(r => `<div class="recipe">
+        <div class="rn serif">${r.n}</div>
+        <div>${Object.entries(r.ing).map(([k, v]) => `${ING[k].n} ${v}ml`).join(' ／ ')}</div>
+        <div class="meta">${GLASSES[r.g].n}・氷${r.ice ? 'あり' : 'なし'}・${METHODS[r.m]}・飾り:${GARNISH[r.gar]}</div>
+        <div>${r.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+      </div>`).join('')}
+      <button class="primary" id="closeBook">閉じる</button>`);
+    $('closeBook').onclick = hideCard;
+  }
+
+  // ---------- ループ ----------
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (active && S) {
+      if (pouring && D.glass) {
+        const cap = GLASSES[D.glass].cap, t = totalVol();
+        let add = ING[pouring].r * dt;
+        if (t + add >= cap) {
+          add = cap - t; addLiquid(pouring, add);
+          D.spilled = true; toast('あふれた！'); stopPour();
+        } else addLiquid(pouring, add);
+        if (pouring) { sfx.pourLevel(totalVol() / cap); updateReadout(); }
+      }
+      S.cur.patience -= dt;
+      const f = Math.max(0, S.cur.patience / PATIENCE);
+      const bar = $('patienceBar');
+      bar.style.width = (f * 100) + '%';
+      bar.style.background = f > 0.5 ? 'var(--amber)' : f > 0.25 ? '#e0884a' : 'var(--bad)';
+      if (S.cur.patience <= 0) {
+        stopPour(); active = false; hideCard();
+        finishCustomer(null, null);
+      }
+    }
+    draw(now);
+    requestAnimationFrame(loop);
+  }
+
+  buildUI();
+  resize();
+  S = { diff: 'novice' };
+  refreshTools();
+  showTitle();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
