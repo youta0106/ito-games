@@ -1445,7 +1445,6 @@ function buildMenu(){
     c.save();c.translate(220,k==='drone'?110:156);c.rotate(k==='drone'?.05:-.148);c.scale(2.3,2.3);
     drawVehicle(c,k,{spin:.4,prop:.7});c.restore();
   }
-  applyTabs();
   $('#coins').textContent='● '+S.coins+' コイン　ベスト '+Math.floor(S.best.car||0)+' m';
   // オプションパーツ
   const os=$('#optSections');os.innerHTML='';
@@ -1532,6 +1531,8 @@ function buildMenu(){
       btn.onclick=()=>{if(S.equip.length>=S.slots)return;S.equip.push(sp.k);save();beep(700,.08,'square',.05);buildMenu();$('#sp-'+sp.k).focus()}}
     d.appendChild(btnCol(btn,SL?upBtn('sp',sp,'sp-'+sp.k):null));sps.appendChild(d);
   }
+  // オプションの欄は作り直したばかりなので、最後にタブの表示を合わせる
+  applyTabs();
 }
 if(!S.migOpt){let ref=0;for(const u of UPS)if(['bat','mot','sus','wing'].includes(u.k)){for(let i=0;i<(S.up[u.k]||0);i++)ref+=u.costs[i];S.up[u.k]=0}S.coins+=ref;S.migOpt=1;S.refund=ref;save()}
 if(!S.migUp){let ref=0;for(const u of UPS){for(let i=0;i<(S.up[u.k]||0);i++)ref+=u.costs[i]||0;S.up[u.k]=0}S.coins+=ref;S.migUp=1;save()}
