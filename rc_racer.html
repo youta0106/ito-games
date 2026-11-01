@@ -91,6 +91,13 @@ h2{margin:0;font-family:var(--display);font-weight:400;font-size:24px}
 .buy{all:unset;cursor:pointer;flex:none;padding:8px 12px;border-radius:9px;background:var(--accent);color:#1b1305;font-weight:800;font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .buy:disabled{background:#34465b;color:var(--muted);cursor:default}
 .buy:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.lvl{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:var(--accent)}
+.lvl .pips i{width:12px}
+.awk{font-size:11px;line-height:1.45;color:#6c7c8e}
+.awk.on{color:#ffd34d;font-weight:800}
+.btns{display:flex;flex-direction:column;gap:6px;align-self:center;align-items:stretch}
+.buy.up2{background:#5fd38a}
+.buy.up2:disabled{background:#34465b}
 .howto{margin:0;font-size:13px;color:var(--muted);line-height:1.8}
 .howto kbd{font-family:var(--body);background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--fg)}
 .res{max-width:440px;align-items:center;text-align:center;background:var(--panel);border:2px solid var(--line);border-radius:18px;padding:28px 22px}
@@ -112,14 +119,10 @@ h2{margin:0;font-family:var(--display);font-weight:400;font-size:24px}
   <div class="box">
     <p class="eyebrow">電池1本で、どこまで行ける？</p>
     <h1>ラジコンを<span>走らせろ</span></h1>
-    <p class="sub">リビングを出発して、庭、公園の坂、山道、雪山へ。電池が切れて止まったところまでの距離が記録です。道に落ちている電池で充電、コインでガレージ強化。</p>
+    <p class="sub">リビングを出発して、庭、公園の坂、山道、雪山へ。電池が切れて止まったところまでの距離が記録です。道に落ちている電池で充電。コインでパーツを買って、Lv5まで強化しよう。Lv5になると「かくせい」して特別な力がつきます。</p>
     <div class="cards" id="cards" hidden></div>
     <div class="topbar"><button class="btn go" id="go">スタート</button><span class="coins" id="coins">● 0</span></div>
     <div class="tabs" id="tabs" role="tablist" aria-label="ガレージ"></div>
-    <section class="shop" hidden>
-      <div class="shop-h"><h2>強化</h2><span class="muted">レベルを上げるほど効果アップ</span></div>
-      <div class="ups" id="ups"></div>
-    </section>
     <section class="shop" data-tab="body" data-label="車の形">
       <div class="shop-h"><h2>車の形</h2><span class="muted" id="bodyInfo">装着中：スタンダード</span></div>
       <p class="muted" style="margin:0">RCカーのボディを選べます。形ごとに速さや重さ、特別な能力が違います。</p>
@@ -133,7 +136,7 @@ h2{margin:0;font-family:var(--display);font-weight:400;font-size:24px}
     <div id="optSections"></div>
     <section class="shop" data-tab="sp" data-label="スペシャル">
       <div class="shop-h"><h2>スペシャルパーツ</h2><span class="muted" id="slotInfo">パーツ枠 1 / 5</span></div>
-      <p class="muted" style="margin:0">買ったパーツをパーツ枠に付けると効果が出ます。枠は最大5つまで増やせます。</p>
+      <p class="muted" style="margin:0">買ったパーツをパーツ枠に付けると効果が出ます。枠は最大5つまで増やせます。スペシャルパーツも Lv5 まで強化できます。</p>
       <div class="slots" id="slots"></div>
       <div class="sps" id="sps"></div>
     </section>
@@ -191,10 +194,10 @@ function mix(a,b,t){const A=hex(a),B=hex(b);return'rgb('+A.map((v,i)=>Math.round
 
 /* ---------- 保存 ---------- */
 const SAVE_KEY='rcdist_v1';
-let S={coins:0,up:{bat:0,mot:0,tire:0,sus:0,regen:0,wing:0,mag:0,nitro:0,roll:0,ab:0},best:{car:0,tank:0,drone:0},mode:'car',owned:{},equip:[],slots:1,tire:'normal',tires:{normal:true},body:'std',bodies:{std:true},opt:{motor:'std',sus:'std',wing:'none',battery:'std'},optOwned:{}};
+let S={coins:0,up:{bat:0,mot:0,tire:0,sus:0,regen:0,wing:0,mag:0,nitro:0,roll:0,ab:0},best:{car:0,tank:0,drone:0},mode:'car',owned:{},equip:[],slots:1,tire:'normal',tires:{normal:true},body:'std',bodies:{std:true},opt:{motor:'std',sus:'std',wing:'none',battery:'std'},optOwned:{},plv:{}};
 try{const v=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(v)S=Object.assign(S,v,{up:Object.assign(S.up,v.up||{}),best:Object.assign(S.best,v.best||{})})}catch(e){}
 if(!Array.isArray(S.equip))S.equip=[];if(!S.owned)S.owned={};S.slots=clamp(S.slots||1,1,5);if(!S.tires)S.tires={normal:true};S.tires.normal=true;if(!S.tires[S.tire])S.tire='normal';if(!S.bodies)S.bodies={std:true};S.bodies.std=true;if(!S.bodies[S.body])S.body='std';
-S.opt=Object.assign({motor:'std',sus:'std',wing:'none',battery:'std'},S.opt||{});S.optOwned=S.optOwned||{};
+S.opt=Object.assign({motor:'std',sus:'std',wing:'none',battery:'std'},S.opt||{});S.optOwned=S.optOwned||{};S.plv=S.plv||{};
 S.mode='car';
 function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(S))}catch(e){}}
 
@@ -309,8 +312,8 @@ const MODES={
   drone:{name:'RCドローン',goal:'坂は関係なし。でも浮かぶたびに電池を使う。',drain:[1.0,5.6],stat:[.7,.4,.45]},
 };
 const has=k=>S.equip.includes(k);
-const ABL=()=>has('ab')?3:0;
-const mulBat=()=>(1+0.22*S.up.bat)*OP('battery').cap,mulMot=()=>(1+0.1*S.up.mot)*(has('turbo')?1.3:1)*OP('motor').pow,mulTire=()=>(1+0.12*S.up.tire)*(has('spike')?1.5:1);
+const ABL=()=>has('ab')?2+spLv('ab'):0;
+const mulBat=()=>OP('battery').cap,mulMot=()=>(has('turbo')?SPV.turbo():1)*OP('motor').pow,mulTire=()=>has('spike')?SPV.spike():1;
 // タイヤ：grip=グリップ spd=最高速 pow=パワー drain=電池の減り r=大きさ damp=着地の吸収 snow=雪道 puddle=水たまりでの減速 stick=地面への吸い付き
 const TIRES=[
   {k:'normal',name:'ノーマルタイヤ',cost:0,grip:1,spd:1,pow:1,drain:1,r:1,damp:1,snow:.7,puddle:1,stick:0,
@@ -334,7 +337,7 @@ const TIRES=[
   {k:'magnet',name:'マグネットタイヤ',cost:900,grip:1.4,spd:.9,pow:1,drain:1.08,r:1,damp:1.2,snow:1,puddle:1,stick:1,
     tread:'#3a2a5a',rim:'#b78cff',pat:'ring',feat:'地面に吸い付いてひっくり返りにくい。最高速は少し下'},
 ];
-const TIRE=()=>TIRES.find(t=>t.k===S.tire)||TIRES[0];
+const TIRE=()=>LV('tire',TIRES.find(t=>t.k===S.tire)||TIRES[0]);
 // 車の形（RCカー専用）：spd=最高速 pow=パワー I=重さ（回りにくさ） drain=電池の減り air=空中での回しやすさ
 const W2=(a,b,r=14,y=14)=>[{lx:-a,ly:y,r,drive:1},{lx:b,ly:y,r,drive:1}];
 const BODIES=[
@@ -362,7 +365,7 @@ const BODIES=[
   {k:'rocket',name:'ロケットカー',cost:900,spd:1.08,pow:1.05,I:1.1,drain:1,air:1,heatMul:.55,nitroMul:1.6,wheels:W2(26,26),bumps:[[-44,2],[38,2]],heads:[[-10,-20],[10,-18],[0,-22]],
     feat:'アフターバーナーが熱くなりにくく、ニトロが1.6倍長く続く'},
 ];
-const BODY=()=>BODIES.find(b=>b.k===S.body)||BODIES[0];
+const BODY=()=>LV('body',BODIES.find(b=>b.k===S.body)||BODIES[0]);
 // オプションパーツ（タイヤと同じく、種類を買って1つずつ付ける）
 const OPTS={
   motor:{name:'モーター',note:'パワーと最高速、電池の減り方が変わります。',
@@ -414,7 +417,7 @@ const OPTS={
       {k:'dream',name:'夢の電池',cost:1600,cap:2,pick:1.5,I:.9,reserve:15,col:'#ff7ab8',feat:'容量2倍、回復1.5倍、予備電池まで付いている'},
     ]},
 };
-const OP=c=>OPTS[c].items.find(i=>i.k===(S.opt||{})[c])||OPTS[c].items[0];
+const OP=c=>LV(c,OPTS[c].items.find(i=>i.k===(S.opt||{})[c])||OPTS[c].items[0]);
 function carCfg(){
   const b=BODY(),m=MODES.car;
   return Object.assign({},m,{I:m.I*b.I,motor:m.motor*b.pow,maxSpd:m.maxSpd*b.spd,drain:[m.drain[0],m.drain[1]*b.drain],
@@ -436,6 +439,8 @@ const SPECIALS=[
   {k:'bigbat',name:'大容量電池パック',icon:'+',col:'#9be36a',cost:1200,desc:'電池の上限が150%になる'},
   {k:'spike',name:'スパイクタイヤ',icon:'▲',col:'#c9ced4',cost:900,desc:'グリップ +50%。雪や水たまりでもすべらない'},
   {k:'slowmo',name:'スローモーション',icon:'◷',col:'#ff7ab8',cost:1500,desc:'落とし穴の上を飛んでいる間、時間がゆっくり流れる'},
+  {k:'regen',name:'回生モーター',icon:'回',col:'#5fd38a',cost:700,desc:'下り坂やブレーキ中に電池を充電する'},
+  {k:'mag',name:'コイン磁石',icon:'磁',col:'#ff5d5d',cost:600,desc:'離れたコインや電池も吸い寄せる'},
 ];
 const UPS=[
   {k:'bat',name:'電池容量',desc:'電池が長持ちする',costs:[40,100,200,380,650],fx:l=>'電池の減り '+Math.round(100/(1+.22*l))+'%'},
@@ -449,6 +454,74 @@ const UPS=[
   {k:'ab',name:'アフターバーナー',desc:'押している間ジェットで加速。熱くなりすぎると冷えるまで使えない',costs:[120,260,450,700,1000],fx:l=>l?'推力 '+Math.round(100+15*(l-1))+'%・連続 '+(2.5*(1+.25*(l-1))).toFixed(1)+'秒':'まだ付いていない'},
   {k:'roll',name:'ロールバー',desc:'ひっくり返り・墜落から自動で起き上がる',costs:[200,500,1000],fx:l=>l?'1回の走行で '+l+'回':'まだ付いていない'},
 ];
+
+/* ---------- パーツのレベル（Lv1〜5）と かくせい ---------- */
+// 買ったパーツは Lv1。強化すると、そのパーツの「得意なところ」だけが伸びる（苦手はそのまま）
+const MAXP=5;
+// [向き, 基準]：向き 1 は大きいほど良い、-1 は小さいほど良い。基準からのはなれ具合を Lv ごとに 20% ずつ大きくする
+const GOOD={
+  body:{spd:[1,1],pow:[1,1],drain:[-1,1],air:[1,1],coinMul:[1,1],batPick:[1,30],heatMul:[-1,1],nitroMul:[1,1]},
+  tire:{grip:[1,1],spd:[1,1],pow:[1,1],drain:[-1,1],snow:[1,.7],puddle:[-1,1]},
+  motor:{pow:[1,1],spd:[1,1],drain:[-1,1]},
+  sus:{damp:[1,1],I:[1,1],flip:[1,0]},
+  wing:{air:[1,1],grip:[1,1],spd:[1,1],glide:[-1,1],level:[1,0]},
+  battery:{cap:[1,1],pick:[1,1],reserve:[1,0]},
+};
+// 得意なところが ない パーツ（ノーマルなど）は ここが Lv ごとに 4% 伸びる
+const FALL={body:'spd',tire:'grip',motor:'pow',sus:'I',wing:'grip',battery:'cap'};
+const AWK_TXT={body:'コインが 1.25倍',tire:'雪道でも水たまりでも すべらない',motor:'スタートから4秒間、パワー1.4倍のダッシュ',sus:'大ジャンプのあと着地すると 電池 +2%',wing:'空中にいる間は 電池が減らない',battery:'電池が切れても もう1回 20% 復活'};
+const plvKey=(cat,k)=>cat+':'+k;
+const ownedP=(cat,it)=>cat==='body'?!!S.bodies[it.k]:cat==='tire'?!!S.tires[it.k]:cat==='sp'?!!S.owned[it.k]:(it.cost===0||!!(S.optOwned[cat]||{})[it.k]);
+const lvOf=(cat,it)=>ownedP(cat,it)?clamp(S.plv[plvKey(cat,it.k)]||1,1,MAXP):0;
+const canUp=(cat,it)=>!(cat==='wing'&&it.k==='none');
+const upCost=(it,lv)=>Math.round(Math.max(100,it.cost)*.6*lv/10)*10;
+const LVC={};
+function LV(cat,it){
+  const lv=Math.max(1,lvOf(cat,it)),key=cat+':'+it.k+':'+lv;
+  if(LVC[key])return LVC[key];
+  const o=Object.assign({},it),g=GOOD[cat],m=1+.2*(lv-1);let any=false;
+  for(const f in g){
+    const v=it[f];if(typeof v!=='number')continue;
+    const [d,ref]=g[f],dev=v-ref;
+    if(dev*d>0){o[f]=d<0?Math.max(.35,ref+dev*m):ref+dev*m;any=true}
+  }
+  if(!any&&canUp(cat,it)){const f=FALL[cat],d=g[f][0];o[f]=it[f]*(1+.04*(lv-1)*d)}
+  o.lv=lv;return LVC[key]=o;
+}
+// つけているパーツが Lv5 なら かくせい
+const AWK=cat=>{const it=cat==='body'?BODIES.find(b=>b.k===S.body):cat==='tire'?TIRES.find(t=>t.k===S.tire):OPTS[cat].items.find(i=>i.k===S.opt[cat]);return!!it&&canUp(cat,it)&&lvOf(cat,it)>=MAXP};
+const spLv=k=>has(k)?lvOf('sp',{k}):0;
+const spAwk=k=>spLv(k)>=MAXP;
+// スペシャルパーツの つよさ（l = レベル）
+const SPV={
+  turbo:()=>1.3+.05*(spLv('turbo')-1)+(spAwk('turbo')?.1:0),
+  spike:()=>1.5+.1*(spLv('spike')-1),
+  glider:()=>.45-.04*(spLv('glider')-1),
+  antigrav:()=>.75-.03*(spLv('antigrav')-1),
+  coin2:()=>has('coin2')?(spAwk('coin2')?3:2+.25*(spLv('coin2')-1)):1,
+  bigbat:()=>150+12.5*(spLv('bigbat')-1),
+  solar:()=>.7*(1+.25*(spLv('solar')-1))*(spAwk('solar')?2:1),
+  jump:()=>520+40*(spLv('jump')-1),
+  slowmo:()=>.5-.05*(spLv('slowmo')-1),
+  mag:()=>35*spLv('mag')*(spAwk('mag')?2:1),
+};
+const SP_LV={
+  nitro:   {fx:l=>'1回の走行で '+(1+l)+'回',awk:'ニトロ中はカラスに当たらない'},
+  roll:    {fx:l=>'1回の走行で '+(1+l)+'回',awk:'起き上がると 電池 +10%'},
+  ab:      {fx:l=>'推力 '+Math.round(100+15*l)+'%',awk:'冷えるのが2倍はやい'},
+  turbo:   {fx:l=>'パワー・最高速 +'+Math.round(30+5*(l-1))+'%',awk:'さらに +10%（合計 +60%）'},
+  glider:  {fx:l=>'落ちる速さ '+Math.round(100*(.45-.04*(l-1)))+'%',awk:'グライダーで落ちている間は 電池が減らない'},
+  solar:   {fx:l=>'充電 '+(.7*(1+.25*(l-1))).toFixed(2)+'%/秒',awk:'充電が2倍'},
+  jump:    {fx:l=>'ジャンプ力 '+Math.round(100*(520+40*(l-1))/520)+'%',awk:'オートジャンプのたびに コイン +3'},
+  shield:  {fx:l=>'落とし穴から '+(1+Math.floor((l-1)/2))+'回 跳ね戻る',awk:'カラスを弾くと 電池 +5%'},
+  antigrav:{fx:l=>'重力 '+Math.round(100*(.75-.03*(l-1)))+'%',awk:'空中で拾ったコインが2倍'},
+  coin2:   {fx:l=>'コイン ×'+(2+.25*(l-1)).toFixed(2),awk:'コイン ×3'},
+  bigbat:  {fx:l=>'電池の上限 '+Math.round(150+12.5*(l-1))+'%',awk:'上限 200%'},
+  spike:   {fx:l=>'グリップ +'+Math.round(50+10*(l-1))+'%',awk:'雪山で最高速 +15%'},
+  slowmo:  {fx:l=>'時間の速さ '+Math.round(100*(.5-.05*(l-1)))+'%',awk:'スロー中は 電池が減らない'},
+  regen:   {fx:l=>'充電 +'+(.7*l).toFixed(1)+'%/秒',awk:'平らな道でも 0.3%/秒 充電'},
+  mag:     {fx:l=>'吸い寄せ範囲 +'+35*l,awk:'吸い寄せ範囲 2倍'},
+};
 
 /* ---------- 音 ---------- */
 let AC=null,eng=null;
@@ -481,7 +554,7 @@ function newGame(mode,state){
   const y0=gy(START_X);
   G={mode,cfg:mode==='car'?carCfg():MODES[mode],state,cd:2.6,t:0,
     p:{x:START_X,y:y0-(mode==='drone'?30:34),vx:0,vy:0,a:0,av:0,spin:0,prop:0,ground:false},
-    reserve:OP('battery').reserve||0,battery:has('bigbat')?150:100,maxBat:has('bigbat')?150:100,shield:has('shield')?1:0,slow:false,maxX:START_X,coins:0,nitros:has('nitro')?2:0,nitroT:0,rolls:has('roll')?2:0,regenOn:false,heat:0,overheat:false,abOn:false,stillT:0,stuckT:0,reason:'',endT:0,
+    reserve:Math.round(OP('battery').reserve||0),reserve2:AWK('battery')?20:0,battery:has('bigbat')?SPV.bigbat():100,maxBat:has('bigbat')?SPV.bigbat():100,shield:has('shield')?1+Math.floor((spLv('shield')-1)/2):0,slow:false,maxX:START_X,coins:0,nitros:has('nitro')?1+spLv('nitro'):0,nitroT:0,rolls:has('roll')?1+spLv('roll'):0,dash:0,airT:0,regenOn:false,heat:0,overheat:false,abOn:false,stillT:0,stuckT:0,reason:'',endT:0,
     parts:[],shake:0,msg:'',msgT:0,zone:0,cam:{x:START_X,y:y0-80},attract:0};
 }
 newGame(S.mode,'menu');
@@ -521,9 +594,9 @@ function say(t,d=1.4){G.msg=t;G.msgT=d}
 /* ---------- 物理 ---------- */
 const K=9000,DMP=120;
 function stepCar(dt,inp){
-  const g=G,p=g.p,c=g.cfg,mt=mulTire(),nb=g.nitroT>0,mm=mulMot()*(nb?1.35:1);
+  const g=G,p=g.p,c=g.cfg,mt=mulTire(),nb=g.nitroT>0,mm=mulMot()*(nb?1.35:1)*(g.dash>0?1.4:1);
   const on=g.battery>0,gas=nb||(on&&inp.gas),brk=!nb&&on&&inp.brk;
-  const SU=OP('sus'),WG=OP('wing'),drives=c.wheels.length,sus=S.up.sus+SU.flip,I=c.I*(1+.15*S.up.sus)*SU.I*OP('battery').I,damp=DMP*(1+.2*S.up.sus)*SU.damp,wing=(1+.25*S.up.wing)*WG.air/Math.sqrt(OP('battery').I),lev=S.up.wing+WG.level;
+  const SU=OP('sus'),WG=OP('wing'),drives=c.wheels.length,sus=SU.flip,I=c.I*SU.I*OP('battery').I,damp=DMP*SU.damp,wing=WG.air/Math.sqrt(OP('battery').I),lev=WG.level;
   p.vy+=GRAV*gravMul(p)*dt;
   if(g.abOn){const F=950*(1+.15*(ABL()-1));p.vx+=Math.cos(p.a)*F*dt;p.vy+=Math.sin(p.a)*F*dt;
     const sp=Math.hypot(p.vx,p.vy);if(sp>1150){p.vx*=1150/sp;p.vy*=1150/sp}}
@@ -532,7 +605,7 @@ function stepCar(dt,inp){
   const wl=.45*(c.wl||1),tc=p.ground&&pitch<-wl?clamp(1+(pitch+wl)*2.5,0,1):1;
   let contacts=0,vtSum=0;
   const ca=Math.cos(p.a),sn=Math.sin(p.a);
-  const TT=TIRE(),snowZ=zoneAt(toM(p.x))===4,tg=TT.grip*(snowZ?(has('spike')?Math.max(1,TT.snow):TT.snow):1);
+  const TT=TIRE(),snowZ=zoneAt(toM(p.x))===4,tg=TT.grip*(snowZ?(has('spike')||AWK('tire')?Math.max(1,TT.snow):TT.snow):1),snowSp=snowZ&&spAwk('spike')?1.15:1;
   const pts=c.wheels.map(w=>({w,r:w.r*TT.r,drive:true,mu:c.mu*mt*tg*WG.grip})).concat(c.bumps.map(b=>({w:b,r:3,drive:false,mu:.5})));
   for(const q of pts){
     const lx=q.w.lx,ly=q.w.ly;
@@ -548,7 +621,7 @@ function stepCar(dt,inp){
     const maxF=q.mu*Fn;let Ft=0;
     if(q.drive){
       vtSum+=vt;
-      if(gas){if(vt<c.maxSpd*mm/OP('motor').pow*OP('motor').spd*WG.spd*TT.spd)Ft=Math.min(c.motor*mm*TT.pow*(nb?1.6:1)*tc/drives,maxF)}
+      if(gas){if(vt<c.maxSpd*mm/OP('motor').pow*OP('motor').spd*WG.spd*TT.spd*snowSp)Ft=Math.min(c.motor*mm*TT.pow*(nb?1.6:1)*tc/drives,maxF)}
       else if(brk){if(vt>20)Ft=-Math.min(c.motor*1.3/drives,maxF);else if(vt>-c.maxSpd*.35)Ft=-Math.min(c.motor*.6*mm/drives,maxF)}
       else Ft=-clamp(vt*1.5,-maxF*.12,maxF*.12);
     }else Ft=-clamp(vt*4,-maxF,maxF);
@@ -561,7 +634,7 @@ function stepCar(dt,inp){
   }
   p.ground=contacts>0;
   if(p.ground&&TT.stick){const s2=slopeAt(p.x),L2=Math.hypot(1,s2);p.vx-=s2/L2*700*dt;p.vy+=1/L2*700*dt}
-  if(p.ground)for(const f of FEATS)if(f.type==='puddle'&&p.x>f.x0-10&&p.x<f.x1+10){if(!has('spike'))p.vx*=Math.exp(-1.7*TIRE().puddle*dt);G.inPuddle=f;}
+  if(p.ground)for(const f of FEATS)if(f.type==='puddle'&&p.x>f.x0-10&&p.x<f.x1+10){if(!has('spike')&&!AWK('tire'))p.vx*=Math.exp(-1.7*TIRE().puddle*dt);G.inPuddle=f;}
   if(!p.ground){const aw=wing*(c.air||1);if(gas&&!nb)p.av-=2.3*aw*dt;if(brk)p.av+=3*aw*dt;if(lev&&!inp.gas&&!inp.brk)p.av-=pitch*.9*lev*dt;p.av*=Math.exp(-(.8+.3*lev)*dt);p.av=clamp(p.av,-3.5,3.5)}
   else{if(TT.stick)p.av-=pitch*6*dt;if(brk&&pitch<-.3)p.av+=2*dt;if(pitch<-.8)p.av+=(4+sus)*dt;p.av*=Math.exp(-1.2*dt)}
   p.av=clamp(p.av,-7,7);
@@ -576,12 +649,12 @@ function stepCar(dt,inp){
     if(hy>gy(hx)+1){crash('ひっくり返った！');return}
   }
 }
-function gravMul(p){const fall=!p.ground&&p.vy>0;return(has('antigrav')?.75:1)*(has('glider')&&fall?.45:1)*(G.cfg.glide&&fall?.62:1)*(fall?OP('wing').glide:1)}
+function gravMul(p){const fall=!p.ground&&p.vy>0;return(has('antigrav')?SPV.antigrav():1)*(has('glider')&&fall?SPV.glider():1)*(G.cfg.glide&&fall?.62:1)*(fall?OP('wing').glide:1)}
 function stepDrone(dt,inp){
   const g=G,p=g.p,mm=mulMot(),mt=mulTire();
   const on=g.battery>0,up=on&&inp.gas,slow=on&&inp.brk,nb=g.nitroT>0;
   p.vy+=GRAV*gravMul(p)*dt;
-  if(up)p.vy-=1720*mm*(1+.06*S.up.wing)*dt;
+  if(up)p.vy-=1720*mm*dt;
   if(g.abOn){const F=900*(1+.15*(ABL()-1));p.vx+=Math.cos(p.a)*F*dt;p.vy+=Math.sin(p.a)*F*dt*.5}
   const target=nb?520*mm:g.abOn?Math.max(p.vx,320*mm):on?(slow?70:320*mm):0;
   const ground=gy(p.x);
@@ -614,6 +687,7 @@ function crash(reason){
   if(reason!=='落とし穴に落ちた！'&&g.rolls>0){
     g.rolls--;const p=g.p;
     p.a=g.mode==='drone'?0:Math.atan(slopeAt(p.x));p.y=gy(p.x)-(g.mode==='drone'?40:36);p.vx=0;p.vy=-80;p.av=0;
+    if(spAwk('roll'))g.battery=Math.min(g.maxBat,g.battery+10);
     say('ロールバー発動！'+(g.rolls?' のこり'+g.rolls+'回':''),1.4);beep(520,.12,'square',.07);setTimeout(()=>beep(780,.18,'square',.07),110);
     for(let i=0;i<14;i++)g.parts.push({x:p.x,y:p.y,vx:(Math.random()-.5)*220,vy:-Math.random()*200,life:.6,max:.6,col:'rgba(255,230,140,',s:3+Math.random()*3});
     return;
@@ -628,7 +702,7 @@ function update(dt){
   g.slow=false;
   if(g.state==='play'&&has('slowmo')&&!p.ground){
     for(const f of FEATS)if(f.type==='pit'&&p.x>f.x0-80&&p.x<f.x1+40){g.slow=true;break}
-    if(g.slow)dt*=.5;
+    if(g.slow)dt*=SPV.slowmo();
   }
   for(const q of g.parts){q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=300*dt;q.life-=dt}
   g.parts=g.parts.filter(q=>q.life>0);
@@ -642,14 +716,14 @@ function update(dt){
   if(g.state==='countdown'){
     const pr=Math.ceil(g.cd);g.cd-=dt;
     if(Math.ceil(g.cd)!==pr&&g.cd>0)beep(520,.14);
-    if(g.cd<=0){g.state='play';beep(1040,.3,'square',.07);say('GO!',.8)}
+    if(g.cd<=0){g.state='play';beep(1040,.3,'square',.07);if(AWK('motor')){g.dash=4;say('スタートダッシュ！',1)}else say('GO!',.8)}
   }
   const live=g.state==='play'||g.state==='ending';
   const inp=g.state==='play'?input():{gas:false,brk:false};
   g.abOn=false;
   if(g.state==='play'&&ABL()>0){
     if(inp.ab&&!g.overheat&&g.battery>0){g.abOn=true;g.heat+=40/(1+.25*(ABL()-1))*(g.cfg.heatMul||1)*dt}
-    else g.heat-=28*dt;
+    else g.heat-=28*(spAwk('ab')?2:1)*dt;
     g.heat=clamp(g.heat,0,100);
     if(g.heat>=100&&!g.overheat){g.overheat=true;say('オーバーヒート！',1.2);noise(.3,.1);beep(300,.4,'square',.05,-150)}
     if(g.overheat&&g.heat<=30)g.overheat=false;
@@ -669,11 +743,18 @@ function update(dt){
     if(g.nitroT>0){g.nitroT-=dt;const fx=Math.cos(p.a),fy=Math.sin(p.a);if(Math.random()<.9)g.parts.push({x:p.x-fx*40,y:p.y-fy*40,vx:-fx*220+(Math.random()-.5)*60,vy:-fy*220+(Math.random()-.5)*60,life:.35,max:.35,col:Math.random()<.5?'rgba(120,200,255,':'rgba(255,200,80,',s:3+Math.random()*5})}
     if(inp.nitro)useNitro();
     const spd=Math.hypot(p.vx,p.vy);
-    g.regenOn=S.up.regen>0&&!inp.gas&&g.nitroT<=0&&spd>90&&(g.mode==='drone'?p.vy>60:p.ground&&(inp.brk||p.vy>25));
-    if(g.regenOn)g.battery=Math.min(g.maxBat,g.battery+.6*S.up.regen*dt);
-    if(has('solar')&&g.battery>0)g.battery=Math.min(g.maxBat,g.battery+.7*dt);
-    if(g.battery>0){
+    if(g.dash>0)g.dash-=dt;
+    // サスペンションの かくせい：大ジャンプのあと着地で 電池 +2%
+    if(!p.ground)g.airT+=dt;else{if(g.airT>.7&&AWK('sus')&&g.battery>0){g.battery=Math.min(g.maxBat,g.battery+2);say('ナイス着地！ 電池 +2%',.9);beep(990,.1,'triangle',.06)}g.airT=0}
+    g.regenOn=spLv('regen')>0&&!inp.gas&&g.nitroT<=0&&spd>90&&(g.mode==='drone'?p.vy>60:p.ground&&(inp.brk||p.vy>25));
+    if(g.regenOn)g.battery=Math.min(g.maxBat,g.battery+.7*spLv('regen')*dt);
+    else if(spAwk('regen')&&g.battery>0)g.battery=Math.min(g.maxBat,g.battery+.3*dt);
+    if(has('solar')&&g.battery>0)g.battery=Math.min(g.maxBat,g.battery+SPV.solar()*dt);
+    // ウイング・グライダー・スローの かくせい：電池が減らない
+    const free=(!p.ground&&g.mode==='car'&&(AWK('wing')||(spAwk('glider')&&p.vy>0)))||(g.slow&&spAwk('slowmo'));
+    if(g.battery>0&&!free){
       g.battery-=(c.drain[0]+c.drain[1]*using*(g.mode==='drone'?1:TIRE().drain)*OP('motor').drain+(g.abOn?3.5:0))/mulBat()*dt;
+      if(g.battery<=0&&!g.reserve&&g.reserve2){g.reserve=g.reserve2;g.reserve2=0}
       if(g.battery<=0&&g.reserve>0){g.battery=g.reserve;g.reserve=0;say('予備電池で復活！ +'+g.battery+'%',1.6);beep(660,.12,'triangle',.08);setTimeout(()=>beep(990,.18,'triangle',.08),100)}
       if(g.battery<=0){g.battery=0;say('電池切れ…',1.8);beep(420,.6,'sawtooth',.06,-260)}
     }
@@ -682,11 +763,11 @@ function update(dt){
     if(zi>g.zone){g.zone=zi;say(ZONES[zi].name+'に着いた！',1.8);beep(784,.12,'triangle',.07);setTimeout(()=>beep(1046,.2,'triangle',.07),120)}
     // 拾う
     for(const k of PICKS){
-      if(k.taken||Math.abs(k.x-p.x)>60+40*S.up.mag)continue;
+      if(k.taken||Math.abs(k.x-p.x)>60+SPV.mag())continue;
       const ky=(k.pitTop!==undefined?k.pitTop-90:gy(k.x))-(k.type==='bat'?30:26);
-      if(Math.hypot(k.x-p.x,ky-p.y)<(g.mode==='drone'?44:48)+40*S.up.mag){
+      if(Math.hypot(k.x-p.x,ky-p.y)<(g.mode==='drone'?44:48)+SPV.mag()){
         k.taken=true;
-        if(k.type==='coin'){g.coins+=(has('coin2')?2:1)*(g.cfg.coinMul||1);beep(1200+Math.random()*200,.07,'square',.04)}
+        if(k.type==='coin'){g.coins+=SPV.coin2()*(g.cfg.coinMul||1)*(AWK('body')?1.25:1)*(spAwk('antigrav')&&!p.ground?2:1);beep(1200+Math.random()*200,.07,'square',.04)}
         else{const bp=Math.round((g.cfg.batPick||30)*OP('battery').pick);g.battery=Math.min(g.maxBat,g.battery+bp);say('充電 +'+bp+'%',1.1);beep(660,.1,'triangle',.08);setTimeout(()=>beep(990,.14,'triangle',.08),90)}
       }
     }
@@ -694,7 +775,7 @@ function update(dt){
     g.springCD=Math.max(0,(g.springCD||0)-dt);
     for(const f of FEATS){
       if(f.type==='pit'&&has('jump')&&g.mode!=='drone'&&!f.jumped&&p.ground&&p.vx>60&&f.x0-p.x>0&&f.x0-p.x<70){
-        f.jumped=true;p.vy=Math.min(p.vy,-520);p.av*=.3;say('オートジャンプ！',.8);beep(420,.25,'sine',.08,500);
+        f.jumped=true;p.vy=Math.min(p.vy,-SPV.jump());p.av*=.3;if(spAwk('jump'))g.coins+=3;say('オートジャンプ！'+(spAwk('jump')?' +3':''),.8);beep(420,.25,'sine',.08,500);
       }
       if(f.type==='pit'&&p.x>f.x0-10&&p.x<f.x1+10&&p.y>f.top+110){
         if(g.shield>0){
@@ -716,8 +797,9 @@ function update(dt){
       const by=b.y+Math.sin(tb*3+b.ph)*14;
       if(g.cfg.police&&Math.hypot(b.x-p.x,by-p.y)<150){b.hit=true;say('カラスが逃げた！',.8);beep(1400,.08,'square',.03);setTimeout(()=>beep(1000,.08,'square',.03),90);continue}
       if(Math.hypot(b.x-p.x,by-p.y)<(has('shield')?50:36)&&has('shield')){
-        b.hit=true;say('バリアでカラスを弾いた！',1);beep(990,.15,'sine',.06);continue;
+        b.hit=true;if(spAwk('shield'))g.battery=Math.min(g.maxBat,g.battery+5);say('バリアでカラスを弾いた！'+(spAwk('shield')?' +5%':''),1);beep(990,.15,'sine',.06);continue;
       }
+      if(g.nitroT>0&&spAwk('nitro')&&Math.hypot(b.x-p.x,by-p.y)<36){b.hit=true;say('ニトロでカラスをかわした！',.8);continue}
       if(Math.hypot(b.x-p.x,by-p.y)<36){
         b.hit=true;g.battery=Math.max(0,g.battery-12);p.vx*=.45;p.vy=Math.min(p.vy,-120);
         say('カラスにぶつかった！ 電池 -12%',1.4);noise(.15,.15);beep(500,.2,'square',.06,-250);
@@ -1263,7 +1345,7 @@ function endRun(){
 }
 function showResult(){
   const g=G;g.state='result';
-  const dist=Math.max(0,toM(g.maxX)),bonus=Math.floor(dist/5)*(has('coin2')?2:1),earned=Math.floor(g.coins)+bonus;
+  const dist=Math.max(0,toM(g.maxX)),bonus=Math.floor(Math.floor(dist/5)*SPV.coin2()),earned=Math.floor(g.coins)+bonus;
   const prev=S.best[g.mode];
   S.coins+=earned;if(dist>prev)S.best[g.mode]=dist;save();
   $('#rMode').textContent=g.cfg.name+'・'+ZONES[zoneAt(dist)].name+'まで';
@@ -1325,6 +1407,24 @@ function drawOptIcon(c,cat,it){
   }
   c.restore();
 }
+// レベル表示（Lv と かくせい）と 強化ボタン
+function lvHTML(cat,it,awkTxt){
+  if(!canUp(cat,it))return'';
+  const lv=lvOf(cat,it);
+  return'<span class="lvl">'+(lv?'Lv '+lv+' / '+MAXP:'Lv 0')+'<span class="pips">'+Array.from({length:MAXP},(_,i)=>'<i class="'+(i<lv?'on':'')+'"></i>').join('')+'</span></span>'+
+    '<span class="awk'+(lv>=MAXP?' on':'')+'">'+(lv>=MAXP?'✨ かくせい：':'Lv5 かくせい：')+awkTxt+'</span>';
+}
+function upBtn(cat,it,id){
+  if(!canUp(cat,it)||!ownedP(cat,it))return null;
+  const lv=lvOf(cat,it),b=document.createElement('button');b.className='buy up2';b.id='up-'+id;
+  if(lv>=MAXP){b.textContent='MAX';b.disabled=true;return b}
+  const c=upCost(it,lv);b.textContent='強化 ● '+c;b.disabled=S.coins<c;
+  b.onclick=()=>{if(S.coins<c)return;S.coins-=c;S.plv[plvKey(cat,it.k)]=lv+1;save();initAudio();beep(660,.08,'square',.06);setTimeout(()=>beep(990,.12,'square',.06),80);
+    if(lv+1>=MAXP)setTimeout(()=>beep(1320,.25,'triangle',.08),180);
+    if(cat==='body'||cat==='tire')newGame(S.mode,'menu');buildMenu();const nb=$('#up-'+id);if(nb)nb.focus()};
+  return b;
+}
+function btnCol(...bs){const w=document.createElement('div');w.className='btns';for(const b of bs)if(b)w.appendChild(b);return w}
 function buildMenu(){
   const wrap=$('#cards');wrap.innerHTML='';
   for(const k of[]){
@@ -1347,16 +1447,6 @@ function buildMenu(){
   }
   applyTabs();
   $('#coins').textContent='● '+S.coins+' コイン　ベスト '+Math.floor(S.best.car||0)+' m';
-  const ups=$('#ups');ups.innerHTML='';
-  for(const u of UPS.filter(u=>!['bat','mot','sus','wing'].includes(u.k))){
-    const lv=S.up[u.k],max=u.costs.length,cost=u.costs[lv];
-    const d=document.createElement('div');d.className='up';
-    d.innerHTML='<div class="t"><b>'+u.name+'</b><span>'+u.desc+'</span><span class="fx">'+u.fx(lv)+(lv<max?' → '+u.fx(lv+1):'')+'</span><span class="pips">'+Array.from({length:max},(_,i)=>'<i class="'+(i<lv?'on':'')+'"></i>').join('')+'</span></div>';
-    const btn=document.createElement('button');btn.className='buy';btn.id='buy-'+u.k;
-    if(lv>=max){btn.textContent='最大';btn.disabled=true}
-    else{btn.textContent='● '+cost;btn.disabled=S.coins<cost;btn.onclick=()=>{if(S.coins<cost)return;S.coins-=cost;S.up[u.k]++;save();initAudio();beep(880,.1,'triangle',.07);buildMenu();const nb=$('#buy-'+u.k);if(nb)nb.focus()}}
-    d.appendChild(btn);ups.appendChild(d);
-  }
   // オプションパーツ
   const os=$('#optSections');os.innerHTML='';
   for(const cat in OPTS){
@@ -1366,14 +1456,15 @@ function buildMenu(){
     const grid=sec.querySelector('.tires');
     for(const it of O.items){
       const d=document.createElement('div');d.className='ti'+(cur.k===it.k?' on':'');
+      const L=LV(cat,it);
       d.innerHTML='<canvas width="112" height="112"></canvas><div class="t"><b>'+it.name+'</b><span class="feat">'+it.feat+'</span><span class="stats">'+
-        O.stats.map(st=>bar2(st[0],typeof st[1]==='function'?st[1](it):it[st[1]])).join('')+'</span></div>';
+        O.stats.map(st=>bar2(st[0],typeof st[1]==='function'?st[1](L):L[st[1]])).join('')+'</span>'+lvHTML(cat,it,AWK_TXT[cat])+'</div>';
       const btn=document.createElement('button');btn.className='buy';btn.id='opt-'+cat+'-'+it.k;
       const owned=it.cost===0||own[it.k];
       if(cur.k===it.k){btn.textContent='装着中';btn.classList.add('on');btn.disabled=true}
       else if(owned){btn.textContent='付ける';btn.onclick=()=>{S.opt[cat]=it.k;save();initAudio();beep(700,.08,'square',.05);buildMenu();$('#opt-'+cat+'-'+it.k).focus()}}
       else{btn.textContent='● '+it.cost;btn.disabled=S.coins<it.cost;btn.onclick=()=>{if(S.coins<it.cost)return;S.coins-=it.cost;(S.optOwned[cat]=S.optOwned[cat]||{})[it.k]=true;S.opt[cat]=it.k;save();initAudio();beep(880,.1,'triangle',.07);setTimeout(()=>beep(1320,.15,'triangle',.07),90);buildMenu();$('#opt-'+cat+'-'+it.k).focus()}}
-      d.appendChild(btn);grid.appendChild(d);
+      d.appendChild(btnCol(btn,upBtn(cat,it,cat+'-'+it.k)));grid.appendChild(d);
       drawOptIcon(d.querySelector('canvas').getContext('2d'),cat,it);
     }
     os.appendChild(sec);
@@ -1383,13 +1474,14 @@ function buildMenu(){
   const bw=$('#bodies');bw.innerHTML='';
   for(const b of BODIES){
     const d=document.createElement('div');d.className='ti'+(S.body===b.k?' on':'');
+    const L=LV('body',b);
     d.innerHTML='<canvas class="wide" width="192" height="112"></canvas><div class="t"><b>'+b.name+'</b><span class="feat">'+b.feat+'</span><span class="stats">'+
-      bar2('スピード',b.spd)+bar2('パワー',b.pow)+bar2('安定性',Math.sqrt(b.I)*(b.wheels[1].lx-b.wheels[0].lx)/48)+bar2('電池もち',1/b.drain)+'</span></div>';
+      bar2('スピード',L.spd)+bar2('パワー',L.pow)+bar2('安定性',Math.sqrt(L.I)*(b.wheels[1].lx-b.wheels[0].lx)/48)+bar2('電池もち',1/L.drain)+'</span>'+lvHTML('body',b,AWK_TXT.body)+'</div>';
     const btn=document.createElement('button');btn.className='buy';btn.id='body-'+b.k;
     if(S.body===b.k){btn.textContent='装着中';btn.classList.add('on');btn.disabled=true}
     else if(S.bodies[b.k]){btn.textContent='付ける';btn.onclick=()=>{S.body=b.k;if(S.mode!=='car')S.mode='car';save();initAudio();beep(700,.08,'square',.05);newGame(S.mode,'menu');buildMenu();$('#body-'+b.k).focus()}}
     else{btn.textContent='● '+b.cost;btn.disabled=S.coins<b.cost;btn.onclick=()=>{if(S.coins<b.cost)return;S.coins-=b.cost;S.bodies[b.k]=true;S.body=b.k;S.mode='car';save();initAudio();beep(880,.1,'triangle',.07);setTimeout(()=>beep(1320,.15,'triangle',.07),90);newGame(S.mode,'menu');buildMenu();$('#body-'+b.k).focus()}}
-    d.appendChild(btn);bw.appendChild(d);
+    d.appendChild(btnCol(btn,upBtn('body',b,'body-'+b.k)));bw.appendChild(d);
     const cc=d.querySelector('canvas').getContext('2d');cc.clearRect(0,0,192,112);cc.save();cc.translate(96,52);cc.scale(1.55,1.55);drawCar(cc,.3,b);cc.restore();
   }
   // タイヤ
@@ -1398,13 +1490,14 @@ function buildMenu(){
   const bar=(label,v)=>{const w=clamp((v-.6)/(1.5-.6),.05,1);return '<span>'+label+'</span><span class="bar"><i class="'+(v>1.04?'hi':v<.96?'lo':'')+'" style="width:'+Math.round(w*100)+'%"></i></span>'};
   for(const t of TIRES){
     const d=document.createElement('div');d.className='ti'+(S.tire===t.k?' on':'');
+    const L=LV('tire',t);
     d.innerHTML='<canvas width="112" height="112"></canvas><div class="t"><b>'+t.name+'</b><span class="feat">'+t.feat+'</span><span class="stats">'+
-      bar('スピード',t.spd*(.5+.5*t.pow))+bar('グリップ',t.grip)+bar('電池もち',1/t.drain)+bar('雪道',t.snow/.7*.9)+'</span></div>';
+      bar('スピード',L.spd*(.5+.5*L.pow))+bar('グリップ',L.grip)+bar('電池もち',1/L.drain)+bar('雪道',L.snow/.7*.9)+'</span>'+lvHTML('tire',t,AWK_TXT.tire)+'</div>';
     const btn=document.createElement('button');btn.className='buy';btn.id='tire-'+t.k;
     if(S.tire===t.k){btn.textContent='装着中';btn.classList.add('on');btn.disabled=true}
     else if(S.tires[t.k]){btn.textContent='付ける';btn.onclick=()=>{S.tire=t.k;save();initAudio();beep(700,.08,'square',.05);newGame(S.mode,'menu');buildMenu();$('#tire-'+t.k).focus()}}
     else{btn.textContent='● '+t.cost;btn.disabled=S.coins<t.cost;btn.onclick=()=>{if(S.coins<t.cost)return;S.coins-=t.cost;S.tires[t.k]=true;S.tire=t.k;save();initAudio();beep(880,.1,'triangle',.07);setTimeout(()=>beep(1320,.15,'triangle',.07),90);buildMenu();$('#tire-'+t.k).focus()}}
-    d.appendChild(btn);tw.appendChild(d);
+    d.appendChild(btnCol(btn,upBtn('tire',t,'tire-'+t.k)));tw.appendChild(d);
     const cc=d.querySelector('canvas').getContext('2d');cc.clearRect(0,0,112,112);wheel(cc,56,56,48*Math.min(1,t.r)*(t.r>1.2?1.1:1),.3,t);
   }
   // スペシャルパーツ
@@ -1429,14 +1522,15 @@ function buildMenu(){
   const sps=$('#sps');sps.innerHTML='';
   for(const sp of SPECIALS){
     const d=document.createElement('div');d.className='sp';
-    d.innerHTML='<span class="ic" style="background:'+sp.col+'">'+sp.icon+'</span><div class="t"><b>'+sp.name+'</b><span>'+sp.desc+'</span></div>';
+    const sl2=lvOf('sp',sp),SL=SP_LV[sp.k];
+    d.innerHTML='<span class="ic" style="background:'+sp.col+'">'+sp.icon+'</span><div class="t"><b>'+sp.name+'</b><span>'+sp.desc+'</span>'+(SL?'<span class="fx" style="color:var(--accent);font-weight:700">'+SL.fx(Math.max(1,sl2))+(sl2&&sl2<MAXP?' → '+SL.fx(sl2+1):'')+'</span>'+lvHTML('sp',sp,SL.awk):'')+'</div>';
     const btn=document.createElement('button');btn.className='buy';btn.id='sp-'+sp.k;
     if(!S.owned[sp.k]){btn.textContent='● '+sp.cost;btn.disabled=S.coins<sp.cost;
       btn.onclick=()=>{if(S.coins<sp.cost)return;S.coins-=sp.cost;S.owned[sp.k]=true;if(S.equip.length<S.slots)S.equip.push(sp.k);save();initAudio();beep(880,.1,'triangle',.07);setTimeout(()=>beep(1320,.15,'triangle',.07),90);buildMenu();$('#sp-'+sp.k).focus()}}
     else if(has(sp.k)){btn.textContent='装着中';btn.classList.add('on');btn.onclick=()=>{S.equip=S.equip.filter(x=>x!==sp.k);save();buildMenu();$('#sp-'+sp.k).focus()}}
     else{const full=S.equip.length>=S.slots;btn.textContent=full?'枠がいっぱい':'付ける';btn.disabled=full;
       btn.onclick=()=>{if(S.equip.length>=S.slots)return;S.equip.push(sp.k);save();beep(700,.08,'square',.05);buildMenu();$('#sp-'+sp.k).focus()}}
-    d.appendChild(btn);sps.appendChild(d);
+    d.appendChild(btnCol(btn,SL?upBtn('sp',sp,'sp-'+sp.k):null));sps.appendChild(d);
   }
 }
 if(!S.migOpt){let ref=0;for(const u of UPS)if(['bat','mot','sus','wing'].includes(u.k)){for(let i=0;i<(S.up[u.k]||0);i++)ref+=u.costs[i];S.up[u.k]=0}S.coins+=ref;S.migOpt=1;S.refund=ref;save()}
